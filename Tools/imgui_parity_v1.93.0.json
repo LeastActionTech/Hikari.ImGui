@@ -1,0 +1,929 @@
+{
+  "source_root": "Hikari.ImGui",
+  "assembly": "(not supplied)",
+  "functions": {
+    "canonical_names": 1078,
+    "constructors_excluded": 3,
+    "bindings": {
+      "free_function": [
+        915,
+        806
+      ],
+      "member_function": [
+        173,
+        161
+      ]
+    },
+    "implemented": 957,
+    "fully_implemented": 957,
+    "partial": [],
+    "public_exposed": 672,
+    "misplaced": [],
+    "missing": [
+      {
+        "name": "SetAllocatorFunctions",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "GetAllocatorFunctions",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "MemAlloc",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "MemFree",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "append",
+        "owner": "ImGuiTextBuffer",
+        "collision": []
+      },
+      {
+        "name": "appendf",
+        "owner": "ImGuiTextBuffer",
+        "collision": []
+      },
+      {
+        "name": "appendfv",
+        "owner": "ImGuiTextBuffer",
+        "collision": []
+      },
+      {
+        "name": "_SetDrawListSharedData",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_TryMergeDrawCmds",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_SetTexture",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_AddRectFilledBaked",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_AddRectBaked",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_AddLine",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_AddRectTinyRounding",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "_SelectLineTexture",
+        "owner": "ImDrawList",
+        "collision": []
+      },
+      {
+        "name": "SetFontLoader",
+        "owner": "ImFontAtlas",
+        "collision": []
+      },
+      {
+        "name": "ImHashSkipUncontributingPrefix",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStricmp",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrnicmp",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrncpy",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrdup",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImMemdup",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrdupcpy",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrchrRange",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStreolRange",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStristr",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrTrimBlanks",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrSkipBlank",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrlenW",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImStrbol",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFormatStringToTempBufferV",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextCharToUtf8",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextStrToUtf8",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextStrFromUtf8",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextCountCharsFromUtf8",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextCountUtf8BytesFromChar",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextCountUtf8BytesFromStr",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextFindPreviousUtf8Codepoint",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextCountLines",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontCalcWordWrapPositionEx",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextCalcWordWrapNextLineStart",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextInitClassifiers",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextClassifierClear",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextClassifierSetCharClass",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextClassifierSetCharClassFromStr",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFileOpen",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFileClose",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFileGetSize",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFileRead",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFileWrite",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFileLoadToMemory",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImBezierCubicClosestPoint",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImBezierCubicClosestPointCasteljau",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImLowerBound",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "RegisterFontAtlas",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "UnregisterFontAtlas",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "Initialize",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ScaleRatioFromValueT",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ScaleValueFromRatioT",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "DragBehaviorT",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "SliderBehaviorT",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "RoundScalarWithFormatT",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "CheckboxFlagsT",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "DataTypeApplyOp",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "DataTypeCompare",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "DataTypeClamp",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasGetFontLoaderForStbTruetype",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildInit",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildDestroy",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildMain",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildSetupFontLoader",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildNotifySetFont",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildUpdatePointers",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildRenderBitmapFromString",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildClear",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureAdd",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureMakeSpace",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureRepack",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureGrow",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureCompact",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureGetSizeEstimate",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildSetupFontSpecialGlyphs",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildLegacyPreloadAllGlyphRanges",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildGetOversampleFactors",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBuildDiscardBakes",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontSourceInit",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontSourceAddToFont",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontDestroySourceData",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontInitOutput",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontDestroyOutput",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontRebuildOutput",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasFontDiscardBakes",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedGetId",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedGetOrAdd",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedGetClosestMatch",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedAdd",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedDiscard",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedAddFontGlyph",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedAddFontGlyphAdvancedX",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedDiscardFontGlyph",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasBakedSetFontGlyphBitmap",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasPackInit",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasPackAddRect",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasPackGetRect",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasPackGetRectSafe",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasPackDiscardRect",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasUpdateNewFrame",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasAddDrawListSharedData",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasRemoveDrawListSharedData",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasUpdateDrawListsTextures",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasUpdateDrawListsSharedData",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureBlockConvert",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureBlockPostProcess",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureBlockPostProcessMultiply",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureBlockFill",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureBlockCopy",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasTextureBlockQueueUpload",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextureDataUpdateNewFrame",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImTextureDataQueueUpload",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasDebugLogTextureRequests",
+        "owner": "ImGui",
+        "collision": []
+      },
+      {
+        "name": "ImFontAtlasGetMouseCursorTexData",
+        "owner": "ImGui",
+        "collision": []
+      }
+    ],
+    "unresolved_owners": [],
+    "overload_gaps": []
+  },
+  "categories": {
+    "Context": {
+      "canonical": 64,
+      "implemented": 64,
+      "public": 42,
+      "missing": 0
+    },
+    "Viewports": {
+      "canonical": 23,
+      "implemented": 23,
+      "public": 13,
+      "missing": 0
+    },
+    "Windows": {
+      "canonical": 74,
+      "implemented": 74,
+      "public": 48,
+      "missing": 0
+    },
+    "Demo": {
+      "canonical": 4,
+      "implemented": 4,
+      "public": 4,
+      "missing": 0
+    },
+    "MetricsDebug": {
+      "canonical": 47,
+      "implemented": 47,
+      "public": 18,
+      "missing": 0
+    },
+    "General": {
+      "canonical": 312,
+      "implemented": 256,
+      "public": 202,
+      "missing": 56
+    },
+    "FontAtlas": {
+      "canonical": 102,
+      "implemented": 45,
+      "public": 42,
+      "missing": 57
+    },
+    "WidgetSupport": {
+      "canonical": 47,
+      "implemented": 47,
+      "public": 21,
+      "missing": 0
+    },
+    "CoreWidgets": {
+      "canonical": 57,
+      "implemented": 56,
+      "public": 45,
+      "missing": 1
+    },
+    "IdStack": {
+      "canonical": 8,
+      "implemented": 8,
+      "public": 3,
+      "missing": 0
+    },
+    "InputWidgets": {
+      "canonical": 46,
+      "implemented": 44,
+      "public": 40,
+      "missing": 2
+    },
+    "Trees": {
+      "canonical": 16,
+      "implemented": 16,
+      "public": 11,
+      "missing": 0
+    },
+    "Helpers": {
+      "canonical": 18,
+      "implemented": 15,
+      "public": 7,
+      "missing": 3
+    },
+    "MultiSelect": {
+      "canonical": 11,
+      "implemented": 11,
+      "public": 4,
+      "missing": 0
+    },
+    "Menus": {
+      "canonical": 9,
+      "implemented": 9,
+      "public": 7,
+      "missing": 0
+    },
+    "Tooltips": {
+      "canonical": 9,
+      "implemented": 9,
+      "public": 7,
+      "missing": 0
+    },
+    "Popups": {
+      "canonical": 18,
+      "implemented": 18,
+      "public": 10,
+      "missing": 0
+    },
+    "Tables": {
+      "canonical": 74,
+      "implemented": 74,
+      "public": 21,
+      "missing": 0
+    },
+    "Columns": {
+      "canonical": 12,
+      "implemented": 12,
+      "public": 12,
+      "missing": 0
+    },
+    "Tabs": {
+      "canonical": 12,
+      "implemented": 12,
+      "public": 12,
+      "missing": 0
+    },
+    "Docking": {
+      "canonical": 40,
+      "implemented": 40,
+      "public": 40,
+      "missing": 0
+    },
+    "DragDrop": {
+      "canonical": 9,
+      "implemented": 9,
+      "public": 9,
+      "missing": 0
+    },
+    "DrawList": {
+      "canonical": 45,
+      "implemented": 45,
+      "public": 45,
+      "missing": 0
+    },
+    "Settings": {
+      "canonical": 21,
+      "implemented": 19,
+      "public": 9,
+      "missing": 2
+    }
+  },
+  "enums": {
+    "canonical_types": 87,
+    "present_types": 87,
+    "canonical_members": 1097,
+    "missing_members": [],
+    "value_mismatches": []
+  },
+  "structs": {
+    "canonical_types": 117,
+    "present_types": 102,
+    "fields_checked": 1081,
+    "absent_types": [
+      {
+        "name": "ImFontAtlasBuilder",
+        "fields": [
+          "PackContext",
+          "PackNodes",
+          "Rects",
+          "RectsIndex",
+          "TempBuffer",
+          "RectsIndexFreeListStart",
+          "RectsPackedCount",
+          "RectsPackedSurface",
+          "RectsDiscardedCount",
+          "RectsDiscardedSurface",
+          "FrameCount",
+          "MaxRectSize",
+          "MaxRectBounds",
+          "LockDisableResize",
+          "PreloadedAllGlyphsRanges",
+          "BakedPool",
+          "BakedMap",
+          "BakedDiscardedCount",
+          "PackIdMouseCursors",
+          "PackIdLinesTexData",
+          "PackIdLineFractTexData",
+          "PackIdCornersTexData",
+          "TexUvLines",
+          "TexUvCorners"
+        ]
+      },
+      {
+        "name": "ImFontLoader",
+        "fields": [
+          "Name",
+          "FontBakedSrcLoaderDataSize"
+        ]
+      },
+      {
+        "name": "ImDrawCmdHeader",
+        "fields": [
+          "ClipRect",
+          "TexRef",
+          "VtxOffset"
+        ]
+      },
+      {
+        "name": "ImFontAtlasPostProcessData",
+        "fields": [
+          "FontAtlas",
+          "Font",
+          "FontSrc",
+          "FontBaked",
+          "Glyph",
+          "Pixels",
+          "Format",
+          "Pitch",
+          "Width",
+          "Height"
+        ]
+      },
+      {
+        "name": "ImGuiInputTextDeactivateData",
+        "fields": []
+      },
+      {
+        "name": "ImGuiTableColumnsSettings",
+        "fields": []
+      },
+      {
+        "name": "STB_TexteditState",
+        "fields": []
+      },
+      {
+        "name": "stbrp_node",
+        "fields": []
+      },
+      {
+        "name": "stbrp_context_opaque",
+        "fields": [
+          "data"
+        ]
+      }
+    ],
+    "field_gaps": [
+      {
+        "name": "ImDrawData",
+        "fields": [
+          "OwnerViewport"
+        ]
+      },
+      {
+        "name": "ImDrawList",
+        "fields": [
+          "_VtxWritePtr",
+          "_IdxWritePtr",
+          "_CmdHeader",
+          "_CallbacksDataBuf"
+        ]
+      },
+      {
+        "name": "ImDrawListSplitter",
+        "fields": [
+          "_Current",
+          "_Count"
+        ]
+      },
+      {
+        "name": "ImFontAtlas",
+        "fields": [
+          "UserData",
+          "TexRef",
+          "TexList",
+          "RendererHasTextures",
+          "TexPixelsUseColors",
+          "DrawListSharedDatas",
+          "Builder",
+          "FontLoader",
+          "FontLoaderName",
+          "FontLoaderData",
+          "FontLoaderFlags",
+          "RefCount",
+          "OwnerContext",
+          "TempRect"
+        ]
+      },
+      {
+        "name": "ImFontBaked",
+        "fields": [
+          "FontLoaderDatas"
+        ]
+      },
+      {
+        "name": "ImFontConfig",
+        "fields": [
+          "FontLoader",
+          "FontLoaderData"
+        ]
+      }
+    ]
+  }
+}

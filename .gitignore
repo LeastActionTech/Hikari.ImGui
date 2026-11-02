@@ -1,0 +1,24 @@
+## .NET Artifacts
+bin/
+obj/
+artifacts/
+*.nupkg
+*.snupkg
+
+## Canonical Reference Checkout (Fetched via Tools/sync_imgui_reference.py)
+ThirdParty/imgui/
+
+## IDE and Editor Folders
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+## Python Cache
+__pycache__/
+*.pyc
+
+## OS Files
+.DS_Store
+Thumbs.db

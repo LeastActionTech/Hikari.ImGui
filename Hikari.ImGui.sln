@@ -1,0 +1,34 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.2.11415.280
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hikari.ImGui", "Hikari.ImGui\Hikari.ImGui.csproj", "{05F4A7AC-39FF-42BA-91AA-92A6799B041D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hikari.ImGui.Test", "Hikari.ImGui.Test\Hikari.ImGui.Test.csproj", "{478BA4B6-0AF2-4469-A9A4-5F704747D621}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hikari.ImGui.Demo", "Hikari.ImGui.Demo\Hikari.ImGui.Demo.csproj", "{E53B9390-8B9E-4B82-BED4-6C1C6496564C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{05F4A7AC-39FF-42BA-91AA-92A6799B041D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05F4A7AC-39FF-42BA-91AA-92A6799B041D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05F4A7AC-39FF-42BA-91AA-92A6799B041D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05F4A7AC-39FF-42BA-91AA-92A6799B041D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{478BA4B6-0AF2-4469-A9A4-5F704747D621}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{478BA4B6-0AF2-4469-A9A4-5F704747D621}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{478BA4B6-0AF2-4469-A9A4-5F704747D621}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{478BA4B6-0AF2-4469-A9A4-5F704747D621}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E53B9390-8B9E-4B82-BED4-6C1C6496564C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E53B9390-8B9E-4B82-BED4-6C1C6496564C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E53B9390-8B9E-4B82-BED4-6C1C6496564C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E53B9390-8B9E-4B82-BED4-6C1C6496564C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
