@@ -1,6 +1,6 @@
 # Hikari.ImGui
 
-A pure, standalone C# re-implementation of much-beloved and widely used immediate-mode GUI for 3D applications, **[Dear ImGui](https://github.com/ocornut/imgui)**, targeting version **v1.93.0-docking** with zero native dependencies.
+A pure, standalone C# re-implementation of the much-beloved and widely used immediate-mode GUI for 3D applications, **[Dear ImGui](https://github.com/ocornut/imgui)**, targeting version **v1.93.0-docking** with zero native dependencies.
 
 ---
 
