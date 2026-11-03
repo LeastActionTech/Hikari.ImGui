@@ -1,5 +1,4 @@
 // The MIT License (MIT)
-// Copyright (c) 2014-2026 Omar Cornut
 // Copyright (c) 2026 Least Action Technologies Inc.
 
 using System;

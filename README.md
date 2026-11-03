@@ -107,7 +107,7 @@ python3 Tools/verify_imgui_parity.py --json Tools/imgui_parity_v1.93.0.json
 ## Authors & Attribution
 
 - **Dear ImGui Design & Architecture**: Copyright (c) 2014-2026 [Omar Cornut](https://github.com/ocornut) and Dear ImGui contributors.
-- **C# Port & .NET Implementation**: Copyright (c) 2026 [Least Action Technologies Inc.](https://github.com/akshaym)
+- **C# Port & .NET Implementation, Hikari.ImGui.Test project and parts of Hikari.ImGui.Demo project**: Copyright (c) 2026 [Least Action Technologies Inc.](https://github.com/LeastActionTech)
 
 ---
 
