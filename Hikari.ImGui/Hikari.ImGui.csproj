@@ -12,7 +12,7 @@
     <Version>1.93.0</Version>
     <Authors>Least Action Technologies Inc., Omar Cornut</Authors>
     <Company>Least Action Technologies Inc.</Company>
-    <Copyright>Copyright (c) 2014-2026 Omar Cornut, Copyright (c) 2026 Least Action Technologies Inc.</Copyright>
+    <Copyright>Copyright (c) 2026 Least Action Technologies Inc., Copyright (c) 2014-2026 Omar Cornut and Dear ImGui cotributors</Copyright>
     <Description>Pure C# re-implementation of Dear ImGui v1.93.0-docking with zero native dependencies.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -26,7 +26,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\README.md" Pack="true" PackagePath="\" Link="README.md" />
   </ItemGroup>
 
   <ItemGroup>
