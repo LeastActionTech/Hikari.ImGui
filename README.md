@@ -1,25 +1,8 @@
 # Hikari.ImGui
 
-A pure, standalone C# re-implementation of **[Dear ImGui](https://github.com/ocornut/imgui)** targeting version **v1.93.0-docking** with **zero native dependencies**.
+A pure, standalone C# re-implementation of much-beloved and widely used immediate-mode GUI for 3D applications, **[Dear ImGui](https://github.com/ocornut/imgui)**, targeting version **v1.93.0-docking** with zero native dependencies.
 
-[![Build and Test](https://github.com/akshaym/Hikari.ImGui/actions/workflows/ci.yml/badge.svg)](https://github.com/akshaym/Hikari.ImGui/actions)
 [![NuGet](https://img.shields.io/badge/nuget-v1.93.0-blue.svg)](https://www.nuget.org/packages/Hikari.ImGui)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
----
-
-## Architecture & Design
-
-- **100% Managed .NET 10**: Zero native binaries, C/C++ runtimes, P/Invokes, or platform-specific shims. Runs natively across Linux, macOS, Windows, FreeBSD, ARM64, and x64.
-- **Canonical Parity**: Built against canonical Dear ImGui `v1.93.0-docking` (commit `b916186e66aa3c02b72c6ca17455516512ed8049`).
-- **Complete Subsystem Coverage**: 100% feature coverage across all 18 core Dear ImGui subsystems:
-  - **Docking**: Dock nodes, dockspaces, tab bars, window splitting, and persistence.
-  - **Modern Vector Tessellation**: Full v1.93 stroke positioning modes (`StrokeCenter`, `StrokeInside`, `StrokeOutside`, `StrokeLegacy`), line caps (`CapSquare`, `JoinMiter`), anti-aliased line ends (`AALineEnds`), draw flag scoping stack (`PushDrawFlag`/`PopDrawFlag`), and integer snap fast-paths (`AddLineH`/`AddLineV`).
-  - **Multi-Select & Mixed Values**: Tri-state checkboxes, radio buttons, sliders, and color edits supporting mixed-value multi-selection states (`ImGuiItemFlags.MixedValue`).
-  - **Tables & Layouts**: Multi-column sorting, freezing, clipping, and auto-sizing.
-  - **Popups, Modals & Menus**: Full popup and focus stacks (`OpenPopupStack`, `BeginPopupStack`).
-  - **Trees, Tooltips & Drag-and-Drop**: Complete interactive widget suite.
-- **Backend-Agnostic**: Generates standard `ImDrawData` mesh lists (vertices and 16/32-bit indices) ready for any graphics API (OpenGL, Vulkan, DirectX, Metal, WebGPU).
 
 ---
 
@@ -29,7 +12,7 @@ A pure, standalone C# re-implementation of **[Dear ImGui](https://github.com/oco
 Hikari.ImGui/
 ├── Hikari.ImGui.sln            # Visual Studio / dotnet solution file
 ├── Hikari.ImGui/               # Core pure C# Dear ImGui library (NuGet package)
-├── Hikari.ImGui.Demo/          # Interactive Silk.NET OpenGL demo host
+├── Hikari.ImGui.Demo/          # Interactive Silk.NET OpenGL / Vulkan demo host
 ├── Hikari.ImGui.Test/          # Regression & parity unit test suite (465 tests)
 ├── Tools/                      # Canonical reference sync and parity audit tools
 │   ├── sync_imgui_reference.py # Fetches canonical Dear ImGui C++ headers
@@ -85,10 +68,14 @@ ImDrawData drawData = ImGui.GetDrawData();
 
 ## Running the Interactive Demo
 
-The included demo host renders the canonical Dear ImGui demo window using Silk.NET and OpenGL:
+The included demo host renders the canonical Dear ImGui demo window using Silk.NET and OpenGL and Vulkan:
 
 ```bash
 dotnet run --project Hikari.ImGui.Demo -c Release
+```
+
+```bash
+dotnet run --project Hikari.ImGui.Demo -c Release --backend vulkan
 ```
 
 ---
@@ -120,7 +107,7 @@ python3 Tools/verify_imgui_parity.py --json Tools/imgui_parity_v1.93.0.json
 ## Authors & Attribution
 
 - **Dear ImGui Design & Architecture**: Copyright (c) 2014-2026 [Omar Cornut](https://github.com/ocornut) and Dear ImGui contributors.
-- **Pure C# Port & Modern .NET Implementation**: Copyright (c) 2026 [Least Action Technologies Inc.](https://github.com/akshaym)
+- **C# Port & .NET Implementation**: Copyright (c) 2026 [Least Action Technologies Inc.](https://github.com/akshaym)
 
 ---
 
