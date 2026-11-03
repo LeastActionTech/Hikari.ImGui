@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -10,10 +14,8 @@ namespace Hikari.ImGui.Test;
 /// and editor/picker items, plot scaling and hover sampling, and typing-select prefix matching.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c>; every test cites the canonical file and line range that defines the
-/// behavior it pins. Interaction is driven by queueing mouse position and button events before the
-/// frame that must observe them.
+/// Each test drives a real <see cref="ImGuiContext"/>. Interaction is driven by queueing mouse position
+/// and button events before the frame that must observe them.
 /// </remarks>
 [TestFixture]
 public class ColorAndPlotTests : ImGuiTestFixture
@@ -62,7 +64,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that normalized components pack into the canonical <c>IM_COL32</c> byte order with
     /// red least significant and alpha most significant. Canonical
-    /// <c>ColorConvertFloat4ToU32</c> (<c>ThirdParty/imgui/imgui.cpp:2945-2955</c>).
+    /// <c>ColorConvertFloat4ToU32</c>.
     /// </summary>
     [Test]
     public void ColorConvertFloat4ToU32_PacksCanonicalByteOrder()
@@ -75,7 +77,6 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that unpacking a packed color reproduces the byte fractions and that packing the
     /// result returns the original value. Canonical <c>ColorConvertU32ToFloat4</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2935-2943</c>).
     /// </summary>
     [Test]
     public void ColorConvertU32ToFloat4_RoundTrips()
@@ -93,7 +94,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical RGB-to-HSV branch network for the three primaries: red is hue 0,
     /// green is hue one third, and blue is hue two thirds, all fully saturated and valued. Canonical
-    /// <c>ColorConvertRGBtoHSV</c> (<c>ThirdParty/imgui/imgui.cpp:2957-2977</c>).
+    /// <c>ColorConvertRGBtoHSV</c>.
     /// </summary>
     [Test]
     public void ColorConvertRGBtoHSV_Primaries()
@@ -116,7 +117,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the canonical HSV-to-RGB six-sector branch structure for the three primaries.
-    /// Canonical <c>ColorConvertHSVtoRGB</c> (<c>ThirdParty/imgui/imgui.cpp:2979-3000</c>).
+    /// Canonical <c>ColorConvertHSVtoRGB</c>.
     /// </summary>
     [Test]
     public void ColorConvertHSVtoRGB_Primaries()
@@ -140,7 +141,6 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a fully desaturated hue collapses to the grey <c>(v, v, v)</c> result before
     /// any sector arithmetic runs. Canonical grey shortcut
-    /// (<c>ThirdParty/imgui/imgui.cpp:2979-3000</c>).
     /// </summary>
     [Test]
     public void ColorConvertHSVtoRGB_ZeroSaturationIsGrey()
@@ -159,7 +159,6 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.ColorButton"/> consumes exactly the requested size and reports
     /// a press only for a click inside that rectangle. Canonical layout and behavior
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6500-6560</c>).
     /// </summary>
     [Test]
     public void ColorButton_ItemRectMatchesRequestedSizeAndPresses()
@@ -189,7 +188,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// Verifies that an untouched <see cref="ImGui.ColorEdit4"/> with no component inputs reports
     /// false and leaves the caller's color untouched, while still emitting its preview geometry.
     /// Canonical <c>ColorEdit4</c> only writes the caller's buffer inside its
-    /// <c>value_changed</c> branch (<c>ThirdParty/imgui/imgui_widgets.cpp:5845-6096</c>).
+    /// <c>value_changed</c> branch.
     /// </summary>
     [Test]
     public void ColorEdit4_NoInputsUntouchedReturnsFalseAndLeavesColor()
@@ -214,7 +213,6 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an untouched <see cref="ImGui.ColorPicker4"/> reports false, preserves the
     /// caller's color, and emits the wheel and field geometry. Canonical <c>ColorPicker4</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6121-6444</c>).
     /// </summary>
     [Test]
     public void ColorPicker4_UntouchedReturnsFalseAndEmitsGeometry()
@@ -246,7 +244,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that hovering the middle of a line plot reports the sample index implied by the
     /// normalized cursor position and requests the canonical two-sample tooltip. Canonical plot core
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8955-9071</c>); with five samples the item count is
+    ///.; with five samples the item count is
     /// four, so the midpoint maps to index two.
     /// </summary>
     [Test]
@@ -284,7 +282,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that hovering the middle of a histogram reports the sample index implied by the
     /// normalized cursor position and requests the canonical single-sample tooltip. Canonical plot
-    /// core (<c>ThirdParty/imgui/imgui_widgets.cpp:8955-9071</c>); with five samples the midpoint
+    /// core.; with five samples the midpoint
     /// maps to index two.
     /// </summary>
     [Test]
@@ -321,8 +319,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that both public plot overloads consume exactly the requested graph size and emit
-    /// geometry. Canonical plot sizing and geometry
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8955-9071</c>, wrappers at <c>9088-9104</c>).
+    /// geometry. Canonical plot sizing and geometry.
     /// </summary>
     [Test]
     public void PlotLines_And_PlotHistogram_UseRequestedGraphSize()
@@ -365,7 +362,6 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that queued characters are collected into a typing-select request with a select
     /// request latched for the current frame. Canonical <c>GetTypingSelectRequest</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7672-7711</c>).
     /// </summary>
     [Test]
     public void TypingSelect_CollectsTypedPrefix()
@@ -389,8 +385,7 @@ public class ColorAndPlotTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the longest case-insensitive leading match wins and that the search stops as
     /// soon as the whole search buffer matches. Canonical <c>TypingSelectFindBestLeadingMatch</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7767-7783</c>) and <c>ImStrimmatchlen</c>
-    /// (<c>7713-7719</c>).
+    ///. and <c>ImStrimmatchlen</c>.
     /// </summary>
     [Test]
     public void TypingSelectFindBestLeadingMatch_ReturnsLongestPrefix()

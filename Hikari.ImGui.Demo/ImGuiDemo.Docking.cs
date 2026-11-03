@@ -1,4 +1,9 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using Hikari.ImGui;
 
@@ -13,7 +18,6 @@ public static partial class ImGuiDemo
 
     /// <summary>
     /// Configuration arguments for the advanced dockspace example.
-    /// (<c>ThirdParty/imgui/imgui_demo.cpp:10676-10681</c>)
     /// </summary>
     private sealed class ImGuiDemoDockspaceArgs
     {
@@ -94,7 +98,6 @@ public static partial class ImGuiDemo
     /// <summary>
     /// Demonstrates using <see cref="ImGui.DockSpace"/> and <see cref="ImGui.DockSpaceOverViewport"/>
     /// to provide a host docking area for other windows.
-    /// (<c>ThirdParty/imgui/imgui_demo.cpp:10759-10828</c>)
     /// </summary>
     /// <param name="pOpen">State controlling whether the example window is visible.</param>
     public static void ShowExampleAppDockSpace(ref bool pOpen)

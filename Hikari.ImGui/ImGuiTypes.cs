@@ -1,57 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-/*================================================================================================
- * DEAR IMGUI TYPES, STYLE, AND INPUT/OUTPUT STATE
- *================================================================================================
- * ROLE IN ENGINE:
- * Defines the canonical value types, enums, and shared configuration structures used by the
- * Hikari.ImGui port of Dear ImGui v1.92.9b-docking. ImGuiStyle holds the runtime metric and color
- * palette that the widget layer reads while drawing, and ImGuiIO carries host configuration, queued
- * input, and per-frame output flags that the host backend writes and the widget layer consumes.
- *
- * SUBSYSTEM CONNECTIONS & DATA FLOW:
- *
- *    ┌────────────────────────────────────┐
- *    │ Host backend (Hikari.ImGui.Demo)   │
- *    │ • submits Add* input events        │
- *    │ • writes DisplaySize and DeltaTime │
- *    └────────────────────────────────────┘
- *                                  │ Add* events and configuration
- *                                  ▼
- *    ┌───────────────────────────────────────────────┐
- *    │ ImGuiIO                                       │
- *    │ • KeysData[ImGuiKey.NamedKey_COUNT] key state │
- *    │ • mouse state, character queue, output flags  │
- *    └───────────────────────────────────────────────┘
- *                                  │ per-frame input snapshot
- *                                  ▼
- *    ┌───────────────────────────────────────────────┐
- *    │ ImGui context and widget layer (later chunks) │
- *    │ • reads ImGuiStyle metrics and Colors[]       │
- *    └───────────────────────────────────────────────┘
- *
- *   ImGuiStyle is constructed once by the host and read by the widget layer:
- *
- *    ┌────────────────────────────────────────────────────────┐
- *    │ ImGuiStyle                                             │
- *    │ • metric fields, ScaleAllSizes, canonical dark palette │
- *    └────────────────────────────────────────────────────────┘
- *
- * STYLIZED USAGE EXAMPLE:
- *
- *   var io = new ImGuiIO();
- *   io.DisplaySize = new ImVec2(1920.0f, 1080.0f);
- *   io.AddKeyEvent(ImGuiKey.Space, true);
- *   io.AddInputCharacter('h');
- *
- *   var style = new ImGuiStyle();
- *   style.ScaleAllSizes(1.5f);
- *   ImVec4 accent = style.Colors[(int)ImGuiCol.ButtonActive];
- *
- * THREADING & LIFECYCLE NOTES:
- * - ImGuiIO and ImGuiStyle are plain single-threaded structures. The host backend mutates them on
- *   the main application thread before a frame is submitted, and the widget layer reads them during
- *   frame submission. No internal synchronization is provided.
- *================================================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -145,7 +96,7 @@ public enum ImDrawFlags
     InvalidMask_ = unchecked((int)0x8000000F), // == 0x8000000F as signed integer
     ImDrawFlags_InvalidMask_ = InvalidMask_,
 
-    // Obsolete aliases (renamed in 1.93.0)
+    // Obsolete aliases
     RoundCornersTopLeft = RoundTopLeft,
     ImDrawFlags_RoundCornersTopLeft = RoundCornersTopLeft,
     RoundCornersTopRight = RoundTopRight,
@@ -174,7 +125,7 @@ public enum ImDrawFlags
 
 /// <summary>
 /// Specifies flags that control draw list rendering features such as anti-aliasing and vertex offsets.
-/// Merged into <see cref="ImDrawFlags"/> in 1.93.0.
+/// Merged into <see cref="ImDrawFlags"/>.
 /// </summary>
 [Flags]
 public enum ImDrawListFlags : uint
@@ -2977,37 +2928,72 @@ public struct ImVec2 : IEquatable<ImVec2>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ImVec2(Vector2 v) => new(v.X, v.Y);
 
+    /// <summary>Adds two vectors component-wise.</summary>
+    /// <param name="lhs">The left-hand vector operand.</param>
+    /// <param name="rhs">The right-hand vector operand.</param>
+    /// <returns>A new <see cref="ImVec2"/> representing the sum of the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator +(ImVec2 lhs, ImVec2 rhs) => new(lhs.X + rhs.X, lhs.Y + rhs.Y);
 
+    /// <summary>Subtracts one vector from another component-wise.</summary>
+    /// <param name="lhs">The vector to subtract from.</param>
+    /// <param name="rhs">The vector to subtract.</param>
+    /// <returns>A new <see cref="ImVec2"/> representing the difference of the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator -(ImVec2 lhs, ImVec2 rhs) => new(lhs.X - rhs.X, lhs.Y - rhs.Y);
 
+    /// <summary>Multiplies a vector by a scalar value.</summary>
+    /// <param name="lhs">The vector to scale.</param>
+    /// <param name="rhs">The scalar factor.</param>
+    /// <returns>A new <see cref="ImVec2"/> scaled by the specified factor.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator *(ImVec2 lhs, float rhs) => new(lhs.X * rhs, lhs.Y * rhs);
 
+    /// <summary>Multiplies a vector by a scalar value.</summary>
+    /// <param name="lhs">The scalar factor.</param>
+    /// <param name="rhs">The vector to scale.</param>
+    /// <returns>A new <see cref="ImVec2"/> scaled by the specified factor.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator *(float lhs, ImVec2 rhs) => new(lhs * rhs.X, lhs * rhs.Y);
 
+    /// <summary>Multiplies two vectors component-wise.</summary>
+    /// <param name="lhs">The left-hand vector operand.</param>
+    /// <param name="rhs">The right-hand vector operand.</param>
+    /// <returns>A new <see cref="ImVec2"/> resulting from component-wise multiplication.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator *(ImVec2 lhs, ImVec2 rhs) => new(lhs.X * rhs.X, lhs.Y * rhs.Y);
 
+    /// <summary>Divides a vector by a scalar value.</summary>
+    /// <param name="lhs">The vector to divide.</param>
+    /// <param name="rhs">The scalar divisor.</param>
+    /// <returns>A new <see cref="ImVec2"/> divided by the specified scalar.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator /(ImVec2 lhs, float rhs) => new(lhs.X / rhs, lhs.Y / rhs);
 
+    /// <summary>Divides one vector by another component-wise.</summary>
+    /// <param name="lhs">The vector dividend.</param>
+    /// <param name="rhs">The vector divisor.</param>
+    /// <returns>A new <see cref="ImVec2"/> resulting from component-wise division.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator /(ImVec2 lhs, ImVec2 rhs) => new(lhs.X / rhs.X, lhs.Y / rhs.Y);
 
+    /// <summary>Negates each component of a vector.</summary>
+    /// <param name="v">The vector to negate.</param>
+    /// <returns>A new <see cref="ImVec2"/> with inverted components.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec2 operator -(ImVec2 v) => new(-v.X, -v.Y);
 
     /// <summary>Determines whether two vectors have equal components.</summary>
     /// <param name="lhs">The left vector.</param>
     /// <param name="rhs">The right vector.</param>
-    /// <returns>True when the components are equal.</returns>
+    /// <returns><see langword="true"/> when the components are equal; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(ImVec2 lhs, ImVec2 rhs) => lhs.X == rhs.X && lhs.Y == rhs.Y;
 
+    /// <summary>Determines whether two vectors have different components.</summary>
+    /// <param name="lhs">The left vector.</param>
+    /// <param name="rhs">The right vector.</param>
+    /// <returns><see langword="true"/> if any component differs; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(ImVec2 lhs, ImVec2 rhs) => !(lhs == rhs);
 
@@ -3096,25 +3082,45 @@ public struct ImVec4 : IEquatable<ImVec4>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ImVec4(Vector4 v) => new(v.X, v.Y, v.Z, v.W);
 
+    /// <summary>Adds two 4D vectors component-wise.</summary>
+    /// <param name="lhs">The left-hand vector operand.</param>
+    /// <param name="rhs">The right-hand vector operand.</param>
+    /// <returns>A new <see cref="ImVec4"/> representing the sum of the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec4 operator +(ImVec4 lhs, ImVec4 rhs) => new(lhs.X + rhs.X, lhs.Y + rhs.Y, lhs.Z + rhs.Z, lhs.W + rhs.W);
 
+    /// <summary>Subtracts one 4D vector from another component-wise.</summary>
+    /// <param name="lhs">The vector to subtract from.</param>
+    /// <param name="rhs">The vector to subtract.</param>
+    /// <returns>A new <see cref="ImVec4"/> representing the difference of the two vectors.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec4 operator -(ImVec4 lhs, ImVec4 rhs) => new(lhs.X - rhs.X, lhs.Y - rhs.Y, lhs.Z - rhs.Z, lhs.W - rhs.W);
 
+    /// <summary>Multiplies a 4D vector by a scalar value.</summary>
+    /// <param name="lhs">The vector to scale.</param>
+    /// <param name="rhs">The scalar factor.</param>
+    /// <returns>A new <see cref="ImVec4"/> scaled by the specified factor.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec4 operator *(ImVec4 lhs, float rhs) => new(lhs.X * rhs, lhs.Y * rhs, lhs.Z * rhs, lhs.W * rhs);
 
+    /// <summary>Divides a 4D vector by a scalar value.</summary>
+    /// <param name="lhs">The vector to divide.</param>
+    /// <param name="rhs">The scalar divisor.</param>
+    /// <returns>A new <see cref="ImVec4"/> divided by the specified scalar.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ImVec4 operator /(ImVec4 lhs, float rhs) => new(lhs.X / rhs, lhs.Y / rhs, lhs.Z / rhs, lhs.W / rhs);
 
-    /// <summary>Determines whether two vectors have equal components.</summary>
+    /// <summary>Determines whether two 4D vectors have equal components.</summary>
     /// <param name="lhs">The left vector.</param>
     /// <param name="rhs">The right vector.</param>
-    /// <returns>True when the components are equal.</returns>
+    /// <returns><see langword="true"/> when the components are equal; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(ImVec4 lhs, ImVec4 rhs) => lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z && lhs.W == rhs.W;
 
+    /// <summary>Determines whether two 4D vectors have different components.</summary>
+    /// <param name="lhs">The left vector.</param>
+    /// <param name="rhs">The right vector.</param>
+    /// <returns><see langword="true"/> if any component differs; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(ImVec4 lhs, ImVec4 rhs) => !(lhs == rhs);
 
@@ -3541,8 +3547,8 @@ public struct ImRect : IEquatable<ImRect>
 /// <remarks>
 /// <para>
 /// Field names, declaration order, and default values follow canonical Dear ImGui
-/// <c>ImGuiStyle</c>, declared in <c>ThirdParty/imgui/imgui.h:2394-2496</c>, with defaults taken from
-/// <c>ImGuiStyle::ImGuiStyle()</c> in <c>ThirdParty/imgui/imgui.cpp:1535-1627</c>. Metric values are
+/// <c>ImGuiStyle</c>., with defaults taken from
+/// <c>ImGuiStyle::ImGuiStyle()</c>. Metric values are
 /// expressed in unscaled logical units; call <see cref="ScaleAllSizes"/> to apply a global display
 /// scale.
 /// </para>
@@ -3904,14 +3910,13 @@ public sealed class ImGuiStyle
 
     /// <summary>
     /// Gets or sets a value indicating whether anti-aliased lines use textures where possible.
-    /// Obsolete since 1.93.0; texture-based line rendering is now standard.
+    /// Obsolete; texture-based line rendering is now standard.
     /// </summary>
-    [Obsolete("Obsolete since 1.93.0; texture-based line rendering is now standard.")]
+    [Obsolete("Obsolete; texture-based line rendering is now standard.")]
     public bool AntiAliasedLinesUseTex { get; set; } = true;
 
     /// <summary>
     /// Gets or sets whether anti-aliased line ends are enabled using textures. Defaults to true.
-    /// (<c>ThirdParty/imgui/imgui.h:2044</c>)
     /// </summary>
     public bool AntiAliasedLineEnds { get; set; } = true;
 
@@ -3923,7 +3928,6 @@ public sealed class ImGuiStyle
 
     /// <summary>
     /// Gets or sets the maximum error (in pixels) for bezier curves, circles and ellipses tessellation. Defaults to 1.25f.
-    /// (<c>ThirdParty/imgui/imgui.h:2046</c>)
     /// </summary>
     public float CurveTessellationMaxError { get; set; } = 1.25f;
 
@@ -3935,9 +3939,9 @@ public sealed class ImGuiStyle
 
     /// <summary>
     /// Gets or sets the maximum pixel error allowed when approximating circles and rounded corners
-    /// without an explicit segment count. Obsoleted in 1.93.0 in favor of <see cref="CurveTessellationMaxError"/>.
+    /// without an explicit segment count. Obsolete in favor of <see cref="CurveTessellationMaxError"/>.
     /// </summary>
-    [Obsolete("Obsolete in 1.93.0; use CurveTessellationMaxError instead.")]
+    [Obsolete("Obsolete; use CurveTessellationMaxError instead.")]
     public float CircleTessellationMaxError
     {
         get => CurveTessellationMaxError;
@@ -3994,7 +3998,7 @@ public sealed class ImGuiStyle
     /// </summary>
     /// <remarks>
     /// The property initializers carry the canonical values from <c>ImGuiStyle::ImGuiStyle()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1535-1627</c>). The constructor applies
+    ///. The constructor applies
     /// <see cref="SetDarkTheme"/> last, matching the canonical call to <c>ImGui::StyleColorsDark</c>.
     /// </remarks>
     public ImGuiStyle()
@@ -4007,7 +4011,7 @@ public sealed class ImGuiStyle
     /// </summary>
     /// <remarks>
     /// The values reproduce <c>ImGui::StyleColorsDark</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:187-260</c>). Derived slots such as
+    ///. Derived slots such as
     /// <see cref="ImGuiCol.CheckboxSelectedBg"/> and the tab colors are computed with the canonical
     /// interpolation expressions instead of hardcoded values.
     /// </remarks>
@@ -4034,7 +4038,7 @@ public sealed class ImGuiStyle
         colors[(int)ImGuiCol.ScrollbarGrabHovered] = new(0.41f, 0.41f, 0.41f, 1.00f);
         colors[(int)ImGuiCol.ScrollbarGrabActive] = new(0.51f, 0.51f, 0.51f, 1.00f);
         colors[(int)ImGuiCol.CheckMark] = new(0.26f, 0.59f, 0.98f, 1.00f);
-        // Canonical ImGui::StyleColorsDark line 211: CheckboxSelectedBg = ImLerp(FrameBg, FrameBgHovered, 0.65f).
+        // Canonical StyleColorsDark: CheckboxSelectedBg = ImLerp(FrameBg, FrameBgHovered, 0.65f).
         colors[(int)ImGuiCol.CheckboxSelectedBg] = Lerp(colors[(int)ImGuiCol.FrameBg], colors[(int)ImGuiCol.FrameBgHovered], 0.65f);
         colors[(int)ImGuiCol.SliderGrab] = new(0.24f, 0.52f, 0.88f, 1.00f);
         colors[(int)ImGuiCol.SliderGrabActive] = new(0.26f, 0.59f, 0.98f, 1.00f);
@@ -4092,8 +4096,8 @@ public sealed class ImGuiStyle
     /// <remarks>
     /// <para>
     /// The operation reproduces <c>ImGuiStyle::ScaleAllSizes</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1628-1679</c>). Every scaled metric is truncated toward zero,
-    /// matching the canonical <c>ImTrunc</c> semantics in <c>imgui_internal.h:544-545</c>.
+    ///. Every scaled metric is truncated toward zero,
+    /// matching the canonical <c>ImTrunc</c> semantics.
     /// </para>
     /// <para>
     /// The operation is lossy because every size is rounded to an integer. Apply it once to a freshly
@@ -4209,7 +4213,7 @@ public sealed class ImGuiStyle
 /// Stores the current input state of a single named key, matching canonical <c>ImGuiKeyData</c>.
 /// </summary>
 /// <remarks>
-/// The canonical declaration is in <c>ThirdParty/imgui/imgui.h:2509-2514</c>. Instances are stored in
+/// The canonical declaration is. Instances are stored in
 /// <see cref="ImGuiIO.KeysData"/> and indexed with <c>key - ImGuiKey.NamedKey_BEGIN</c>.
 /// </remarks>
 public struct ImGuiKeyData
@@ -4243,8 +4247,8 @@ public struct ImGuiKeyData
 /// <remarks>
 /// <para>
 /// Field names, declaration order, and default values follow canonical Dear ImGui <c>ImGuiIO</c>,
-/// declared in <c>ThirdParty/imgui/imgui.h:2517-2900</c>, with defaults taken from the
-/// <c>ImGuiIO::ImGuiIO()</c> constructor in <c>ThirdParty/imgui/imgui.cpp:1680-1800</c>.
+///., with defaults taken from the
+/// <c>ImGuiIO::ImGuiIO()</c> constructor.
 /// </para>
 /// <para>
 /// The host backend writes configuration and calls the <c>Add*</c> input methods before a frame is
@@ -4584,7 +4588,6 @@ public sealed class ImGuiIO
 
     /// <summary>
     /// Gets or sets whether ImDrawList vector rendering defaults to legacy stroke mode (+0.5f offset).
-    /// (<c>ThirdParty/imgui/imgui.h:2671</c>)
     /// </summary>
     public bool ConfigDebugDrawListDefaultsToStrokeLegacy { get; set; }
 
@@ -4905,7 +4908,7 @@ public sealed class ImGuiIO
     /// <param name="fonts">The font atlas to assign, or null to create an empty atlas.</param>
     /// <remarks>
     /// The default values mirror <c>ImGuiIO::ImGuiIO()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1680-1800</c>). The per-key and per-button duration arrays are
+    ///. The per-key and per-button duration arrays are
     /// initialized to the canonical not-pressed sentinel of negative one.
     /// </remarks>
     public ImGuiIO(ImFontAtlas? fonts = null)
@@ -4933,7 +4936,7 @@ public sealed class ImGuiIO
     /// <param name="key">The translated named key. Legacy native key codes are not accepted.</param>
     /// <param name="down">True to press the key and false to release it.</param>
     /// <remarks>
-    /// Mirrors canonical <c>ImGuiIO::AddKeyEvent</c> (<c>ThirdParty/imgui/imgui.cpp:1963-1967</c>),
+    /// Mirrors canonical <c>ImGuiIO::AddKeyEvent</c>.,
     /// which forwards to <see cref="AddKeyAnalogEvent"/> with a digital analog value.
     /// </remarks>
     public void AddKeyEvent(ImGuiKey key, bool down)
@@ -4949,7 +4952,7 @@ public sealed class ImGuiIO
     /// <param name="analogValue">The analog value reported for analog keys, in the range zero through one.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddKeyAnalogEvent</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1926-1967</c>), including the macOS Control and Super key swap,
+    ///., including the macOS Control and Super key swap,
     /// the duplicate-event filter against the newest queued key event or the live key state, and the
     /// enqueueing of an <see cref="ImGuiInputEventType.Key"/> event. The queued event is consumed by
     /// <c>ImGui.UpdateInputEvents</c> during the next <c>ImGui.NewFrame</c>; the live
@@ -4980,7 +4983,6 @@ public sealed class ImGuiIO
         }
 
         // Canonical rejects legacy native key codes and alias keys here
-        // (ThirdParty/imgui/imgui.cpp:1931-1933): only named keys and the four modifier pseudo-keys
         // carry input state, and mouse alias keys are inferred from the mouse event stream. The
         // canonical checks are assertions; this port also returns early so a misbehaving host cannot
         // queue an event that the key-state lookup cannot represent.
@@ -4993,7 +4995,7 @@ public sealed class ImGuiIO
         // frame with an unchanged value.
         // The live state is read through ImGui.GetKeyData, which maps a modifier flag (for example ImGuiMod_Ctrl)
         // to its reserved slot (ReservedForModCtrl). Indexing KeysData with the raw flag value would read the wrong
-        // record, so a modifier release would be discarded as a duplicate (imgui.cpp:1946-1951).
+        // record, so a modifier release would be discarded as a duplicate.
         ImGuiInputEvent? latestEvent = FindLatestInputEvent(g, ImGuiInputEventType.Key, (int)key);
         ref ImGuiKeyData keyData = ref ImGui.GetKeyData(key);
         bool latestKeyDown = latestEvent != null ? latestEvent.Key.Down : keyData.Down;
@@ -5020,7 +5022,7 @@ public sealed class ImGuiIO
     /// <param name="y">The vertical mouse coordinate, in display pixels.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddMousePosEvent</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1998-2024</c>). The position is floored with canonical
+    ///. The position is floored with canonical
     /// <c>ImFloor</c> semantics before it is enqueued, the canonical duplicate filter compares against
     /// the newest queued position or the live mouse position, and the latched mouse source is copied
     /// into the event.
@@ -5065,7 +5067,7 @@ public sealed class ImGuiIO
     /// <param name="down">True when the button is pressed and false when it is released.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddMouseButtonEvent</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2032-2078</c>), including the macOS Ctrl-plus-left-click
+    ///., including the macOS Ctrl-plus-left-click
     /// aliasing into a right click for both the press and the held-button release, the duplicate
     /// filter against the newest queued button event or the live state, and the enqueueing of a
     /// <see cref="ImGuiInputEventType.MouseButton"/> event.
@@ -5128,7 +5130,7 @@ public sealed class ImGuiIO
     /// <param name="wheelY">The vertical wheel delta. Positive values scroll up.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddMouseWheelEvent</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2081-2098</c>). Zero deltas are discarded and the event is
+    ///. Zero deltas are discarded and the event is
     /// enqueued with the latched mouse source.
     /// </remarks>
     public void AddMouseWheelEvent(float wheelX, float wheelY)
@@ -5158,7 +5160,7 @@ public sealed class ImGuiIO
     /// </summary>
     /// <param name="source">The input peripheral that produced the current events.</param>
     /// <remarks>
-    /// Mirrors canonical <c>ImGuiIO::AddMouseSourceEvent</c> (<c>ThirdParty/imgui/imgui.cpp:2102-2108</c>).
+    /// Mirrors canonical <c>ImGuiIO::AddMouseSourceEvent</c>.
     /// The source is not an event of its own: it is latched on the context and copied into subsequent
     /// mouse event payloads so that filtered duplicate events cannot change the reported source.
     /// </remarks>
@@ -5177,7 +5179,7 @@ public sealed class ImGuiIO
     /// </summary>
     /// <param name="viewportId">The hovered viewport identifier.</param>
     /// <remarks>
-    /// Mirrors canonical <c>ImGuiIO::AddMouseViewportEvent</c> (<c>ThirdParty/imgui/imgui.cpp:2110-2126</c>).
+    /// Mirrors canonical <c>ImGuiIO::AddMouseViewportEvent</c>.
     /// The canonical duplicate filter compares against the newest queued viewport event or the live
     /// hovered viewport before the event is enqueued.
     /// </remarks>
@@ -5210,7 +5212,7 @@ public sealed class ImGuiIO
     /// </summary>
     /// <param name="focused">True when the application gained focus and false when it lost focus.</param>
     /// <remarks>
-    /// Mirrors canonical <c>ImGuiIO::AddFocusEvent</c> (<c>ThirdParty/imgui/imgui.cpp:2128-2143</c>).
+    /// Mirrors canonical <c>ImGuiIO::AddFocusEvent</c>.
     /// The focus change is enqueued rather than applied immediately; <c>ImGui.UpdateInputEvents</c>
     /// consumes it during the next frame, updates <see cref="AppFocusLost"/>, and clears keyboard and
     /// mouse state when focus is lost and <see cref="ConfigDebugIgnoreFocusLoss"/> is disabled.
@@ -5242,7 +5244,7 @@ public sealed class ImGuiIO
     /// <param name="c">The Unicode code point to queue.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddInputCharacter</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1798-1809</c>). A zero code point is ignored, and a
+    ///. A zero code point is ignored, and a
     /// <see cref="ImGuiInputEventType.Text"/> event is enqueued for
     /// <c>ImGui.UpdateInputEvents</c> to append to <see cref="InputQueueCharacters"/>.
     /// </remarks>
@@ -5272,7 +5274,7 @@ public sealed class ImGuiIO
     /// <param name="c">The UTF-16 code unit to queue.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddInputCharacterUTF16</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1809-1841</c>). Invalid surrogate sequences produce the Unicode
+    ///. Invalid surrogate sequences produce the Unicode
     /// replacement character.
     /// </remarks>
     public void AddInputCharacterUTF16(ushort c)
@@ -5316,7 +5318,7 @@ public sealed class ImGuiIO
     /// <param name="str">The string whose characters are queued.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::AddInputCharactersUTF8</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1843-1854</c>), which decodes UTF-8 bytes. The .NET string type
+    ///., which decodes UTF-8 bytes. The.NET string type
     /// already stores text as UTF-16, so this port reads UTF-16 code units and combines surrogate
     /// pairs into single code points. Iteration stops at a null terminator, and an unpaired surrogate
     /// produces the Unicode replacement character.
@@ -5364,7 +5366,7 @@ public sealed class ImGuiIO
     /// <param name="nativeLegacyIndex">The legacy native index, or negative one when unavailable.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::SetKeyEventNativeData</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1973-1983</c>), which stores the values but does not yet consume
+    ///., which stores the values but does not yet consume
     /// them. The parameters are retained so later input chunks can surface them through the key data.
     /// </remarks>
     public void SetKeyEventNativeData(ImGuiKey key, int nativeKeycode, int nativeScancode, int nativeLegacyIndex = -1)
@@ -5381,7 +5383,7 @@ public sealed class ImGuiIO
     /// <param name="acceptingEvents">True to accept events and false to ignore them.</param>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::SetAppAcceptingEvents</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1986-1989</c>). Hosts suspend event acceptance while a native
+    ///. Hosts suspend event acceptance while a native
     /// dialog box interrupts the application loop.
     /// </remarks>
     public void SetAppAcceptingEvents(bool acceptingEvents)
@@ -5394,7 +5396,7 @@ public sealed class ImGuiIO
     /// </summary>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::ClearEventsQueue</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1857-1863</c>), which discards every event queued on the context
+    ///., which discards every event queued on the context
     /// that has not yet been consumed by <c>ImGui.UpdateInputEvents</c>.
     /// </remarks>
     public void ClearEventsQueue()
@@ -5409,7 +5411,7 @@ public sealed class ImGuiIO
     /// </summary>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::ClearInputKeys</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1865-1879</c>). Mouse keys are left untouched; use
+    ///. Mouse keys are left untouched; use
     /// <see cref="ClearInputMouse"/> for mouse state.
     /// </remarks>
     public void ClearInputKeys()
@@ -5438,7 +5440,6 @@ public sealed class ImGuiIO
     /// </summary>
     /// <remarks>
     /// Mirrors canonical <c>ImGuiIO::ClearInputMouse</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1882-1900</c>).
     /// </remarks>
     public void ClearInputMouse()
     {
@@ -5474,7 +5475,7 @@ public sealed class ImGuiIO
     /// <returns>The newest matching queued event, or null when no queued event matches.</returns>
     /// <remarks>
     /// Ports the canonical file-scope helper <c>FindLatestInputEvent</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1902-1920</c>). The <c>Add*</c> producers use it to filter
+    ///. The <c>Add*</c> producers use it to filter
     /// duplicate events against the newest queued event instead of the live input state, because the
     /// live state is only updated when the queue is consumed at the start of the next frame.
     /// </remarks>

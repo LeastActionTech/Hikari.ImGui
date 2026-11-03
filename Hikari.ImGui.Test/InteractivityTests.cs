@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -9,8 +13,7 @@ namespace Hikari.ImGui.Test;
 /// and cursor state transitions for hyperlinks and resizable window borders.
 /// </summary>
 /// <remarks>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui.cpp:4566-4570, 22020-22095</c>
-/// and <c>ThirdParty/imgui/imgui_widgets.cpp:1527-1595</c>.
+/// Each test drives a real <see cref="ImGuiContext"/>.
 /// </remarks>
 [TestFixture]
 [NonParallelizable]
@@ -19,7 +22,6 @@ public class InteractivityTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that clipboard text stored via SetClipboardText forwards to Platform_SetClipboardTextFn
     /// and round-trips through Platform_GetClipboardTextFn.
-    /// Canonical: <c>imgui.cpp:5343-5354</c>.
     /// </summary>
     [Test]
     public void Clipboard_SetAndGetText_ForwardsToPlatformCallbacks()
@@ -37,7 +39,6 @@ public class InteractivityTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that Platform_OpenInShellFn is initialized by default on context creation.
-    /// Canonical: <c>imgui.cpp:4569</c>.
     /// </summary>
     [Test]
     public void Platform_OpenInShellFn_InitializedByDefault()
@@ -47,7 +48,6 @@ public class InteractivityTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that TextLinkOpenURL invokes Platform_OpenInShellFn with the provided URL when clicked.
-    /// Canonical: <c>imgui_widgets.cpp:1585-1586</c>.
     /// </summary>
     [Test]
     public void TextLinkOpenURL_InvokesPlatformOpenInShellFn_WhenClicked()
@@ -104,7 +104,6 @@ public class InteractivityTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that hovering over a TextLink requests the Hand cursor shape.
-    /// Canonical: <c>imgui_widgets.cpp:1548-1549</c>.
     /// </summary>
     [Test]
     public void TextLink_SetsHandCursor_WhenHovered()
@@ -140,7 +139,6 @@ public class InteractivityTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that hovering over a resizable window edge sets the corresponding resize cursor (ResizeEW or ResizeNS).
-    /// Canonical: <c>imgui.cpp:9282-9285</c>.
     /// </summary>
     [Test]
     public void Window_BorderHover_SetsResizeCursor()

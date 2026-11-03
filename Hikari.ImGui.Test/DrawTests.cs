@@ -1,3 +1,6 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -99,7 +102,7 @@ public class DrawTests
         Assert.That(rect.GetCenter(), Is.EqualTo(new ImVec2(60f, 45f)));
         Assert.That(rect.GetArea(), Is.EqualTo(5000f));
 
-        // Contains point [Min, Max) half-open interval per imgui_internal.h:621
+        // Contains point [Min, Max) half-open interval per 
         Assert.That(rect.Contains(new ImVec2(10f, 20f)), Is.True);
         Assert.That(rect.Contains(new ImVec2(50f, 40f)), Is.True);
         Assert.That(rect.Contains(new ImVec2(109.9f, 69.9f)), Is.True);
@@ -133,7 +136,6 @@ public class DrawTests
     /// <summary>
     /// Verifies that geometry past 65,535 vertices splits into a second command with a nonzero vertex offset
     /// when the backend advertises the capability, so 16-bit indices never wrap
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:732-755</c>).
     /// </summary>
     [Test]
     public void DrawList_LargeGeometryWithVtxOffsetSplitsWithoutWrappingIndices()
@@ -157,7 +159,7 @@ public class DrawTests
     /// <summary>
     /// Verifies that a frame reset applies the shared initial flags instead of a fixed default, so that
     /// style anti-aliasing and the vertex-offset capability survive into the next frame
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:456-483</c>, <c>ThirdParty/imgui/imgui.cpp:5755-5775</c>).
+    /// (, ).
     /// </summary>
     [Test]
     public void DrawList_ClearAppliesSharedInitialFlags()
@@ -176,7 +178,7 @@ public class DrawTests
         _drawList.AddLine(new ImVec2(0, 0), new ImVec2(100, 0), 0xFFFFFFFF, 2.0f);
 
         // A zero-fractional integer width below IM_DRAWLIST_TEX_LINES_WIDTH_MAX takes the textured
-        // path (imgui_draw.cpp:852, 857-858): two outer vertices per point and six indices per segment.
+        // path.: two outer vertices per point and six indices per segment.
         Assert.That(_atlas.TexUvLines.Length, Is.EqualTo(ImFontAtlas.TexLinesWidthMax + 1 + ImFontAtlas.TexLinesDetailedWidthCount));
         Assert.That((_drawList.Flags & ImDrawFlags.AALines) != 0, Is.True);
         Assert.That(_drawList.VtxBuffer.Count, Is.EqualTo(4));
@@ -185,7 +187,7 @@ public class DrawTests
         Assert.That(_drawList.CmdBuffer[0].ElemCount, Is.EqualTo(6));
 
         // Both edge vertices carry the opaque stroke color and sample the super-sampled line UV span
-        // for width 2.0 (u0, u1, v, 1/thickness) (imgui_draw.cpp:935-946, 5172).
+        // for width 2.0 (u0, u1, v, 1/thickness).
         int texIdx = (int)((2.0f - 1.0f) * ImFontAtlas.TexLinesSampleCount + 0.5f) + (ImFontAtlas.TexLinesWidthMax + 1);
         ImVec4 baked = _atlas.TexUvLines[texIdx];
         ImVec2 leftUv = new(baked.X, baked.Z);
@@ -201,13 +203,13 @@ public class DrawTests
     }
 
     [Test]
-    /// <summary>Verifies that non-AA lines emit 4 vertices and 6 indices per segment matching canonical 1.93 (imgui_draw.cpp:1904).</summary>
+    /// <summary>Verifies that non-AA lines emit 4 vertices and 6 indices per segment matching canonical Dear ImGui.</summary>
     public void DrawList_AddLine_WithoutTexturedLinesUsesCenterAndFringeVertices()
     {
         _drawList.Flags &= ~ImDrawFlags.AALines;
         _drawList.AddLine(new ImVec2(10, 10), new ImVec2(60, 10), 0xFFFFFFFF, 1.0f);
 
-        // In Dear ImGui 1.93, non-AA lines emit a single quad (4 vertices, 6 indices).
+        // In canonical Dear ImGui, non-AA lines emit a single quad (4 vertices, 6 indices).
         Assert.That(_drawList.VtxBuffer.Count, Is.EqualTo(4));
         Assert.That(_drawList.IdxBuffer.Count, Is.EqualTo(6));
     }
@@ -230,7 +232,7 @@ public class DrawTests
     }
 
     [Test]
-    /// <summary>Verifies AddLineH and AddLineV emit pixel-aligned rectangle geometry for integer coordinates (imgui_draw.cpp:2038).</summary>
+    /// <summary>Verifies AddLineH and AddLineV emit pixel-aligned rectangle geometry for integer coordinates.</summary>
     public void DrawList_AddLineHV_EmitAxisAlignedStrokes()
     {
         _drawList.Clear();
@@ -288,7 +290,7 @@ public class DrawTests
         Assert.That((int)ImDrawFlags.InvalidMask_, Is.EqualTo(unchecked((int)0x8000000F)));
 
         ImGuiContext context = ImGui.CreateContext();
-        context.IO.IniFilename = null; // Tests must never read or write the developer's .ini file.
+        context.IO.IniFilename = null; // Tests must never read or write the developer's.ini file.
         try
         {
             context.IO.ConfigErrorRecoveryEnableAssert = false;
@@ -314,12 +316,12 @@ public class DrawTests
     [Test]
     /// <summary>
     /// Verifies <see cref="ImDrawList.AddPolyline"/> rejects the reserved legacy corner-flag bits before
-    /// emitting any line segment, mirroring the canonical guard at <c>imgui_draw.cpp:836</c>.
+    /// emitting any line segment, mirroring the canonical guard.
     /// </summary>
     public void DrawList_AddPolyline_RejectsInvalidLegacyCornerFlags()
     {
         ImGuiContext context = ImGui.CreateContext();
-        context.IO.IniFilename = null; // Tests must never read or write the developer's .ini file.
+        context.IO.IniFilename = null; // Tests must never read or write the developer's.ini file.
         try
         {
             context.IO.ConfigErrorRecoveryEnableAssert = false;
@@ -345,7 +347,7 @@ public class DrawTests
     {
         _drawList.AddTriangleFilled(new ImVec2(0, 0), new ImVec2(50, 100), new ImVec2(100, 0), 0xFF00FF00);
 
-        // Anti-aliased convex fill (imgui_draw.cpp:1093-1146): 2 vertices per point and a triangle
+        // Anti-aliased convex fill.: 2 vertices per point and a triangle
         // fan plus one fringe quad per edge.
         Assert.That(_drawList.VtxBuffer.Count, Is.EqualTo(6));
         Assert.That(_drawList.IdxBuffer.Count, Is.EqualTo(21));
@@ -357,14 +359,13 @@ public class DrawTests
     public void DrawList_CircleAutoSegmentCount_MatchesCanonicalTable()
     {
         // At error 0.30 px and radius 50 the canonical formula yields the even count 30
-        // (imgui_internal.h:885 and imgui_draw.cpp:661-669).
         Assert.That(_drawList.CalcCircleAutoSegmentCount(50.0f), Is.EqualTo(30));
 
         _drawList.Clear();
         _drawList.AddCircleFilled(new ImVec2(100, 100), 50f, 0xFFFFFFFF);
 
         // PathArcToFastEx samples 30 evenly spaced points on the circle and the fill appends the
-        // closing duplicate, which AddCircleFilled removes, leaving 48 vertices (imgui_draw.cpp:1642).
+        // closing duplicate, which AddCircleFilled removes, leaving 48 vertices.
         Assert.That(_drawList.VtxBuffer.Count, Is.EqualTo(96));
         Assert.That(_drawList.IdxBuffer.Count, Is.EqualTo(426));
     }
@@ -404,7 +405,7 @@ public class DrawTests
         _drawList.AddBezierQuadratic(new ImVec2(0, 100), new ImVec2(50, 0), new ImVec2(100, 100), 0xFFFFFFFF, 1.0f);
 
         // Auto-tessellation subdivides until the control polygon is flat; the stroke then emits at
-        // least three vertices per sampled point (imgui_draw.cpp:1444 and 857-858).
+        // least three vertices per sampled point ( and 857-858).
         Assert.That(_drawList.VtxBuffer.Count, Is.GreaterThanOrEqualTo(9));
     }
 
@@ -448,7 +449,7 @@ public class DrawTests
         _drawList.AddCallback(static (_, _) => { });
 
         // AddCallback forces a trailing command after the callback, so the callback lives one
-        // position before the end (imgui_draw.cpp:548-574).
+        // position before the end.
         Assert.That(_drawList.CmdBuffer[^2].UserCallback, Is.Not.Null);
         Assert.That(_drawList.CmdBuffer[^2].UserCallbackDataOffset, Is.EqualTo(-1));
     }
@@ -698,7 +699,6 @@ public class DrawTests
         ImFontAtlas atlas = new();
         // The ProggyClean pixel-clean metrics below belong to the bitmap face, which must be
         // requested explicitly because a no-context default now resolves to the vector face
-        // (ThirdParty/imgui/imgui_draw.cpp:3183-3189).
         atlas.AddFontDefaultBitmap();
         atlas.Build();
         var font = atlas.Fonts[0];
@@ -765,7 +765,7 @@ public class DrawTests
     public void FontAtlas_RasterizerMultiply_ScalesRasterizedCoverage()
     {
         // Canonical multiplies each coverage byte by the source's RasterizerMultiply and clamps the
-        // result (ThirdParty/imgui/imgui_draw.cpp:2931-2970, applied from the glyph bake at 5339).
+        // result (, applied from the glyph bake at 5339).
         // A factor of 1.0 must leave the bitmap untouched.
         ImFontAtlas defaultAtlas = new();
         ImFont defaultFont = defaultAtlas.AddFontDefaultVector(new ImFontConfig());
@@ -796,7 +796,7 @@ public class DrawTests
     public void FontAtlas_MergedSource_SuppliesCodepointThroughLazyBaking()
     {
         // The synthetic CFF face maps only 'A' and 'B'; the merged ProggyForever source supplies 'H'.
-        // Canonical scans every source in load order (ThirdParty/imgui/imgui_draw.cpp:4593-4614), so a
+        // Canonical scans every source in load order., so a
         // codepoint that only the merged source contains must bake from that source rather than
         // falling back on the first source.
         ImFontAtlas atlas = new();
@@ -835,7 +835,6 @@ public class DrawTests
     {
         // The synthetic face maps only the period, so no ellipsis candidate exists. Canonical's
         // special-glyph setup therefore requests U+0085 and sets EllipsisAutoBake
-        // (ThirdParty/imgui/imgui_draw.cpp:3855-3886), and the lazy hook synthesizes the character from
         // three periods spaced one pixel apart (3771-3813, invoked at 4586-4589).
         ImFontAtlas atlas = new();
         byte[] face = BuildCffOpenTypeFace(BuildCffTestCmap('.', new ushort[] { 1 }));
@@ -883,7 +882,6 @@ public class DrawTests
     {
         // Canonical documents that clearing EllipsisAutoBake suppresses the three-period synthesis so a
         // caller can substitute an alternative ellipsis codepoint
-        // (ThirdParty/imgui/imgui_draw.cpp:4586-4589).
         ImFontAtlas bakedAtlas = new();
         ImFont bakedFont = bakedAtlas.AddFontFromMemoryTTF(
             BuildCffOpenTypeFace(BuildCffTestCmap('.', new ushort[] { 1 })),
@@ -907,7 +905,7 @@ public class DrawTests
     public void FontAtlas_EllipsisAutoDetection_PrefersU2026WhenFaceContainsIt()
     {
         // Canonical tries the source's explicit ellipsis, then U+2026, then U+0085, and keeps the first
-        // candidate the face actually contains (ThirdParty/imgui/imgui_draw.cpp:3871-3881).
+        // candidate the face actually contains.
         ImFontAtlas atlas = new();
         byte[] face = BuildCffOpenTypeFace(BuildCffTestCmap('\u2026', new ushort[] { 1 }));
         ImFont font = atlas.AddFontFromMemoryTTF(face, 13.0f, new ImFontConfig { SizePixels = 13.0f });
@@ -944,7 +942,7 @@ public class DrawTests
         // The bundled ProggyForever face contains 'A', so canonical would normally bake 'A' from the
         // first source that has it. Excluding 'A' on that source must push resolution to the merged
         // synthetic face, whose cmap maps 'A' to glyph 1
-        // (ImFontAtlasBuildAcceptCodepointForSource, ThirdParty/imgui/imgui_draw.cpp:4538-4548, honored
+        // (ImFontAtlasBuildAcceptCodepointForSource, , honored
         // in the source loop at 4596).
         ImFontAtlas atlas = new();
         ImFontConfig baseConfig = new()
@@ -966,7 +964,7 @@ public class DrawTests
         atlas.Build();
 
         // The excluding face genuinely contains 'A': exclusion decides which source supplies the
-        // glyph, not what the face contains (canonical ImFont::IsGlyphInFont, ThirdParty/imgui/imgui_draw.cpp:5394-5404).
+        // glyph, not what the face contains (canonical ImFont::IsGlyphInFont, ).
         Assert.That(font.IsGlyphInFont('A'), Is.True);
         Assert.That(font.Sources[0].StbFont, Is.Not.Null);
         Assert.That(font.Sources[0].StbFont!.FindGlyphIndex('A'), Is.Not.Zero,
@@ -988,7 +986,7 @@ public class DrawTests
     public void FontAtlas_GlyphExcludeRanges_OutsideRangeIsStillAccepted()
     {
         // An exclusion list that covers only 'A' must not prevent the same source from supplying 'B',
-        // matching canonical's inclusive per-pair comparison (ThirdParty/imgui/imgui_draw.cpp:4540-4547).
+        // matching canonical's inclusive per-pair comparison.
         ImFontAtlas atlas = new();
         ImFontConfig config = new()
         {
@@ -1011,7 +1009,7 @@ public class DrawTests
     {
         // The synthetic face maps 'A' to a visible glyph and contains no U+0100. Canonical resolves the
         // remap inside the lazy load and stores the requested codepoint on the glyph while the outline
-        // comes from the target (ThirdParty/imgui/imgui_draw.cpp:4578-4579, 4604). IsGlyphInFont applies
+        // comes from the target. IsGlyphInFont applies
         // the same remap before asking the face (5397).
         ImFontAtlas atlas = new();
         ImFont font = atlas.AddFontFromMemoryTTF(BuildCffOpenTypeFace(), 13.0f,
@@ -1038,7 +1036,7 @@ public class DrawTests
         Assert.That(remapped.Y1, Is.EqualTo(target.Y1));
 
         // Canonical stores a zero target instead of erasing the pair, so remapping the source to
-        // codepoint zero makes it unresolvable again (ThirdParty/imgui/imgui_draw.cpp:5343-5346).
+        // codepoint zero makes it unresolvable again.
         font.AddRemapChar(0x0100, 0);
         Assert.That(font.IsGlyphInFont(0x0100), Is.False);
     }
@@ -1048,7 +1046,6 @@ public class DrawTests
     public void FontAtlas_RemapChar_LeavesOrdinaryLookupUnchanged()
     {
         // A remap installed for one codepoint must not alter lookups of other codepoints
-        // (ThirdParty/imgui/imgui_draw.cpp:4558-4563). The metrics are compared against an independent
         // atlas with no remap so the assertion covers both the glyph identity and its geometry.
         ImFontAtlas controlAtlas = new();
         ImFont controlFont = controlAtlas.AddFontFromMemoryTTF(BuildCffOpenTypeFace(), 13.0f,
@@ -1085,7 +1082,6 @@ public class DrawTests
     public void FontAtlas_UpdateNewFrame_RejectsNonIncreasingFrameCount()
     {
         // Canonical asserts FrameCount < frame_count because bake ages are derived from the counter
-        // (ThirdParty/imgui/imgui_draw.cpp:2784). The port turns that guard into an argument check.
         ImFontAtlas atlas = new();
         atlas.AddFontDefaultBitmap();
         atlas.Build();
@@ -1187,7 +1183,7 @@ public class DrawTests
     {
         // No CFF/OTF asset ships with the canonical checkout, so the test builds a minimal but
         // structurally complete OpenType/CFF image in memory. It carries three glyphs: an empty
-        // .notdef, a rectangle drawn by a local subroutine (glyph 1, 'A'), and a cubic curve
+        //.notdef, a rectangle drawn by a local subroutine (glyph 1, 'A'), and a cubic curve
         // (glyph 2, 'B').
         byte[] otf = BuildCffOpenTypeFace();
 
@@ -1601,7 +1597,6 @@ public class DrawTests
 
         // Canonical names the face, sets the 13 px implicit reference size, snaps horizontal
         // advances by default, and applies the 1.015 rasterizer scale plus the 0.5/16 pixel offset
-        // (ThirdParty/imgui/imgui_draw.cpp:3221-3246).
         ImFontConfig source = font.Sources[0];
         Assert.That(source.Name, Is.EqualTo("ProggyForever.ttf"));
         Assert.That(source.SizePixels, Is.EqualTo(13.0f));
@@ -1612,7 +1607,7 @@ public class DrawTests
 
         // A default configuration requests PixelSnapH, so the vector face's 440 font units *
         // (13 / 828) * 1.015 = 7.011836 px is rounded to a whole 7 px advance, matching canonical
-        // ImFontAtlasBakedAddFontGlyph (ThirdParty/imgui/imgui_draw.cpp:5289-5290).
+        // ImFontAtlasBakedAddFontGlyph.
         var glyphA = font.FindGlyph('A');
         Assert.That(glyphA.Visible, Is.True);
         Assert.That(glyphA.AdvanceX, Is.EqualTo(7.0f));
@@ -2153,7 +2148,6 @@ public class DrawTests
         ImFontGlyphRangesBuilder builder = new();
 
         // One word per 32 code points, bit n at 1u << (n & 31): the canonical packing at
-        // ThirdParty/imgui/imgui.h:3808-3813. 0x110000 bits / 32 = 34816 words.
         Assert.That(builder.UsedChars.Length, Is.EqualTo(34816));
         Assert.That(builder.GetBit('A'), Is.False);
 
@@ -2207,7 +2201,6 @@ public class DrawTests
         Assert.That(builder.GetBit('w'), Is.False);
 
         // A range crossing IM_UNICODE_CODEPOINT_MAX is truncated, not rejected
-        // (ThirdParty/imgui/imgui_draw.cpp:5176-5181).
         builder.AddRanges(new uint[] { 0x10FFF0, 0x11FFFF, 0 });
         Assert.That(builder.GetBit(0x10FFF0), Is.True);
         Assert.That(builder.GetBit(0x10FFFF), Is.True);
@@ -2223,8 +2216,7 @@ public class DrawTests
         builder.AddChar('C');
         builder.AddChar('E');
 
-        // "A..C" and "E..E" are two runs, each an inclusive start/end pair, then the zero terminator
-        // (ThirdParty/imgui/imgui_draw.cpp:5183-5195).
+        // "A.C" and "E.E" are two runs, each an inclusive start/end pair, then the zero terminator
         Assert.That(builder.BuildRanges(), Is.EqualTo(new uint[] { 'A', 'C', 'E', 'E', 0 }));
     }
 

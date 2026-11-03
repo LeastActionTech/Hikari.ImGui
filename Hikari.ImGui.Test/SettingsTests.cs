@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using System.IO;
 using NUnit.Framework;
@@ -11,12 +15,6 @@ namespace Hikari.ImGui.Test;
 /// discard semantics, and the per-frame load/save driver.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. The settings section is
-/// <c>ThirdParty/imgui/imgui.cpp:16368-16798</c>; handler registration is <c>imgui.cpp:4550-4562</c> and
-/// the docking read half is <c>imgui.cpp:21728-21900</c>; the table handler is
-/// <c>ThirdParty/imgui/imgui_tables.cpp:3924-4262</c>.
-/// </para>
 /// <para>
 /// Every test drives a real <see cref="ImGuiContext"/> whose <c>IniFilename</c> is nulled so the run never
 /// reads or writes a developer's settings file; the one disk test supplies its own temporary path.
@@ -46,7 +44,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the Window, Table, and Docking handlers are registered in canonical order with
     /// hashed type names, and that lookup and removal address them by name.
-    /// (<c>ThirdParty/imgui/imgui.cpp:4550-4562</c>, <c>16430-16453</c>)
     /// </summary>
     [Test]
     public void SettingsHandlers_RegisterInCanonicalOrderAndResolveByName()
@@ -74,7 +71,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that writing the settings produces the canonical `[Window][name]` record and that loading
     /// it back recreates an entry with the live window's saved size.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16725-16796</c>, <c>16691-16711</c>)
     /// </summary>
     [Test]
     public void WindowSettings_RoundTripThroughMemory_PreservesRecord()
@@ -110,7 +106,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a window name's non-contributing `###` prefix is dropped unless
     /// <c>io.ConfigDebugIniSettings</c> asks to preserve the full label.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16603-16622</c>)
     /// </summary>
     [Test]
     public void CreateNewWindowSettings_StripsNonContributingPrefix()
@@ -127,7 +122,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that clearing a window's settings invalidates its stored entry and marks the window as
     /// unsaved so it is not immediately rewritten.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16643-16657</c>)
     /// </summary>
     [Test]
     public void ClearWindowSettings_InvalidatesStoredEntry()
@@ -153,7 +147,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical table record header and column line, and that the lines parse back into the
     /// same widths, visibility, order, and sort direction.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4207-4248</c>, <c>4179-4205</c>)
     /// </summary>
     [Test]
     public void TableSettings_RoundTripThroughMemory_PreservesColumns()
@@ -222,7 +215,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a malformed `[Table]` header is rejected so the parser ignores the entry's lines,
     /// matching canonical's zero-tolerance read-open.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4167-4177</c>)
     /// </summary>
     [Test]
     public void TableSettings_ReadOpen_RejectsMalformedHeader()
@@ -239,7 +231,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the docking section writes a depth-indented `[Docking][Data]` block and that loading
     /// it rebuilds the same node hierarchy.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21829-21900</c>, <c>18431-18460</c>)
     /// </summary>
     [Test]
     public void DockingSettings_RoundTripThroughMemory_RebuildsHierarchy()
@@ -283,7 +274,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.CleanupIniSettings"/> derives the same cutoff from the platform
     /// session date that the metrics window displays, and that entries older than it are invalidated.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16464-16482</c>, <c>16665-16677</c>)
     /// </summary>
     [Test]
     public void CleanupIniSettings_OlderThanMonths_InvalidatesOldEntriesOnly()
@@ -311,7 +301,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an entry without a last-used date is discarded and can be stamped with the session
     /// date instead, depending on the requested mode.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16665-16677</c>)
     /// </summary>
     [Test]
     public void CleanupIniSettings_MissingDate_DiscardsOrStamps()
@@ -336,7 +325,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the per-frame driver loads once, reports to the host when no filename is configured,
     /// and writes to disk once the dirty delay elapses when a filename is configured.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16388-16408</c>, <c>16573-16586</c>)
     /// </summary>
     [Test]
     public void UpdateSettings_FlushesToDiskAfterDirtyDelay()
@@ -378,7 +366,6 @@ public class SettingsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that with no configured filename the driver asks the host to save to memory instead of
     /// touching the file system.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16401-16409</c>)
     /// </summary>
     [Test]
     public void UpdateSettings_WithoutFilename_RequestsHostSave()

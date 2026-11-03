@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -10,9 +14,7 @@ namespace Hikari.ImGui.Test;
 /// layering, and auto-fit minimum sizing.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui.cpp</c>; each test cites the canonical line
-/// range that defines the behavior it pins.
+/// Each test drives a real <see cref="ImGuiContext"/> against canonical Dear ImGui.
 /// </remarks>
 [TestFixture]
 public class WindowTests : ImGuiTestFixture
@@ -56,7 +58,6 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.Begin"/> returns true for a fresh window, that
     /// <see cref="ImGui.End"/> pops the window stack, and that the window is addressable by name.
-    /// (<c>ThirdParty/imgui/imgui.cpp:7912-8890</c>, <c>8471-8499</c>)
     /// </summary>
     [Test]
     public void Window_BeginEnd_ReturnsTrueAndPopsStack()
@@ -77,7 +78,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a window object persists across frames and is returned as the same instance by
-    /// <see cref="ImGui.FindWindowByName"/>. (<c>ThirdParty/imgui/imgui.cpp:7940-7948</c>)
+    /// <see cref="ImGui.FindWindowByName"/>.
     /// </summary>
     [Test]
     public void Window_PersistsAcrossFrames_SameInstance()
@@ -95,7 +96,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.IsWindowAppearing"/> is true only on the first frame a window
-    /// is submitted. (<c>ThirdParty/imgui/imgui.cpp:9312-9318</c>)
+    /// is submitted.
     /// </summary>
     [Test]
     public void Window_IsWindowAppearing_OnlyOnFirstFrame()
@@ -107,7 +108,7 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetNextWindowCollapsed"/> with
     /// <see cref="ImGuiCond.Always"/> drives <see cref="ImGui.IsWindowCollapsed"/> on the next
-    /// Begin. (<c>ThirdParty/imgui/imgui.cpp:9260-9276</c>)
+    /// Begin.
     /// </summary>
     [Test]
     public void Window_IsWindowCollapsed_TracksNextCollapsed()
@@ -132,7 +133,6 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetNextWindowFocus"/> makes
     /// <see cref="ImGui.IsWindowFocused()"/> report the window on the next Begin.
-    /// (<c>ThirdParty/imgui/imgui.cpp:13736-13757</c>)
     /// </summary>
     [Test]
     public void Window_IsWindowFocused_AfterSetNextWindowFocus()
@@ -152,7 +152,6 @@ public class WindowTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.IsWindowHovered"/> reports the window when the simulated mouse
     /// position lies inside its rectangle. Hover is resolved at the start of a frame from the window
     /// rectangle produced by the previous frame, so the geometry is established one frame earlier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:9130-9174</c>)
     /// </summary>
     [Test]
     public void Window_IsWindowHovered_WhenMouseInside()
@@ -180,7 +179,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that an empty auto-fit window never shrinks below
-    /// <see cref="ImGuiStyle.WindowMinSize"/>. (<c>ThirdParty/imgui/imgui.cpp:9147-9180</c>)
+    /// <see cref="ImGuiStyle.WindowMinSize"/>.
     /// </summary>
     [Test]
     public void Window_AutoFitSize_RespectsWindowMinSize()
@@ -200,7 +199,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the canonical CRC32 hash values, including the <c>###</c> reset rule that restarts
-    /// the accumulator from the seed. (<c>ThirdParty/imgui/imgui.cpp:2567-2600</c>)
+    /// the accumulator from the seed.
     /// </summary>
     [Test]
     public void Hash_ImHashStr_MatchesCanonicalValues()
@@ -215,7 +214,6 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.PushID(string)"/> chains the identifier seed so the same label
     /// resolves to a different identifier until <see cref="ImGui.PopID"/> restores the seed.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2673-2686</c>)
     /// </summary>
     [Test]
     public void Hash_PushID_ChainsSeed()
@@ -240,7 +238,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.GetID(string)"/> is stable for the same string, in the same
-    /// identifier-stack position, across frames. (<c>ThirdParty/imgui/imgui.cpp:2655-2663</c>)
+    /// identifier-stack position, across frames.
     /// </summary>
     [Test]
     public void Hash_GetID_StableAcrossFrames()
@@ -272,7 +270,6 @@ public class WindowTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.SetNextWindowPos(ImVec2, ImGuiCond, ImVec2)"/> and
     /// <see cref="ImGui.SetNextWindowSize(ImVec2, ImGuiCond)"/> with
     /// <see cref="ImGuiCond.Always"/> are honored by the next Begin.
-    /// (<c>ThirdParty/imgui/imgui.cpp:9346-9370</c>)
     /// </summary>
     [Test]
     public void Window_SetNextPosAndSize_AlwaysHonored()
@@ -293,8 +290,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.SetNextWindowSizeConstraints"/> clamps the resolved size through
-    /// a custom <see cref="ImGuiSizeCallback"/>. (<c>ThirdParty/imgui/imgui.cpp:9362-9369</c>,
-    /// <c>9063-9093</c>)
+    /// a custom <see cref="ImGuiSizeCallback"/>.
     /// </summary>
     [Test]
     public void Window_SetNextWindowSizeConstraints_ClampsViaCallback()
@@ -316,7 +312,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.SetWindowCollapsed(string, bool, ImGuiCond)"/> collapses an
-    /// existing window addressed by name. (<c>ThirdParty/imgui/imgui.cpp:9255-9276</c>)
+    /// existing window addressed by name.
     /// </summary>
     [Test]
     public void Window_SetWindowCollapsedByName_CollapsesExistingWindow()
@@ -339,7 +335,6 @@ public class WindowTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.BeginChild(string, ImVec2, ImGuiChildFlags, ImGuiWindowFlags)"/>
     /// nests a child inside its parent, that the child position lies inside the parent rectangle, and
     /// that the child is addressable by its composed name.
-    /// (<c>ThirdParty/imgui/imgui.cpp:6801-6926</c>)
     /// </summary>
     [Test]
     public void Child_BeginChild_NestsInsideParent()
@@ -375,7 +370,6 @@ public class WindowTests : ImGuiTestFixture
     /// Verifies the canonical clipped-child behavior: a child whose rectangle is fully outside the
     /// parent clip rectangle reports as hidden and <see cref="ImGui.BeginChild"/> returns false once
     /// its auto-fit frames have elapsed.
-    /// (<c>ThirdParty/imgui/imgui.cpp:6835-6850</c>, <c>8295-8340</c>)
     /// </summary>
     [Test]
     public void Child_BeginChild_ReturnsFalseWhenClipped()
@@ -412,7 +406,6 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.BringWindowToDisplayFront(ImGuiWindow)"/> moves a background
     /// window ahead of a window that was created later.
-    /// (<c>ThirdParty/imgui/imgui.cpp:13815-13828</c>, <c>13866-13870</c>)
     /// </summary>
     [Test]
     public void Layers_BringWindowToDisplayFront_MovesToFront()
@@ -434,7 +427,7 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the background and foreground draw lists are distinct from each other and from
-    /// the current window's draw list. (<c>ThirdParty/imgui/imgui.cpp:14211-14245</c>)
+    /// the current window's draw list.
     /// </summary>
     [Test]
     public void Layers_BackgroundAndForegroundDrawLists_AreDistinct()
@@ -501,7 +494,7 @@ public class WindowTests : ImGuiTestFixture
     /// Verifies that the window title bar submits the canonical collapse button
     /// (<c>#COLLAPSE</c>) and that pressing it collapses the window through
     /// <c>WantCollapseToggle</c>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:7793-7795</c>, <c>imgui_widgets.cpp:943-970</c>)
+    /// (, )
     /// </summary>
     [Test]
     public void WindowTitleBar_CollapseButton_CollapsesWindow()
@@ -512,7 +505,6 @@ public class WindowTests : ImGuiTestFixture
         ImGuiStyle style = ImGui.GetStyle();
         float fontSize = ImGui.GetFontSize();
         // The title-bar rect is inset by the window border before the buttons are placed (canonical
-        // imgui.cpp:8731), so the collapse button starts one border width inside the window.
         ImVec2 collapseCenter = new(
             TitleBarOrigin.X + style.WindowBorderSize + style.FramePadding.X + fontSize * 0.5f,
             TitleBarOrigin.Y + style.FramePadding.Y + fontSize * 0.5f);
@@ -528,7 +520,6 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the window title bar submits the canonical close button (<c>#CLOSE</c>) and
     /// that pressing it clears the caller's <c>p_open</c> reference.
-    /// (<c>ThirdParty/imgui/imgui.cpp:7798-7806</c>)
     /// </summary>
     [Test]
     public void WindowTitleBar_CloseButton_ClearsPOpen()
@@ -559,7 +550,6 @@ public class WindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that collapsing a window still draws the canonical collapsed title-bar strip rather
     /// than leaving only the title-bar buttons.
-    /// (<c>ThirdParty/imgui/imgui.cpp:7615-7621</c>)
     /// </summary>
     [Test]
     public void WindowTitleBar_Collapsed_DrawsTitleBarBackground()
@@ -590,7 +580,6 @@ public class WindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the window title text is rendered into the title bar.
-    /// (<c>ThirdParty/imgui/imgui.cpp:7844</c>, <c>RenderTextClipped</c>)
     /// </summary>
     [Test]
     public void WindowTitleBar_RendersTitleText()

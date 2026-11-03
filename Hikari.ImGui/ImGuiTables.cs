@@ -1,157 +1,91 @@
-// ROLE IN ENGINE
-// ==============
-// The tables subsystem: column setup and sizing, the row and cell submission pipeline, headers, sorting
-// specifications, the table context menu, and scroll freezing. This file is the C# counterpart of
-// canonical Dear ImGui `imgui_tables.cpp` and completes the partial `ImGui` class declared by
-// `ImGui.cs`.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-// =================================
-//   caller code
-//       |
-//       v
-//   BeginTable  --> table setup (columns, flags, freeze) --> BeginChild outer/inner windows
-//       |
-//       v
-//   TableSetupColumn / TableNextRow / TableNextColumn / TableSetColumnIndex
-//       |                         |
-//       |                         v
-//       |                  ItemSize/ItemAdd (ImGui.cs) --> cell content
-//       v
-//   TableUpdateLayout (column widths and offsets) --> TableUpdateBorders --> draw channels
-//       |
-//       v
-//   TableHeadersRow / TableAngledHeadersRow / TableGetSortSpecs
-//       |
-//       v
-//   EndTable --> ImDrawList channels merged --> ImDrawData
-//
-//   Per-table transient state lives in `ImGuiTableTempData`; the persistent record lives in the
-//   context's `Tables` list. The `.ini` persistence handlers belong to the settings chunk and are not
-//   implemented here.
-//
-// STYLIZED USAGE EXAMPLE
-// ======================
-//   if (ImGui.BeginTable("Grid", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
-//   {
-//       ImGui.TableSetupColumn("Name");
-//       ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-//       ImGui.TableSetupColumn("Notes");
-//       ImGui.TableHeadersRow();
-//
-//       for (int row = 0; row < rows; row++)
-//       {
-//           ImGui.TableNextRow();
-//           for (int column = 0; column < 3; column++)
-//           {
-//               ImGui.TableSetColumnIndex(column);
-//               ImGui.Text(cell[row, column]);
-//           }
-//       }
-//       ImGui.EndTable();
-//   }
-//
-// THREADING & LIFECYCLE NOTES
-// ===========================
-// Tables belong to the current context and to the window that opened them; they must be driven between
-// `BeginTable` and `EndTable` on the context's thread. `ImGuiTable` records are reused across frames and
-// recycled by `EndTable`; `ImGuiTableTempData` is a per-table stack entry that is reset each frame. No
-// per-frame heap allocation is performed on the row/column hot paths beyond the canonical growth of the
-// cell and channel buffers.
-//
-// Canonical reference: ThirdParty/imgui/imgui_tables.cpp (v1.92.9b-docking, commit b48d1af).
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
 
 using System.Diagnostics;
 using System.Globalization;
 
 namespace Hikari.ImGui;
 
+/// <summary>
+/// Provides immediate-mode GUI operations, context and frame lifecycle management, windowing,
+/// layout, input routing, styling, widgets, tables, and docking facilities.
+/// </summary>
 public static partial class ImGui
 {
-    #region Table constants (imgui_tables.cpp:266-268)
+    #region Table constants
 
     /// <summary>
     /// Draw-channel index that receives the table background geometry.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:267</c>)
     /// </summary>
     private const int TABLE_DRAW_CHANNEL_BG0 = 0;
 
     /// <summary>
     /// Width in pixels of the table outer and inner borders.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2210</c>)
     /// </summary>
     private const float TABLE_BORDER_SIZE = 1.0f;
 
     #endregion
 
 
-    #region SECTION: TABLE CORE LIFECYCLE AND LAYOUT (imgui_tables.cpp)
+    #region SECTION: TABLE CORE LIFECYCLE AND LAYOUT
 
     #region Tables: Main code
 
     /// <summary>
     /// Draw-channel index that receives row backgrounds, cell backgrounds, and borders.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:267</c>)
     /// </summary>
     private const int TableDrawChannelBg0 = 0;
 
     /// <summary>
     /// Draw-channel index that receives background geometry above the frozen row region.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:268</c>)
     /// </summary>
     private const int TableDrawChannelBg2Frozen = 1;
 
     /// <summary>
     /// Draw-channel index used for all foreground geometry when the table requests no clipping.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:269</c>)
     /// </summary>
     private const int TableDrawChannelNoClip = 2;
 
     /// <summary>
     /// Thickness of the outer and inner table borders, in pixels.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:270</c>)
     /// </summary>
     private const float TableBorderSize = 1.0f;
 
     /// <summary>
     /// Half-width of the interactive separator that resizes a column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:271</c>)
     /// </summary>
     private const float TableResizeSeparatorHalfThickness = 4.0f;
 
     /// <summary>
     /// Delay before the resize separator shows hover feedback, in seconds.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:272</c>)
     /// </summary>
     private const float TableResizeSeparatorFeedbackTimer = 0.06f;
 
     /// <summary>
     /// Lowest host-window size accepted by <c>BeginTableEx()</c> when the caller passes no explicit
-    /// outer size. (<c>ThirdParty/imgui/imgui_internal.h:2865</c> = <c>IMGUI_WINDOW_HARD_MIN_SIZE</c>)
+    /// outer size. ( = <c>IMGUI_WINDOW_HARD_MIN_SIZE</c>)
     /// </summary>
     private const float TableWindowHardMinSize = 4.0f;
 
     /// <summary>
     /// Maximum number of columns a table may declare.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3169</c> = <c>IMGUI_TABLE_MAX_COLUMNS</c>)
+    /// ( = <c>IMGUI_TABLE_MAX_COLUMNS</c>)
     /// </summary>
     private const int TableMaxColumns = 512;
 
     /// <summary>
     /// Packed color used by canonical <c>IM_COL32_DISABLE</c> to mean "no explicit background".
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3168</c>)
     /// </summary>
     private const uint TableColorDisable = 0x01000000u;
 
     /// <summary>
     /// Smallest positive normal single-precision value, matching canonical <c>FLT_MIN</c>.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:413</c>)
     /// </summary>
     private const float FloatMin = 1.17549435e-38f;
 
     /// <summary>
     /// Applies the one-time flag adjustments that canonical performs when a table begins.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:275-306</c>)
     /// </summary>
     /// <param name="flags">The caller-supplied table flags.</param>
     /// <param name="outerWindow">The hosting window, consulted for auto-resize and saved-settings inheritance.</param>
@@ -198,7 +132,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Resolves a table from its identifier by scanning the context's table pool.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:308-312</c>)
     /// </summary>
     /// <param name="id">The table identifier.</param>
     /// <returns>The matching table, or <see langword="null"/> when no table owns the identifier.</returns>
@@ -220,7 +153,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Resolves the index of a table inside the context's table pool.
-    /// (<c>ThirdParty/imgui/imgui_internal.h</c> <c>ImPool::GetIndex</c>)
+    ///
     /// </summary>
     /// <param name="table">The table to locate.</param>
     /// <returns>The zero-based pool index, or <c>-1</c> when the table is not pooled.</returns>
@@ -232,7 +165,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Resolves a table from its index inside the context's table pool.
-    /// (<c>ThirdParty/imgui/imgui_internal.h</c> <c>ImPool::GetByIndex</c>)
+    ///
     /// </summary>
     /// <param name="index">The zero-based pool index.</param>
     /// <returns>The pooled table, or <see langword="null"/> when the index is out of range.</returns>
@@ -244,7 +177,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Finds the table that owns the identifier, appending a fresh table to the pool when none does.
-    /// (<c>ThirdParty/imgui/imgui_internal.h</c> <c>ImPool::GetOrAddByKey</c>)
+    ///
     /// </summary>
     /// <param name="id">The table identifier.</param>
     /// <returns>The existing or newly pooled table.</returns>
@@ -261,7 +194,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a table addressed by a string identifier.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:315-319</c>)
     /// </summary>
     /// <param name="strId">String identifier hashed into the table identifier.</param>
     /// <param name="columnsCount">Number of columns the table declares.</param>
@@ -278,7 +210,6 @@ public static partial class ImGui
     /// <summary>
     /// Begins a table addressed by a pre-resolved identifier, acquiring pooled storage, temporary
     /// buffers, and the inner child window used for scrolling.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:321-639</c>)
     /// </summary>
     /// <param name="name">String identifier used to name the inner child window.</param>
     /// <param name="id">Pre-resolved table identifier.</param>
@@ -611,7 +542,7 @@ public static partial class ImGui
             }
         }
 
-        // Load settings (ThirdParty/imgui/imgui_tables.cpp:625-626).
+        // Load settings.
         if (table.IsSettingsRequestLoad)
             TableLoadSettings(table);
 
@@ -628,7 +559,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Allocates the per-table column, display-order, cell-data, and mask storage.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:650-669</c>)
     /// </summary>
     /// <param name="table">Table whose storage is initialized.</param>
     /// <param name="columnsCount">Number of columns to allocate.</param>
@@ -660,7 +590,6 @@ public static partial class ImGui
     /// <summary>
     /// Applies the resize, reorder, display-order reset, and visibility reset requests queued by the
     /// previous frame or by user interaction.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:672-729</c>)
     /// </summary>
     /// <param name="table">Table whose queued requests are applied.</param>
     /// <remarks>
@@ -724,7 +653,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Moves a column to a new display order immediately, shifting the columns in between.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:732-753</c>)
     /// </summary>
     /// <param name="table">Table being reordered.</param>
     /// <param name="columnN">Index of the column being moved.</param>
@@ -757,7 +685,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Clamps a requested display order to the range that interactive reordering may reach.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:755-775</c>)
     /// </summary>
     /// <param name="table">Table being reordered.</param>
     /// <param name="srcOrder">Current display order of the column.</param>
@@ -793,7 +720,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Queues a display-order change requested by user interaction, applying the reachable-range
-    /// constraints. (<c>ThirdParty/imgui/imgui_tables.cpp:778-787</c>)
+    /// constraints.
     /// </summary>
     /// <param name="table">Table being reordered.</param>
     /// <param name="columnN">Index of the column being moved.</param>
@@ -818,7 +745,6 @@ public static partial class ImGui
     /// Locks column states and positions for the frame: reconciles moved columns, applies enabled and
     /// display-order state, computes requested and final widths, resolves clipping and hover, sets up
     /// draw channels, and runs the default context menu and sort rebuild.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:849-1381</c>)
     /// </summary>
     /// <param name="table">Table being laid out; its <c>IsLayoutLocked</c> flag must be clear.</param>
     /// <remarks>
@@ -847,7 +773,7 @@ public static partial class ImGui
             tempData.OldColumnsData = new List<ImGuiTableColumn>();
         }
 
-        // Apply columns settings (ThirdParty/imgui/imgui_tables.cpp:867-868).
+        // Apply columns settings.
         if (table.IsSettingsRequestLoad)
             TableLoadSettingsForColumns(table);
         if (table.IsInitializing || table.IsSettingsRequestLoad)
@@ -1344,7 +1270,7 @@ public static partial class ImGui
 
         // Multi-select box-select support: when the active box-selection targets the inner window in
         // unclip mode, re-flag any column overlapping the unclip rectangle so it still emits output after
-        // layout locked its skip state (ThirdParty/imgui/imgui_tables.cpp:1371-1375).
+        // layout locked its skip state.
         ImGuiWindow layoutInnerWindow = table.InnerWindow;
         ImGuiBoxSelectState boxSelect = g.BoxSelectState;
         if (boxSelect.Window == layoutInnerWindow && boxSelect.UnclipMode)
@@ -1365,7 +1291,6 @@ public static partial class ImGui
     /// <summary>
     /// Re-flags columns so a box-selection rectangle overlapping them still requests output after
     /// layout has locked their skip state.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1384-1395</c>)
     /// </summary>
     /// <param name="table">Table whose columns are updated.</param>
     /// <param name="rect">Box-selection rectangle in screen coordinates.</param>
@@ -1391,7 +1316,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Hit-tests the interactive resize separators on the right edge of each resizable column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1399-1458</c>)
     /// </summary>
     /// <param name="table">The resizable table being laid out.</param>
     /// <remarks>
@@ -1470,7 +1394,6 @@ public static partial class ImGui
     /// Ends the current table: locks layout, finalizes height and scroll extents, draws borders,
     /// merges draw channels, restores host-window state, saves settings, and unwinds the temporary-data
     /// stack.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1460-1682</c>)
     /// </summary>
     /// <remarks>
     /// The matching settings writer is provided by the settings-lifetime owner (part 04); its backing
@@ -1699,7 +1622,7 @@ public static partial class ImGui
             outerWindow.DC.CursorMaxPos = outerMaxPos;
         }
 
-        // Save settings (ThirdParty/imgui/imgui_tables.cpp:1666-1667).
+        // Save settings.
         if (table.IsSettingsDirty)
             TableSaveSettings(table);
         table.IsInitializing = false;
@@ -1723,14 +1646,13 @@ public static partial class ImGui
 
     /// <summary>
     /// Applies the per-column default values selected by <paramref name="initMask"/>.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1686-1707</c>)
     /// </summary>
     /// <param name="table">Owning table, consulted for reorderability and column index.</param>
     /// <param name="column">Column whose defaults are initialized.</param>
     /// <param name="initMask">Table flags selecting which sections to initialize.</param>
     /// <remarks>
     /// Canonical declares the mask parameter as <c>ImGuiTableColumnFlags</c> at
-    /// <c>ThirdParty/imgui/imgui_internal.h:3524</c>, yet the call site passes <c>ImGuiTableFlags</c>
+    /// , yet the call site passes <c>ImGuiTableFlags</c>
     /// values and the body compares against <c>ImGuiTableFlags_Resizable</c> and its siblings. The port
     /// therefore declares the parameter as <see cref="ImGuiTableFlags"/>, the type of the value that is
     /// actually consumed.
@@ -1766,7 +1688,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the number of columns declared by the current table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1887-1892</c>)
     /// </summary>
     /// <returns>The declared column count, or zero when no table is active.</returns>
     public static int TableGetColumnCount()
@@ -1778,7 +1699,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the index of the current column in the ambient table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2281-2288</c>)
     /// </summary>
     /// <returns>The current column index, or zero when no table is active.</returns>
     /// <remarks>
@@ -1794,7 +1714,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the index of the current row in the ambient table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2052-2059</c>)
     /// </summary>
     /// <returns>The current row index, or zero when no table is active.</returns>
     /// <remarks>
@@ -1810,7 +1729,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the name declared for a column of the current table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1894-1903</c>)
     /// </summary>
     /// <param name="columnN">Column index, or a negative value to use the current column.</param>
     /// <returns>The column name, or <see langword="null"/> when no table is active.</returns>
@@ -1827,7 +1745,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the name declared for a column of a specific table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1905-1913</c>)
     /// </summary>
     /// <param name="table">Table that owns the column.</param>
     /// <param name="columnN">Column index.</param>
@@ -1853,7 +1770,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Changes the user-accessible enabled state of a column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1921-1932</c>)
     /// </summary>
     /// <param name="columnN">Column index, or a negative value to use the current column.</param>
     /// <param name="enabled">The requested enabled state, applied on the next layout.</param>
@@ -1880,7 +1796,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the column flags of the current table, including the read-only status bits.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1935-1946</c>)
     /// </summary>
     /// <param name="columnN">Column index, or a negative value to use the current column. Passing the
     /// declared column count queries the unused space after the right-most column.</param>
@@ -1900,7 +1815,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the background rectangle of a cell in the current row.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1954-1966</c>)
     /// </summary>
     /// <param name="table">Table that owns the column.</param>
     /// <param name="columnN">Column index.</param>
@@ -1919,7 +1833,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the identifier used for the resize border on the right side of a column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1969-1974</c>)
     /// </summary>
     /// <param name="table">Table that owns the column.</param>
     /// <param name="columnN">Column index.</param>
@@ -1939,7 +1852,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the per-instance table data for the requested instance number.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3519</c>)
     /// </summary>
     /// <param name="table">Table that owns the instance data.</param>
     /// <param name="instanceNo">Instance number; instance zero is stored inline.</param>
@@ -1953,7 +1865,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the stable identifier of a table instance.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3520</c>)
     /// </summary>
     /// <param name="table">Table that owns the instance data.</param>
     /// <param name="instanceNo">Instance number; instance zero uses the table identifier.</param>
@@ -1965,7 +1876,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the currently hovered table column of the ambient table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1977-1984</c>)
     /// </summary>
     /// <returns>The hovered column index, the declared column count when the unused trailing region is
     /// hovered, or <c>-1</c> when no table is active or hovered.</returns>
@@ -1980,7 +1890,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the row hovered during the previous frame in the ambient table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1989-1997</c>)
     /// </summary>
     /// <returns>The previously hovered row index, or <c>-1</c> when no table is active.</returns>
     /// <remarks>
@@ -1998,7 +1907,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Queues a background color for a cell, a row background layer, or a row selection layer.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1999-2040</c>)
     /// </summary>
     /// <param name="target">Which background layer to color.</param>
     /// <param name="color">Packed color value; <c>IM_COL32_DISABLE</c> clears the request.</param>
@@ -2061,7 +1969,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the maximum content width a column may occupy at its current position.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2434-2463</c>)
     /// </summary>
     /// <param name="table">Table being laid out.</param>
     /// <param name="columnN">Column index.</param>
@@ -2096,7 +2003,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the automatic width of a column from its recorded content extents.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2466-2480</c>)
     /// </summary>
     /// <param name="table">Table being laid out.</param>
     /// <param name="column">Column whose automatic width is computed.</param>
@@ -2124,7 +2030,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Requests a new width for a column, redistributing the change so the total width is preserved.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2483-2562</c>)
     /// </summary>
     /// <param name="columnN">Column index.</param>
     /// <param name="width">Requested inner column width, excluding padding.</param>
@@ -2185,7 +2090,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Queues an auto-fit for a single column, to be applied on the next layout.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2566-2574</c>)
     /// </summary>
     /// <param name="table">Table that owns the column.</param>
     /// <param name="columnN">Column index.</param>
@@ -2200,7 +2104,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Queues an auto-fit for every enabled or stretch column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2576-2586</c>)
     /// </summary>
     /// <param name="table">Table whose columns are auto-fitted.</param>
     /// <remarks>
@@ -2221,7 +2124,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Recomputes stretch weights from the columns' current requested widths so their relative
-    /// proportions are preserved. (<c>ThirdParty/imgui/imgui_tables.cpp:2588-2615</c>)
+    /// proportions are preserved.
     /// </summary>
     /// <param name="table">Table whose stretch columns are reweighted.</param>
     internal static void TableUpdateColumnsWeightFromWidth(ImGuiTable table)
@@ -2259,7 +2162,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Switches the draw list to the per-row background channel above the frozen row region, saving the
-    /// window's clip rectangle. (<c>ThirdParty/imgui/imgui_tables.cpp:2635-2645</c>)
+    /// window's clip rectangle.
     /// </summary>
     /// <remarks>
     /// The background channel is widget-facing, so it relies on the regular clip rectangle rather than
@@ -2277,7 +2180,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Restores the window clip rectangle saved by <see cref="TablePushBackgroundChannel"/> and returns
-    /// to the current column's channel. (<c>ThirdParty/imgui/imgui_tables.cpp:2647-2656</c>)
+    /// to the current column's channel.
     /// </summary>
     internal static void TablePopBackgroundChannel()
     {
@@ -2290,7 +2193,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Switches the draw list to a column's clip rectangle and draw channel.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2659-2671</c>)
     /// </summary>
     /// <param name="columnN">Column whose channel becomes current.</param>
     /// <remarks>
@@ -2311,7 +2213,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Restores the current column's clip rectangle and draw channel.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2673-2685</c>)
     /// </summary>
     /// <remarks>
     /// The function is a no-op when clipping is disabled or when no column is current, the latter
@@ -2332,7 +2233,6 @@ public static partial class ImGui
     /// <summary>
     /// Allocates the draw channels that isolate row backgrounds, per-column content, the widget-facing
     /// background channel, and any dummy channel, and initializes the background clip rectangles.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2703-2740</c>)
     /// </summary>
     /// <param name="table">Table whose channels are set up.</param>
     /// <remarks>
@@ -2389,7 +2289,6 @@ public static partial class ImGui
     /// <summary>
     /// Reorders and retargets the per-column draw channels into up to four merge groups so the
     /// splitter's merge pass can coalesce them into fewer draw calls.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2771-2939</c>)
     /// </summary>
     /// <param name="table">Table whose channels are merged.</param>
     /// <remarks>
@@ -2570,7 +2469,6 @@ public static partial class ImGui
     /// <summary>
     /// Selects the color of the border to the right of a column: active while resized, hovered while
     /// hovered, strong at the frozen separator or when body borders are suppressed, else light.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2941-2951</c>)
     /// </summary>
     /// <param name="table">Table being drawn.</param>
     /// <param name="orderN">Display order of the column.</param>
@@ -2590,7 +2488,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the inner vertical borders with resize feedback, the outer border, and the bottom-most row
-    /// border. (<c>ThirdParty/imgui/imgui_tables.cpp:2954-3041</c>)
+    /// border.
     /// </summary>
     /// <param name="table">Table whose borders are drawn.</param>
     internal static void TableDrawBorders(ImGuiTable table)
@@ -2690,15 +2588,14 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: COLUMNS, ROWS, CELLS, AND WIDTHS (imgui_tables.cpp)
+    #region SECTION: COLUMNS, ROWS, CELLS, AND WIDTHS
 
-    #region SECTION: Tables: Column setup and geometry (imgui_tables.cpp:790-843, 1711-1870)
+    #region SECTION: Tables: Column setup and geometry
 
     /// <summary>
     /// Normalizes the flags supplied for one column, deriving the width policy, resize, sort, and
     /// indentation defaults from the owning table and rebuilding the ordered list of sort directions
     /// available to the column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:790-843</c>)
     /// </summary>
     /// <param name="table">Table that owns the column; its flags select the sizing policy and the
     /// resizable, sortable, and reorderable capabilities.</param>
@@ -2756,7 +2653,7 @@ public static partial class ImGui
                 : ImGuiTableColumnFlags.IndentDisable;
         }
 
-        // Alignment defaulting is commented out in canonical (imgui_tables.cpp:820-823) and is therefore
+        // Alignment defaulting is commented out in canonical. and is therefore
         // not reproduced here.
 
         // Preserve the resolved status bits while replacing the request bits.
@@ -2809,7 +2706,6 @@ public static partial class ImGui
     /// Applies one resolved column setup request to the live column at <paramref name="idx"/>: enforces
     /// the width/weight policy rules, counts angled headers, normalizes the flags, and stores the
     /// identity and size request.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1711-1736</c>)
     /// </summary>
     /// <param name="table">Table that owns the column.</param>
     /// <param name="idx">Live column index that receives the request.</param>
@@ -2822,7 +2718,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// The sizing-policy guard reproduces the canonical check verbatim, including its use of the table
-    /// <c>ScrollX</c> bit as seen through the column flag word (<c>imgui_tables.cpp:1717</c>). That test
+    /// <c>ScrollX</c> bit as seen through the column flag word. That test
     /// is intentionally preserved rather than corrected: the two enumerations share bit values, and the
     /// canonical condition is the specification.
     /// </para>
@@ -2872,7 +2768,6 @@ public static partial class ImGui
     /// <summary>
     /// Declares one column of the table that is being submitted. Must be called after <c>BeginTable()</c>
     /// and before the first row.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1738-1793</c>)
     /// </summary>
     /// <param name="label">Column label. A null or empty label declares an unnamed column whose
     /// identifier is zero.</param>
@@ -2966,7 +2861,6 @@ public static partial class ImGui
     /// Matches the deferred column setup requests against the previous frame's columns and applies them,
     /// preserving each surviving column's geometry, order, visibility, and sort state across a topology
     /// change such as an insertion, removal, rename, or move.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1796-1853</c>)
     /// </summary>
     /// <param name="table">Table whose queued reconcile requests are processed.</param>
     /// <remarks>
@@ -3058,7 +2952,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Configures the number of frozen columns and rows for the current table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1856-1870</c>)
     /// </summary>
     /// <param name="columns">Number of leading columns to freeze; ignored unless the table scrolls
     /// horizontally.</param>
@@ -3100,12 +2993,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: Tables: Row changes (imgui_tables.cpp:2062-2269)
+    #region SECTION: Tables: Row changes
 
     /// <summary>
     /// Starts a new row, locking layout on the first call after <c>BeginTable()</c> and closing the
     /// previous row when one is open.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2062-2085</c>)
     /// </summary>
     /// <param name="rowFlags">Row flags; <see cref="ImGuiTableRowFlags.Headers"/> marks a header row,
     /// which receives the header background and does not advance the alternating-row counter.</param>
@@ -3153,7 +3045,6 @@ public static partial class ImGui
     /// Begins row bookkeeping after <see cref="TableNextRow"/> has resolved the row flags and padding:
     /// advances the row index, clears the per-row cell background and line state, locks the row indent,
     /// and applies the header background for header rows.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2088-2122</c>)
     /// </summary>
     /// <param name="table">Table whose new row begins.</param>
     /// <remarks>
@@ -3205,7 +3096,6 @@ public static partial class ImGui
     /// Closes the current row: ends the open cell, positions the cursor at the row bottom, draws the row
     /// and cell backgrounds and the row borders, performs the frozen-row to unfrozen-row transition, and
     /// advances the alternating-row counter.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2125-2269</c>)
     /// </summary>
     /// <param name="table">Table whose current row is finalized.</param>
     /// <remarks>
@@ -3234,7 +3124,7 @@ public static partial class ImGui
             table.CurrentColumn = -1;
         }
 
-        // Logging (imgui_tables.cpp:2139-2140): separate the row from the next one in the capture.
+        // Logging.: separate the row from the next one in the capture.
         if (g.LogEnabled)
             LogRenderedText(null, "|");
 
@@ -3398,11 +3288,10 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: Tables: Columns changes (imgui_tables.cpp:2291-2418)
+    #region SECTION: Tables: Columns changes
 
     /// <summary>
     /// Appends the following items into a specific column of the current row.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2291-2309</c>)
     /// </summary>
     /// <param name="columnN">Column index to enter, which must be within the table's column count.</param>
     /// <returns>The value of <see cref="ImGuiTableColumn.IsRequestOutput"/> for the column, indicating
@@ -3437,7 +3326,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Appends the following items into the next column, wrapping to a new row after the last column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2312-2334</c>)
     /// </summary>
     /// <returns>The value of <see cref="ImGuiTableColumn.IsRequestOutput"/> for the entered column.</returns>
     /// <remarks>
@@ -3471,7 +3359,6 @@ public static partial class ImGui
     /// narrows the host work and item-width state to the column, and selects the column's draw channel and
     /// clip rectangle. Called very frequently, so the port keeps the canonical ordering and avoids
     /// unnecessary work.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2340-2393</c>)
     /// </summary>
     /// <param name="table">Table that owns the column.</param>
     /// <param name="columnN">Column index to enter.</param>
@@ -3527,7 +3414,7 @@ public static partial class ImGui
             table.DrawSplitter!.SetCurrentChannel(window.DrawList, column.DrawChannelCurrent);
         }
 
-        // Logging (imgui_tables.cpp:2388-2391): separate cells in the capture and force the next
+        // Logging.: separate cells in the capture and force the next
         // captured run onto a fresh line.
         if (g.LogEnabled && !column.IsSkipItems)
         {
@@ -3540,7 +3427,6 @@ public static partial class ImGui
     /// Leaves the current column: reports the maximum content position reached so the layout can infer the
     /// column's content width and the row height, saves the column's item width, and propagates the text
     /// baseline to the row.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2396-2418</c>)
     /// </summary>
     /// <param name="table">Table whose current column is finalized.</param>
     /// <remarks>
@@ -3574,11 +3460,10 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: Tables: Settings, in-memory lifetime (imgui_tables.cpp:3859-3922, 4111-4126)
+    #region SECTION: Tables: Settings, in-memory lifetime
 
     /// <summary>
     /// Resets one settings record in place for a newly created or recycled table entry.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3859-3869</c>)
     /// </summary>
     /// <param name="settings">Record to initialize; every field is overwritten.</param>
     /// <param name="id">Table identifier the record binds to.</param>
@@ -3606,7 +3491,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Binds or creates the settings record for a table identifier.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3876-3891</c>)
     /// </summary>
     /// <param name="id">Table identifier the record is keyed by.</param>
     /// <param name="columnsCount">Number of columns the table currently declares.</param>
@@ -3640,7 +3524,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Finds the settings record bound to a table identifier.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3894-3902</c>)
     /// </summary>
     /// <param name="id">Table identifier to look up.</param>
     /// <returns>The matching record, or <see langword="null"/> when no record exists.</returns>
@@ -3662,7 +3545,6 @@ public static partial class ImGui
     /// <summary>
     /// Returns the settings record currently bound to a table, or <see langword="null"/> when the table is
     /// not bound.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3905-3913</c>)
     /// </summary>
     /// <param name="table">Table whose bound record is requested.</param>
     /// <returns>The bound record, or <see langword="null"/> when <see cref="ImGuiTable.SettingsOffset"/>
@@ -3684,7 +3566,6 @@ public static partial class ImGui
     /// <summary>
     /// Restores a table to its default state, discarding loaded settings without reloading them from the
     /// layout file.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3916-3922</c>)
     /// </summary>
     /// <param name="table">Table to reset.</param>
     /// <remarks>
@@ -3704,7 +3585,6 @@ public static partial class ImGui
     /// <summary>
     /// Compares two columns for display-order repair: primary key is the display order interpreted as an
     /// unsigned value so that -1 sorts last, secondary key is the column index.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4100-4108</c>)
     /// </summary>
     /// <param name="table">Table that owns both columns.</param>
     /// <param name="lhsIdx">Index of the left-hand column.</param>
@@ -3725,7 +3605,6 @@ public static partial class ImGui
     /// <summary>
     /// Repairs invalid display-order data by compacting gaps, preserving relative order, and
     /// deduplicating equal orders, then rebuilds the reverse display-order map.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4111-4126</c>)
     /// </summary>
     /// <param name="table">Table whose column display order is normalized.</param>
     /// <remarks>
@@ -3778,7 +3657,6 @@ public static partial class ImGui
     /// <summary>
     /// Serializes one table's current layout into its settings record, creating or rebinding the record
     /// as needed, and marks the settings dirty.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3924-3984</c>)
     /// </summary>
     /// <param name="table">Table whose layout is saved.</param>
     /// <remarks>
@@ -3855,7 +3733,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Binds a table to its saved settings record, if one exists, and prepares the per-column load.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3986-4016</c>)
     /// </summary>
     /// <param name="table">Table requesting its settings.</param>
     /// <remarks>
@@ -3896,7 +3773,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Matches the saved per-column entries to the table's live columns and applies them.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4018-4069</c>)
     /// </summary>
     /// <param name="table">Table receiving the saved column state.</param>
     /// <remarks>
@@ -3965,7 +3841,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Applies one saved column entry to one live column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4071-4098</c>)
     /// </summary>
     /// <param name="column">Live column receiving the saved state.</param>
     /// <param name="columnSettings">Saved entry to apply.</param>
@@ -3999,7 +3874,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Clears every table's settings binding and empties the settings list.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4128-4135</c>)
     /// </summary>
     /// <param name="ctx">The context being cleaned.</param>
     /// <param name="handler">The table settings handler, unused.</param>
@@ -4013,7 +3887,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Applies date-based discard and stamping to the table settings entries.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4137-4154</c>)
     /// </summary>
     /// <param name="ctx">The context being cleaned.</param>
     /// <param name="handler">The table settings handler, unused.</param>
@@ -4042,7 +3915,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Requests that every live table reload its settings.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4156-4165</c>)
     /// </summary>
     /// <param name="ctx">The context being applied.</param>
     /// <param name="handler">The table settings handler, unused.</param>
@@ -4058,7 +3930,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Opens one `[Table][0xID,count]` entry for reading.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4167-4177</c>)
     /// </summary>
     /// <param name="ctx">The context being read into.</param>
     /// <param name="handler">The table settings handler, unused.</param>
@@ -4083,7 +3954,6 @@ public static partial class ImGui
     /// <summary>
     /// Reads one line of a table settings entry: the reference scale, the last-used date, or a column
     /// record.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4179-4205</c>)
     /// </summary>
     /// <param name="ctx">The context being read into.</param>
     /// <param name="handler">The table settings handler, unused.</param>
@@ -4185,7 +4055,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Writes every table settings entry to the output buffer.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4207-4248</c>)
     /// </summary>
     /// <param name="ctx">The context being written.</param>
     /// <param name="handler">The table settings handler supplying the section type name.</param>
@@ -4244,7 +4113,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Registers the `Table` settings handler.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4250-4262</c>, declared <c>imgui_internal.h:3552</c>)
+    /// (, declared )
     /// </summary>
     internal static void TableSettingsAddSettingsHandler()
     {
@@ -4277,13 +4146,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: Tables: Garbage Collection (imgui_tables.cpp:4308-4326)
+    #region SECTION: Tables: Garbage Collection
 
     /// <summary>
     /// Compacts the context's table settings list by dropping invalidated records, shrinking each
     /// surviving record's column array to the count actually in use, and rebinding every live table to
     /// re-find its record by identifier.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4308-4326</c>)
     /// </summary>
     /// <remarks>
     /// <para>
@@ -4336,7 +4204,7 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Removes table data from the context pool. Ports canonical <c>ImGui::TableRemove</c> (<c>ThirdParty/imgui/imgui_tables.cpp:4278-4287</c>).
+    /// Removes table data from the context pool. Ports canonical <c>ImGui::TableRemove</c>.
     /// </summary>
     public static void TableRemove(ImGuiTable table)
     {
@@ -4349,7 +4217,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Free up and compact internal table transient buffers when unused.
-    /// Ports canonical <c>ImGui::TableGcCompactTransientBuffers</c> (<c>ThirdParty/imgui/imgui_tables.cpp:4290-4303</c>).
+    /// Ports canonical <c>ImGui::TableGcCompactTransientBuffers</c>.
     /// </summary>
     public static void TableGcCompactTransientBuffers(ImGuiTable table)
     {
@@ -4367,7 +4235,7 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Compacts table temp data transient buffers. Ports canonical <c>ImGui::TableGcCompactTransientBuffers</c> (<c>ThirdParty/imgui/imgui_tables.cpp:4305-4310</c>).
+    /// Compacts table temp data transient buffers. Ports canonical <c>ImGui::TableGcCompactTransientBuffers</c>.
     /// </summary>
     public static void TableGcCompactTransientBuffers(ImGuiTableTempData tempData)
     {
@@ -4381,15 +4249,15 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: HEADERS, SORTING, AND CONTEXT MENU (imgui_tables.cpp)
+    #region SECTION: HEADERS, SORTING, AND CONTEXT MENU
 
-    #region SECTION: Tables: Sorting (imgui_tables.cpp:3043-3236)
+    #region SECTION: Tables: Sorting
 
     /// <summary>
     /// Returns the current sort specifications for the table that is being submitted, or
     /// <see langword="null"/> when there is no table scope or the table was not created with
     /// <see cref="ImGuiTableFlags.Sortable"/>. Canvases canonical <c>ImGui::TableGetSortSpecs</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3059-3072</c>), declared in <c>imgui.h:941</c>.
+    ///.
     /// </summary>
     /// <returns>
     /// The table's live <see cref="ImGuiTableSortSpecs"/> record, whose <see cref="ImGuiTableSortSpecs.Specs"/>
@@ -4401,12 +4269,11 @@ public static partial class ImGui
     /// <para>
     /// Layout is forced with <see cref="TableUpdateLayout"/> when it has not run yet, because layout can
     /// change <c>IsSortSpecsDirty</c> (for example when a hidden sorted column is disabled) even if the
-    /// caller never submitted a header row (<c>imgui_tables.cpp:3066-3068</c>).
+    /// caller never submitted a header row.
     /// </para>
     /// <para>
     /// The caller contract matches canonical: when <see cref="ImGuiTableSortSpecs.SpecsDirty"/> is set the
     /// caller sorts its own data and then clears the flag, otherwise the sort would repeat every frame
-    /// (<c>imgui_tables.cpp:3054-3057</c>).
     /// </para>
     /// </remarks>
     public static ImGuiTableSortSpecs? TableGetSortSpecs()
@@ -4427,7 +4294,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reads the n-th available sort direction packed into a column's two-bit direction list. Canvases
-    /// canonical <c>TableGetColumnAvailSortDirection</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3074-3078</c>).
+    /// canonical <c>TableGetColumnAvailSortDirection</c>.
     /// </summary>
     /// <param name="column">The column whose available directions are queried.</param>
     /// <param name="n">The zero-based index into the available-direction list; must be smaller than
@@ -4436,7 +4303,7 @@ public static partial class ImGui
     /// <remarks>
     /// The direction list is packed two bits per entry in
     /// <see cref="ImGuiTableColumn.SortDirectionsAvailList"/>, so the slot index is shifted left by one
-    /// before masking with <c>0x03</c> (<c>imgui_tables.cpp:3077</c>).
+    /// before masking with <c>0x03</c>.
     /// </remarks>
     private static ImGuiSortDirection TableGetColumnAvailSortDirection(ImGuiTableColumn column, int n)
     {
@@ -4448,8 +4315,8 @@ public static partial class ImGui
     /// Repairs a column's sort direction when it currently names a direction that the column no longer
     /// allows, for example after a <see cref="ImGuiTableColumnFlags.NoSortAscending"/> or
     /// <see cref="ImGuiTableColumnFlags.NoSortDescending"/> flag was applied. Canvases canonical
-    /// <c>ImGui::TableFixColumnSortDirection</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3081-3087</c>),
-    /// declared in <c>imgui_internal.h:3526</c>.
+    /// <c>ImGui::TableFixColumnSortDirection</c>.,
+    ///.
     /// </summary>
     /// <param name="table">The table that owns <paramref name="column"/>; marked dirty when repaired.</param>
     /// <param name="column">The column to repair. A column that is unsorted or whose direction is still
@@ -4457,7 +4324,6 @@ public static partial class ImGui
     /// <remarks>
     /// The repair replaces the direction with the first available one and marks
     /// <see cref="ImGuiTable.IsSortSpecsDirty"/> so the exposed specifications are rebuilt
-    /// (<c>imgui_tables.cpp:3083-3086</c>).
     /// </remarks>
     internal static void TableFixColumnSortDirection(ImGuiTable table, ImGuiTableColumn column)
     {
@@ -4471,16 +4337,16 @@ public static partial class ImGui
     /// <summary>
     /// Calculates the sort direction that a click on the column header would apply next. Canvases
     /// canonical <c>ImGui::TableGetColumnNextSortDirection</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3093-3103</c>), declared in <c>imgui_internal.h:3525</c>.
+    ///.
     /// </summary>
     /// <param name="column">The column whose available directions drive the cycle.</param>
     /// <returns>The first available direction for an unsorted column, otherwise the next available
     /// direction in cyclic order.</returns>
     /// <remarks>
     /// The canonical ordering is pinned by a static assertion: <c>None == 0</c>, <c>Ascending == 1</c>,
-    /// <c>Descending == 2</c> (<c>imgui_tables.cpp:3092</c>). The scan is bounded to three entries because
+    /// <c>Descending == 2</c>. The scan is bounded to three entries because
     /// a column can expose at most three directions, and an unreachable direction is a programming error
-    /// (<c>imgui_tables.cpp:3098-3102</c>). <see cref="ImGuiTableColumnFlags.PreferSortAscending"/> is
+    ///. <see cref="ImGuiTableColumnFlags.PreferSortAscending"/> is
     /// never consulted here because ascending is the default and therefore already the first entry.
     /// </remarks>
     internal static ImGuiSortDirection TableGetColumnNextSortDirection(ImGuiTableColumn column)
@@ -4498,7 +4364,7 @@ public static partial class ImGui
     /// <summary>
     /// Applies a sort direction to one column, optionally appending it to an existing multi-sort instead
     /// of replacing the whole sort. Canvases canonical <c>ImGui::TableSetColumnSortDirection</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3107-3138</c>), declared in <c>imgui_internal.h:3493</c>.
+    ///.
     /// </summary>
     /// <param name="columnN">The index of the column to sort.</param>
     /// <param name="sortDirection">The requested direction. <see cref="ImGuiSortDirection.None"/> clears
@@ -4509,7 +4375,7 @@ public static partial class ImGui
     /// <para>
     /// The canonical implementation derives the next contiguous sort order from the current maximum, then
     /// clears or renumbers every column through
-    /// <see cref="TableFixColumnSortDirection"/> (<c>imgui_tables.cpp:3117-3135</c>). Both
+    /// <see cref="TableFixColumnSortDirection"/>. Both
     /// <see cref="ImGuiTable.IsSettingsDirty"/>, consumed by the in-memory settings owner (Chunk 13), and
     /// <see cref="ImGuiTable.IsSortSpecsDirty"/>, consumed by <see cref="TableSortSpecsBuild"/>, are set.
     /// </para>
@@ -4554,21 +4420,20 @@ public static partial class ImGui
     /// Validates and normalizes the columns' sort orders before the public sort specifications are
     /// published: hidden columns are dropped, gaps and duplicates are compacted, single-sort tables keep
     /// only the first order, and a default column is chosen when nothing is sorted. Canvases canonical
-    /// <c>ImGui::TableSortSpecsSanitize</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3140-3204</c>),
-    /// declared in <c>imgui_internal.h:3522</c>.
+    /// <c>ImGui::TableSortSpecsSanitize</c>.,
+    ///.
     /// </summary>
     /// <param name="table">The table whose sort orders are normalized and whose
     /// <see cref="ImGuiTable.SortSpecsCount"/> is written.</param>
     /// <remarks>
     /// <para>
     /// A 64-bit mask records which sort-order slots are taken so gaps and duplicates can be detected with
-    /// a single comparison (<c>imgui_tables.cpp:3144-3160</c>). Compaction repeatedly selects the column
-    /// with the smallest order and rewrites it densely from zero (<c>imgui_tables.cpp:3161-3187</c>).
+    /// a single comparison. Compaction repeatedly selects the column
+    /// with the smallest order and rewrites it densely from zero.
     /// </para>
     /// <para>
     /// When no column is sorted and the table is not tristate, the first enabled column that is not marked
     /// <see cref="ImGuiTableColumnFlags.NoSort"/> receives order zero and its first available direction
-    /// (<c>imgui_tables.cpp:3189-3201</c>).
     /// </para>
     /// </remarks>
     internal static void TableSortSpecsSanitize(ImGuiTable table)
@@ -4599,8 +4464,7 @@ public static partial class ImGui
             for (int sortN = 0; sortN < sortOrderCount; sortN++)
             {
                 // Rewrite the order fields so they have no gap or duplicate. For example when order 0
-                // disappears and orders 1..2 remain, they are rewritten as 0..1
-                // (imgui_tables.cpp:3166-3175).
+                // disappears and orders 1.2 remain, they are rewritten as 0.1
                 int columnWithSmallestSortOrder = -1;
                 for (int columnN = 0; columnN < table.ColumnsCount; columnN++)
                     if (!visited[columnN] && table.Columns[columnN].SortOrder != -1)
@@ -4612,7 +4476,6 @@ public static partial class ImGui
                 table.Columns[columnWithSmallestSortOrder].SortOrder = (short)sortN;
 
                 // Keep only the first order when the table does not allow multi-sort
-                // (imgui_tables.cpp:3177-3185).
                 if (needFixSingleSortOrder)
                 {
                     sortOrderCount = 1;
@@ -4625,7 +4488,7 @@ public static partial class ImGui
         }
 
         // Fallback default sort order, used when no column requested one through
-        // ImGuiTableColumnFlags.DefaultSort (imgui_tables.cpp:3189-3201).
+        // ImGuiTableColumnFlags.DefaultSort.
         if (sortOrderCount == 0 && (table.Flags & ImGuiTableFlags.SortTristate) == 0)
             for (int columnN = 0; columnN < table.ColumnsCount; columnN++)
             {
@@ -4645,13 +4508,13 @@ public static partial class ImGui
     /// <summary>
     /// Rebuilds and publishes the table's public sort specifications, marking them dirty for the caller
     /// when the underlying sort orders changed. Canvases canonical <c>ImGui::TableSortSpecsBuild</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3206-3236</c>), declared in <c>imgui_internal.h:3523</c>.
+    ///.
     /// </summary>
     /// <param name="table">The table whose <see cref="ImGuiTable.SortSpecs"/> record is refreshed.</param>
     /// <remarks>
     /// <para>
     /// Canonical points the exposed <c>Specs</c> pointer either at the table's single specification or at
-    /// the raw data of its multi-sort vector (<c>imgui_tables.cpp:3219</c>). Because
+    /// the raw data of its multi-sort vector. Because
     /// <see cref="ImGuiTableSortSpecs.Specs"/> is a managed array view in this port, the array is reused
     /// while its length still matches <see cref="ImGuiTable.SortSpecsCount"/> and is only reallocated when
     /// the count changes. The multi-sort backing list is resized with element reuse for the same reason.
@@ -4659,8 +4522,8 @@ public static partial class ImGui
     /// <para>
     /// <see cref="ImGuiTableSortSpecs.SpecsDirty"/> is set for the caller and
     /// <see cref="ImGuiTable.IsSortSpecsDirty"/> is cleared for the library exactly as canonical
-    /// (<c>imgui_tables.cpp:3213-3214</c>). The entries are written only on a dirty rebuild, indexed by
-    /// each column's <see cref="ImGuiTableColumn.SortOrder"/> (<c>imgui_tables.cpp:3220-3232</c>).
+    ///. The entries are written only on a dirty rebuild, indexed by
+    /// each column's <see cref="ImGuiTableColumn.SortOrder"/>.
     /// </para>
     /// </remarks>
     internal static void TableSortSpecsBuild(ImGuiTable table)
@@ -4683,7 +4546,7 @@ public static partial class ImGui
         }
 
         // Choose the backing storage: null for zero specs, the single specification for one, or the
-        // multi-sort array view otherwise (imgui_tables.cpp:3217-3219).
+        // multi-sort array view otherwise.
         ImGuiTableColumnSortSpecs[]? sortSpecs;
         if (table.SortSpecsCount == 0)
         {
@@ -4725,19 +4588,18 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: Tables: Headers (imgui_tables.cpp:3239-3636)
+    #region SECTION: Tables: Headers
 
     /// <summary>
     /// Calculates the uniform height of a header row so that short labels still fill the tallest cell.
     /// Canvases canonical <c>ImGui::TableGetHeaderRowHeight</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3249-3263</c>), declared in <c>imgui_internal.h:3495</c>.
+    ///.
     /// </summary>
     /// <returns>The row height: the larger of the font size and every displayed enabled header label's
     /// height, plus twice the vertical cell padding.</returns>
     /// <remarks>
     /// Columns marked <see cref="ImGuiTableColumnFlags.NoHeaderLabel"/> are excluded because
     /// <see cref="TableHeadersRow"/> submits an empty label for them
-    /// (<c>imgui_tables.cpp:3258-3261</c>).
     /// </remarks>
     internal static float TableGetHeaderRowHeight()
     {
@@ -4756,13 +4618,13 @@ public static partial class ImGui
     /// <summary>
     /// Calculates the widest angled-header label so <see cref="TableAngledHeadersRowEx"/> can derive its
     /// row height from it. Canvases canonical <c>ImGui::TableGetHeaderAngledMaxLabelWidth</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3265-3275</c>), declared in <c>imgui_internal.h:3496</c>.
+    ///.
     /// </summary>
     /// <returns>The widest enabled angled-header label plus twice the vertical cell padding, which acts as
     /// the horizontal padding for a rotated label.</returns>
     /// <remarks>
     /// The label is measured with <c>hide_text_after_double_hash</c> enabled because the identifier suffix
-    /// is not drawn (<c>imgui_tables.cpp:3273</c>).
+    /// is not drawn.
     /// </remarks>
     internal static float TableGetHeaderAngledMaxLabelWidth()
     {
@@ -4782,19 +4644,17 @@ public static partial class ImGui
     /// Submits a full header row by calling <see cref="TableHeader"/> once per column name declared through
     /// <c>TableSetupColumn</c>, then opens the table context menu from the unused area to the right of the
     /// last column. Canvases canonical <c>ImGui::TableHeadersRow</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3284-3320</c>), declared in <c>imgui.h:932</c>.
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Layout is forced here so that a debugger can step into <c>TableUpdateLayout</c>; the normal path
-    /// would have already run it from <c>TableNextRow</c> (<c>imgui_tables.cpp:3290-3293</c>). When the host
+    /// would have already run it from <c>TableNextRow</c>. When the host
     /// window is fully clipped the row is still opened but no header cell is submitted
-    /// (<c>imgui_tables.cpp:3299-3300</c>).
     /// </para>
     /// <para>
     /// A column is submitted even when <see cref="TableSetColumnIndex"/> reports it as not requested, as
     /// long as it is the column currently being dragged, so a reorder drag keeps its source header alive
-    /// (<c>imgui_tables.cpp:3305-3306</c>).
     /// </para>
     /// <para>
     /// Only the context menu is opened from this helper; the popup body itself is submitted by the caller
@@ -4827,7 +4687,7 @@ public static partial class ImGui
                 continue;
 
             // Pushing an identifier makes empty and unnamed headers distinct, and gives automation a
-            // stable identifier path per column (imgui_tables.cpp:3308-3312).
+            // stable identifier path per column.
             string name = (TableGetColumnFlags(columnN) & ImGuiTableColumnFlags.NoHeaderLabel) != 0
                 ? ""
                 : TableGetColumnName(table, columnN);
@@ -4846,8 +4706,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits one column header cell: background, optional sort arrow and multi-sort index, the
     /// CPU-clipped label, the reorder drag source, and the click-to-sort interaction. Canvases canonical
-    /// <c>ImGui::TableHeader</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3325-3465</c>), declared in
-    /// <c>imgui.h:931</c>.
+    /// <c>ImGui::TableHeader</c>., declared in
     /// </summary>
     /// <param name="label">The header text. A <see langword="null"/> value is treated as an empty label,
     /// matching canonical. The portion before a <c>##</c> marker is measured and rendered.</param>
@@ -4855,12 +4714,11 @@ public static partial class ImGui
     /// <para>
     /// The label is clipped on the CPU rather than by the GPU so that adjacent header cells usually merge
     /// into one draw command; consequently <c>SameLine</c> cannot be used after a header
-    /// (<c>imgui_tables.cpp:3322-3324</c>).
     /// </para>
     /// <para>
     /// The unclipped header width is fed to <see cref="ImGuiTableColumn.ContentMaxXHeadersUsed"/> and
     /// <see cref="ImGuiTableColumn.ContentMaxXHeadersIdeal"/> without writing on the cursor maximum so the
-    /// column still participates in draw-command merging (<c>imgui_tables.cpp:3368-3371</c>).
+    /// column still participates in draw-command merging.
     /// </para>
     /// <para>
     /// Reorder drag queues display-order changes owned by the column reorder path; drag &amp; drop
@@ -4869,7 +4727,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// The canonical test-engine item registration
-    /// (<c>IMGUI_TEST_ENGINE_ITEM_INFO</c>, <c>imgui_tables.cpp:3464</c>) is not ported, because this port
+    /// (<c>IMGUI_TEST_ENGINE_ITEM_INFO</c>, ) is not ported, because this port
     /// has no test-engine instrumentation layer.
     /// </para>
     /// </remarks>
@@ -4896,7 +4754,7 @@ public static partial class ImGui
         ImVec2 labelSize = CalcTextSize(labelDisplayEnd, false, -1.0f);
         ImVec2 labelPos = window.DC.CursorPos;
 
-        // If a row height was already requested, use it (imgui_tables.cpp:3345-3348).
+        // If a row height was already requested, use it.
         ImRect cellR = TableGetCellBgRect(table, columnN);
         float labelHeight = MathF.Max(labelSize.Y, table.RowMinHeight - table.RowCellPaddingY * 2.0f);
 
@@ -4920,7 +4778,7 @@ public static partial class ImGui
 
         // Feed the unclipped width to the column without writing on CursorMaxPos, so the column is still
         // considered for draw-command merging. When an arrow is displayed the used width claims the whole
-        // cell (imgui_tables.cpp:3368-3371).
+        // cell.
         float maxPosX = labelPos.X + labelSize.X + wSortText + wArrow;
         column.ContentMaxXHeadersUsed = MathF.Max(column.ContentMaxXHeadersUsed, sortArrow ? cellR.Max.X : MathF.Min(maxPosX, cellR.Max.X));
         column.ContentMaxXHeadersIdeal = MathF.Max(column.ContentMaxXHeadersIdeal, maxPosX);
@@ -4933,7 +4791,7 @@ public static partial class ImGui
             return;
 
         // AllowOverlap is used because the header covers the whole cell while still allowing subsequent
-        // items to be submitted inside it (imgui_tables.cpp:3383-3386).
+        // items to be submitted inside it.
         bool highlight = table.HighlightColumnHeader == columnN;
         bool pressed = ButtonBehavior(bb, id, out bool hovered, out bool held, ImGuiButtonFlags.AllowOverlap);
         if (held || hovered || highlight)
@@ -4955,7 +4813,6 @@ public static partial class ImGui
         // Drag to reorder columns. While a column moves it jumps to the other side of the mouse, so the
         // horizontal mouse delta is tested as well, and hidden columns are crossed by following the
         // previous/next enabled links; TableQueueSetColumnDisplayOrder validates the queued order
-        // (imgui_tables.cpp:3404-3421).
         if (held && (table.Flags & ImGuiTableFlags.Reorderable) != 0 && IsMouseDragging(ImGuiMouseButton.Left) && !g.DragDropActive)
         {
             table.InstanceInteracted = table.InstanceCurrent;
@@ -4975,7 +4832,7 @@ public static partial class ImGui
 
         // Sort-order arrow and click-to-sort. The label is only clipped for a visible arrow; auto-fit
         // still accounts for a possible arrow, but a manually narrowed column is not clipped for an arrow
-        // that is not displayed (imgui_tables.cpp:3423-3449).
+        // that is not displayed.
         float ellipsisMax = MathF.Max(cellR.Max.X - (sortArrow ? wArrow + wSortText : 0.0f), labelPos.X);
         if ((table.Flags & ImGuiTableFlags.Sortable) != 0 && (column.Flags & ImGuiTableColumnFlags.NoSort) == 0)
         {
@@ -5003,7 +4860,7 @@ public static partial class ImGui
         }
 
         // Render the clipped label so that in most situations all header cells merge into a single draw
-        // command (imgui_tables.cpp:3451-3454).
+        // command.
         RenderTextEllipsis(window.DrawList, labelPos, new ImVec2(ellipsisMax, bb.Max.Y), ellipsisMax, label, labelDisplayEnd, labelSize);
 
         bool textClipped = labelSize.X > (ellipsisMax - labelPos.X);
@@ -5011,7 +4868,7 @@ public static partial class ImGui
             SetItemTooltip("%s", labelDisplayEnd);
 
         // BeginPopupContextItem() is not used because the popup must stay open even after the column is
-        // hidden (imgui_tables.cpp:3460-3462).
+        // hidden.
         if (IsPopupOpenRequestForItem(ImGuiPopupFlags.None, id))
             TableOpenContextMenu(columnN);
     }
@@ -5020,7 +4877,7 @@ public static partial class ImGui
     /// Builds the angled-header requests from the enabled columns that declare
     /// <see cref="ImGuiTableColumnFlags.AngledHeader"/> and submits them through
     /// <see cref="TableAngledHeadersRowEx"/>. Canvases canonical <c>ImGui::TableAngledHeadersRow</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3469-3501</c>), declared in <c>imgui.h:933</c>.
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -5028,7 +4885,6 @@ public static partial class ImGui
     /// <see cref="TableAngledHeadersRowEx"/>. The highlighted column is taken from the last held header or
     /// the layout's highlight column, and otherwise from the column hovered in the first row when the mouse
     /// is not over a resize border and no unrelated item is active
-    /// (<c>imgui_tables.cpp:3477-3483</c>).
     /// </para>
     /// <para>
     /// The request list reuses its existing <see cref="ImGuiTableHeaderData"/> instances instead of
@@ -5096,13 +4952,13 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits the rotated, multi-line labels of an angled header row. Canvases canonical
-    /// <c>ImGui::TableAngledHeadersRowEx</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3504-3636</c>),
-    /// declared in <c>imgui_internal.h:3501</c>.
+    /// <c>ImGui::TableAngledHeadersRowEx</c>.,
+    ///.
     /// </summary>
     /// <param name="rowId">The identifier of the row; it is also used as the button identifier covering the
     /// whole row.</param>
     /// <param name="angle">The label rotation in radians, expressed in the easier-to-reason-about range
-    /// <c>(-PI/2 .. +PI/2)</c>; a negative angle flips the label.</param>
+    /// <c>(-PI/2. +PI/2)</c>; a negative angle flips the label.</param>
     /// <param name="maxLabelWidth">The clip width of each label, or zero to derive it from
     /// <see cref="TableGetHeaderAngledMaxLabelWidth"/>.</param>
     /// <param name="data">The requests to draw, fed left to right.</param>
@@ -5111,12 +4967,11 @@ public static partial class ImGui
     /// <para>
     /// The vertices submitted by <c>RenderTextEllipsis</c> for each line are rotated and offset in place
     /// through <see cref="ShadeVertsTransformPos"/>, so each line follows the horizontal cell border
-    /// instead of the whole text block being rotated (<c>imgui_tables.cpp:3621</c>).
+    /// instead of the whole text block being rotated.
     /// </para>
     /// <para>
     /// The extra width consumed beyond the right-most enabled column is stored in
     /// <see cref="ImGuiTableTempData.AngledHeadersExtraWidth"/> for <c>EndTable</c> to account for
-    /// (<c>imgui_tables.cpp:3635</c>).
     /// </para>
     /// </remarks>
     internal static void TableAngledHeadersRowEx(uint rowId, float angle, float maxLabelWidth, List<ImGuiTableHeaderData> data, int dataCount)
@@ -5135,8 +4990,8 @@ public static partial class ImGui
         if (maxLabelWidth == 0.0f)
             maxLabelWidth = TableGetHeaderAngledMaxLabelWidth();
 
-        // The angle argument is expressed in (-PI/2 .. +PI/2) as it is easier to think about for the
-        // caller; the actual rotation angle points the labels upward (imgui_tables.cpp:3516-3523).
+        // The angle argument is expressed in (-PI/2. +PI/2) as it is easier to think about for the
+        // caller; the actual rotation angle points the labels upward.
         bool flipLabel = angle < 0.0f;
         angle -= MathF.PI * 0.5f;
         float cosA = MathF.Cos(angle);
@@ -5146,7 +5001,7 @@ public static partial class ImGui
         ImVec2 unitRight = new ImVec2(cosA, sinA);
 
         // Calculate the base metrics and set the angled-header data before the first TableNextRow() call,
-        // because TableUpdateLayout() consumes them (imgui_tables.cpp:3525-3531).
+        // because TableUpdateLayout() consumes them.
         float headerHeight = g.FontSize + g.Style.CellPadding.X * 2.0f;
         float rowHeight = TruncateToInt(MathF.Abs(ImRotate(new ImVec2(maxLabelWidth, flipLabel ? +headerHeight : -headerHeight), cosA, sinA).Y));
         table.AngledHeadersHeight = rowHeight;
@@ -5191,7 +5046,7 @@ public static partial class ImGui
                 ImVec2 bgShape3 = bgShape0 + headerAngledVector;
                 if (pass == 0)
                 {
-                    // Draw the shape, then the optional highlight on top (imgui_tables.cpp:3570-3574).
+                    // Draw the shape, then the optional highlight on top.
                     drawList.AddQuadFilled(bgShape0, bgShape1, bgShape2, bgShape3, request.BgColor0);
                     drawList.AddQuadFilled(bgShape0, bgShape1, bgShape2, bgShape3, request.BgColor1);
                     maxX = MathF.Max(maxX, bgShape3.X);
@@ -5199,7 +5054,6 @@ public static partial class ImGui
                     // Draw the label at an offset where RenderTextXXX() will not apply the current clip
                     // rect, then transform the submitted vertices to their final rotated position. Multiple
                     // lines are handled manually so each line follows the horizontal border
-                    // (imgui_tables.cpp:3576-3581).
                     string labelName = TableGetColumnName(table, columnN);
                     string labelNameEnd = FindRenderedTextEnd(labelName);
                     float lineOffStepX = g.FontSize / -sinA;
@@ -5210,7 +5064,7 @@ public static partial class ImGui
                     float lineOffForAlignX = MathF.Floor(MathF.Max((((column.MaxX - column.MinX) - padding.X * 2.0f) - (labelLines * lineOffStepX)), 0.0f) * align.X);
                     lineOffCurrX += lineOffForAlignX - lineOffForAscentX;
 
-                    // Register the header width (imgui_tables.cpp:3590).
+                    // Register the header width.
                     column.ContentMaxXHeadersUsed = column.ContentMaxXHeadersIdeal = column.WorkMinX + MathF.Ceiling(labelLines * lineOffStepX - lineOffForAlignX);
 
                     int lineStart = 0;
@@ -5221,7 +5075,7 @@ public static partial class ImGui
                         string line = labelNameEnd.Substring(lineStart, lineEnd - lineStart);
 
                         // FIXME: individual line clipping for the right-most column is broken for negative
-                        // angles (imgui_tables.cpp:3598).
+                        // angles.
                         ImVec2 labelSize = CalcTextSize(line, false, -1.0f);
                         float clipWidth = maxLabelWidth - padding.Y; // padding.Y*2 would be symmetrical but hide more text.
                         float clipHeight = MathF.Min(labelSize.Y, column.ClipRect.Max.X - column.WorkMinX - lineOffCurrX);
@@ -5236,7 +5090,7 @@ public static partial class ImGui
                         float availableSpace = MathF.Max(clipWidth - labelSize.X + MathF.Abs(padding.X * cosA) * 2.0f - MathF.Abs(padding.Y * sinA) * 2.0f, 0.0f);
                         float verticalOffset = availableSpace * align.Y * (flipLabel ? -1.0f : 1.0f);
 
-                        // Rotate and offset the submitted label vertices (imgui_tables.cpp:3613-3621).
+                        // Rotate and offset the submitted label vertices.
                         ImVec2 pivotIn = new ImVec2(window.ClipRect.Min.X - verticalOffset, window.ClipRect.Min.Y + labelSize.Y);
                         ImVec2 pivotOut = new ImVec2(column.WorkMinX, rowR.Max.Y);
                         lineOffCurrX += flipLabel ? -lineOffStepX : lineOffStepX;
@@ -5251,7 +5105,7 @@ public static partial class ImGui
                 }
                 if (pass == 1)
                 {
-                    // Draw the column border on the header's leading edge (imgui_tables.cpp:3628-3631).
+                    // Draw the column border on the header's leading edge.
                     drawList.AddLine(bgShape0 - new ImVec2(TABLE_BORDER_SIZE * 0.5f, 0.0f), bgShape3 - new ImVec2(TABLE_BORDER_SIZE * 0.5f, 0.0f), TableGetColumnBorderCol(table, orderN, columnN), TABLE_BORDER_SIZE);
                 }
             }
@@ -5262,7 +5116,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Counts the lines of a rendered label, not counting a trailing carriage return as an extra line.
-    /// Canvases canonical <c>ImTextCountLines</c> (<c>ThirdParty/imgui/imgui.cpp:2905-2917</c>).
+    /// Canvases canonical <c>ImTextCountLines</c>.
     /// </summary>
     /// <param name="text">The rendered label text.</param>
     /// <returns>The number of newline-separated lines; zero for an empty string.</returns>
@@ -5287,7 +5141,6 @@ public static partial class ImGui
     /// <summary>
     /// Rotates a range of already-submitted vertices around a pivot and translates them to an output
     /// pivot. Canvases canonical <c>ImGui::ShadeVertsTransformPos</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2432-2439</c>).
     /// </summary>
     /// <param name="drawList">The draw list whose shared vertex buffer is transformed.</param>
     /// <param name="vertStartIdx">The first vertex index of the range.</param>
@@ -5300,7 +5153,7 @@ public static partial class ImGui
     /// The port's draw-list splitter shares one vertex buffer across channels, so the live vertex count
     /// observed between two text submissions is the equivalent of canonical <c>draw_list-&gt;_VtxCurrentIdx</c>.
     /// The helper is private to the angled-header drawing path that needs it; canonical declares it
-    /// <c>IMGUI_API</c> in <c>imgui_internal.h:4116</c> and it is otherwise absent from the port.
+    /// <c>IMGUI_API</c>. and it is otherwise absent from the port.
     /// </remarks>
     public static void ShadeVertsTransformPos(ImDrawList drawList, int vertStartIdx, int vertEndIdx, ImVec2 pivotIn, float cosA, float sinA, ImVec2 pivotOut)
     {
@@ -5314,12 +5167,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: Tables: Context Menu (imgui_tables.cpp:3639-3829)
+    #region SECTION: Tables: Context Menu
 
     /// <summary>
     /// Opens the table's context-menu popup, optionally for a specific column. Canvases canonical
-    /// <c>ImGui::TableOpenContextMenu</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3647-3664</c>), declared in
-    /// <c>imgui_internal.h:3491</c>.
+    /// <c>ImGui::TableOpenContextMenu</c>., declared in
     /// </summary>
     /// <param name="columnN">The column the menu applies to, or <c>-1</c> for a menu that is not specific
     /// to any column. <c>-1</c> resolves to the current column when one is selected, and a value equal to
@@ -5329,7 +5181,7 @@ public static partial class ImGui
     /// The popup is only opened when the table requested at least one of
     /// <see cref="ImGuiTableFlags.Resizable"/>, <see cref="ImGuiTableFlags.Reorderable"/>, or
     /// <see cref="ImGuiTableFlags.Hideable"/>; the popup identifier is seeded with the table identifier so
-    /// two tables cannot collide (<c>imgui_tables.cpp:3656-3663</c>).
+    /// two tables cannot collide.
     /// </remarks>
     internal static void TableOpenContextMenu(int columnN = -1)
     {
@@ -5356,7 +5208,7 @@ public static partial class ImGui
     /// <summary>
     /// Begins the table's context-menu popup when it was opened for the currently active table instance.
     /// Canvases canonical <c>ImGui::TableBeginContextMenuPopup</c>
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3666-3675</c>), declared in <c>imgui_internal.h:3517</c>.
+    ///.
     /// </summary>
     /// <param name="table">The table whose context-menu popup is begun.</param>
     /// <returns><see langword="true"/> when the popup became the current menu and the caller must call
@@ -5365,7 +5217,6 @@ public static partial class ImGui
     /// The popup is anchored to the interacted instance so a menu opened in one table instance does not
     /// appear in another. It is auto-resized and unsaved; the in-memory settings owner (Chunk 13) is
     /// therefore not involved. When <c>BeginPopupEx</c> fails the open request is cleared
-    /// (<c>imgui_tables.cpp:3671-3674</c>).
     /// </remarks>
     internal static bool TableBeginContextMenuPopup(ImGuiTable table)
     {
@@ -5382,7 +5233,7 @@ public static partial class ImGui
     /// Submits one context-menu entry specialized for column visibility and reordering: it selects on
     /// release, spans the available width, stays highlighted while being dragged, stops toggling once it has
     /// been dragged, and draws a check mark for the selected state. Canvases canonical static
-    /// <c>MenuItemForColumnReorder</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3678-3705</c>).
+    /// <c>MenuItemForColumnReorder</c>.
     /// </summary>
     /// <param name="label">The entry label, which also supplies the identifier.</param>
     /// <param name="selected">Whether the column is currently shown.</param>
@@ -5391,10 +5242,10 @@ public static partial class ImGui
     /// in which case the caller flips the column's pending visibility.</returns>
     /// <remarks>
     /// This is a copy of <c>MenuItem</c> rather than a call to it so that the private
-    /// <c>SelectOnRelease</c> behavior can be requested (<c>imgui_tables.cpp:3677</c>). <c>Disabled</c> is
+    /// <c>SelectOnRelease</c> behavior can be requested. <c>Disabled</c> is
     /// applied through <c>BeginDisabled</c>/<c>EndDisabled</c> so the check mark is dimmed as well, and it
-    /// is not forwarded through the selectable flags (<c>imgui_tables.cpp:3697</c>). The canonical
-    /// test-engine item registration (<c>imgui_tables.cpp:3703</c>) is not ported, because this port has no
+    /// is not forwarded through the selectable flags. The canonical
+    /// test-engine item registration. is not ported, because this port has no
     /// test-engine instrumentation layer.
     /// </remarks>
     private static bool MenuItemForColumnReorder(string label, bool selected, bool enabled)
@@ -5430,29 +5281,28 @@ public static partial class ImGui
     /// <summary>
     /// Submits the default table context-menu body: a sizing section, a reset section, and a
     /// visibility section that also supports drag reordering. Canvases canonical
-    /// <c>ImGui::TableDrawDefaultContextMenu</c> (<c>ThirdParty/imgui/imgui_tables.cpp:3715-3829</c>),
-    /// declared in <c>imgui_internal.h:3516</c>.
+    /// <c>ImGui::TableDrawDefaultContextMenu</c>.,
+    ///.
     /// </summary>
     /// <param name="table">The table whose context menu is drawn.</param>
     /// <param name="flagsForSectionToDisplay">The flag subset that selects which sections are emitted;
     /// normally <see cref="ImGuiTable.Flags"/>, so a custom context menu can call this helper with a
-    /// reduced flag set (<c>imgui_tables.cpp:3709-3714</c>).</param>
+    /// reduced flag set.</param>
     /// <remarks>
     /// <para>
     /// The sizing section resets one column or all columns through the width setters owned by the
-    /// columns/widths part (<c>imgui_tables.cpp:3726-3744</c>). The reset section only raises the
+    /// columns/widths part. The reset section only raises the
     /// display-order and visibility reset requests that layout consumes next frame
-    /// (<c>imgui_tables.cpp:3746-3759</c>).
     /// </para>
     /// <para>
     /// Canonical contains a sorting section guarded by <c>#if 0</c> and therefore compiled out; it is
     /// intentionally not ported, so the default menu never calls
-    /// <see cref="TableSetColumnSortDirection"/> (<c>imgui_tables.cpp:3761-3776</c>).
+    /// <see cref="TableSetColumnSortDirection"/>.
     /// </para>
     /// <para>
     /// The visibility section disables hiding the last shown column, disables destinations outside the
     /// range allowed during a reorder drag, and estimates a destination order from the drag distance before
-    /// queueing it (<c>imgui_tables.cpp:3778-3828</c>). Auto-close of popups is suppressed for the whole
+    /// queueing it. Auto-close of popups is suppressed for the whole
     /// section so dragging an entry does not close the menu.
     /// </para>
     /// </remarks>
@@ -5495,7 +5345,6 @@ public static partial class ImGui
             {
                 // Canonical keeps a "Reset all" item commented out because requesting auto-fit and altering
                 // the sort order in the same frame can exhibit a sizing glitch
-                // (imgui_tables.cpp:3750-3751).
                 if ((flagsForSectionToDisplay & ImGuiTableFlags.Reorderable) != 0)
                     if (MenuItem(LocalizeGetMsg(ImGuiLocKey.TableResetOrder), null, false, !table.IsDefaultDisplayOrder)) // Cannot be hidden or it would break drag reordering.
                         table.IsResetDisplayOrderRequest = true;
@@ -5514,7 +5363,6 @@ public static partial class ImGui
 
             // While reordering, the allowed destination range is computed once here instead of once per
             // item, because the query itself performs a sweep scan and is assumed to yield a single range
-            // (imgui_tables.cpp:3785-3790).
             bool isReordering = g.ActiveId != 0 && g.ActiveIdWindow == g.CurrentWindow
                 && table.ReorderColumn != -1 && g.ActiveIdHasBeenEditedBefore;
             int reorderSrcOrder = isReordering ? table.Columns[table.ReorderColumn].DisplayOrder : -1;
@@ -5533,7 +5381,7 @@ public static partial class ImGui
                     name = "<Unknown>";
 
                 // Make sure the last active column cannot be hidden, and that a reorder drag cannot target
-                // an out-of-range destination (imgui_tables.cpp:3803-3808).
+                // an out-of-range destination.
                 bool menuItemEnabled = (column.Flags & ImGuiTableColumnFlags.NoHide) == 0;
                 if (column.IsUserEnabled && table.ColumnsEnabledCount <= 1)
                     menuItemEnabled = false;
@@ -5543,7 +5391,6 @@ public static partial class ImGui
                     column.IsUserEnabledNextFrame = !column.IsUserEnabled;
 
                 // Drag to reorder. Columns marked NoHide cannot be reordered
-                // (imgui_tables.cpp:3812-3825).
                 if (IsItemActive() && IsMouseDragging(ImGuiMouseButton.Left) && g.ActiveIdSource == ImGuiInputSource.Mouse
                     && (table.Flags & ImGuiTableFlags.Reorderable) != 0)
                 {
@@ -5566,13 +5413,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Legacy Columns (imgui_tables.cpp:4500-4905)
+    #region [SECTION] Legacy Columns
 
     private const float COLUMNS_HIT_RECT_HALF_THICKNESS = 4.0f;
 
     /// <summary>
     /// Gets the count of columns in the current columns block, or 1 if no columns block is active.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4501-4505</c>)
     /// </summary>
     /// <returns>Active columns count.</returns>
     public static int GetColumnsCount()
@@ -5583,7 +5429,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Converts a normalized column offset to absolute pixels within the columns container.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4507-4510</c>)
     /// </summary>
     /// <param name="columns">Columns container.</param>
     /// <param name="offset_norm">Normalized offset in [0, 1].</param>
@@ -5595,7 +5440,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Converts an absolute pixel offset to normalized coordinate within the columns container.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4512-4515</c>)
     /// </summary>
     /// <param name="columns">Columns container.</param>
     /// <param name="offset">Pixel offset from column minimum.</param>
@@ -5605,6 +5449,12 @@ public static partial class ImGui
         return offset / (columns.OffMaxX - columns.OffMinX);
     }
 
+    /// <summary>
+    /// Computes the layout offset of an old-style column currently undergoing resize interaction.
+    /// </summary>
+    /// <param name="columns">The old column set being queried.</param>
+    /// <param name="columnIndex">The zero-based index of the column.</param>
+    /// <returns>The offset, in pixels, of the column boundary.</returns>
     private static float GetDraggedColumnOffset(ImGuiOldColumns columns, int columnIndex)
     {
         ImGuiContext g = GImGui!;
@@ -5622,7 +5472,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Gets the horizontal offset in pixels of a column from the window position.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4536-4550</c>)
     /// </summary>
     /// <param name="column_index">Target column index or -1 for current column.</param>
     /// <returns>Column pixel offset.</returns>
@@ -5642,6 +5491,13 @@ public static partial class ImGui
         return xOffset;
     }
 
+    /// <summary>
+    /// Calculates the width of an old-style column, optionally evaluating state prior to resize dragging.
+    /// </summary>
+    /// <param name="columns">The old column set being queried.</param>
+    /// <param name="columnIndex">The zero-based index of the column.</param>
+    /// <param name="beforeResize"><see langword="true"/> to query width prior to active resizing; otherwise, <see langword="false"/>.</param>
+    /// <returns>The width, in pixels, of the column.</returns>
     private static float GetColumnWidthEx(ImGuiOldColumns columns, int columnIndex, bool beforeResize = false)
     {
         if (columnIndex < 0)
@@ -5657,7 +5513,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Gets the width of a column in pixels.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4565-4576</c>)
     /// </summary>
     /// <param name="column_index">Target column index or -1 for current column.</param>
     /// <returns>Column width in pixels.</returns>
@@ -5676,7 +5531,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Sets the width of a column in pixels.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4600-4609</c>)
     /// </summary>
     /// <param name="column_index">Target column index or -1 for current column.</param>
     /// <param name="width">Target column width in pixels.</param>
@@ -5695,7 +5549,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Sets the pixel offset of a column from the window position.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4578-4598</c>)
     /// </summary>
     /// <param name="column_index">Target column index.</param>
     /// <param name="offset_x">Pixel offset.</param>
@@ -5725,7 +5578,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Gets the current column index (0 to Count - 1).
-    /// (<c>ThirdParty/imgui/imgui.h:952</c>)
     /// </summary>
     /// <returns>Current column index.</returns>
     public static int GetColumnIndex()
@@ -5736,7 +5588,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Pushes the clipping rectangle for a column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4611-4620</c>)
     /// </summary>
     /// <param name="column_index">Column index or -1 for current column.</param>
     public static void PushColumnClipRect(int column_index = -1)
@@ -5754,7 +5605,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Switches draw channel to the background channel of the current columns block.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4623-4634</c>)
     /// </summary>
     public static void PushColumnsBackground()
     {
@@ -5770,7 +5620,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Restores draw channel from the background channel to the active column channel.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4636-4646</c>)
     /// </summary>
     public static void PopColumnsBackground()
     {
@@ -5785,7 +5634,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Finds or creates a legacy columns container in window storage.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4648-4659</c>)
     /// </summary>
     /// <param name="window">Target window.</param>
     /// <param name="id">Columns container ID.</param>
@@ -5803,7 +5651,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Generates a unique identifier for a columns container.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4661-4672</c>)
     /// </summary>
     /// <param name="str_id">Optional identifier string.</param>
     /// <param name="count">Column count.</param>
@@ -5819,7 +5666,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a legacy columns layout region.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4674-4751</c>)
     /// </summary>
     /// <param name="str_id">Optional columns identifier string.</param>
     /// <param name="count">Number of columns.</param>
@@ -5898,7 +5744,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Advances cursor to the next column in the active columns layout container.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4753-4807</c>)
     /// </summary>
     public static void NextColumn()
     {
@@ -5950,7 +5795,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends the active legacy columns layout container, restores clipping and renders borders.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4809-4883</c>)
     /// </summary>
     public static void EndColumns()
     {
@@ -6029,7 +5873,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits or configures a legacy columns layout container.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4885-4901</c>)
     /// </summary>
     /// <param name="count">Number of columns.</param>
     /// <param name="id">Optional identifier string.</param>
@@ -6053,11 +5896,10 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: TABLE DEBUG INSPECTORS (imgui_tables.cpp:4338-4454)
+    #region SECTION: TABLE DEBUG INSPECTORS
 
     /// <summary>
     /// Names a table's sizing policy for the debug inspector.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4338-4346</c>)
     /// </summary>
     /// <param name="sizingPolicy">The table flags whose sizing bits are inspected.</param>
     /// <returns>The canonical policy name, or <c>"N/A"</c> when no single policy is set.</returns>
@@ -6078,7 +5920,7 @@ public static partial class ImGui
     /// <summary>
     /// Reports one table: its geometry, sizing, padding, hovered and dragged columns, per-instance data, and
     /// one detailed row per column, followed by its bound settings record when one exists.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4348-4420</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4154</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="table">The table to report.</param>
     /// <remarks>
@@ -6233,7 +6075,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reports one persisted table settings record, optionally tied back to a live table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4422-4449</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4163</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="settings">The settings record to report.</param>
     /// <param name="table">The live table the record belongs to, or <see langword="null"/> to resolve it by identifier.</param>

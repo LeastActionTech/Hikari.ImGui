@@ -1,41 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-/*================================================================================================
- * IMGUI ASSERTION SEAM
- *================================================================================================
- * ROLE IN ENGINE:
- * Provides the single interception point for the port's canonical Dear ImGui assertion guards
- * (ThirdParty/imgui/imgui.h:98, "IM_ASSERT"). Every canonical assertion in the port is expressed as
- * ImAssert.Check, so a host or test harness can observe a guard failure without the debugger
- * assertion aborting the process.
- *
- * SUBSYSTEM CONNECTIONS & DATA FLOW:
- *
- *    ┌──────────────────────────────────────────────┐
- *    │ ImAssert                                     │
- *    │ • FailureHandler: optional recorder          │
- *    └──────────────────────────────────────────────┘
- *          ▲ Check(condition, message)      │ failure
- *          │                                ▼
- *    ┌───────────────────────────┐    ┌───────────────────────────┐
- *    │ ImGui, ImGuiWidgets,      │    │ FailureHandler, else      │
- *    │ ImGuiTables, docking, ... │    │ Debug.Assert              │
- *    └───────────────────────────┘    └───────────────────────────┘
- *
- * STYLIZED USAGE EXAMPLE:
- *
- *   ImAssert.Check(g.CurrentWindow != null, "Missing current window.");
- *
- *   // Test harness: record guard failures instead of aborting.
- *   ImAssert.FailureHandler = message => failures.Add(message);
- *
- * THREADING & LIFECYCLE NOTES:
- * - FailureHandler is process-wide static state because the canonical IM_ASSERT macro has no
- *   per-context state. A single-threaded host or test fixture installs and clears it; the port does
- *   not synchronize access to it.
- * - Check is annotated [Conditional("DEBUG")], so guard calls are removed from Release builds. This
- *   preserves the port's existing mapping of canonical IM_ASSERT onto System.Diagnostics.Debug.Assert
- *   and keeps assertion cost out of shipping builds.
- *================================================================================================*/
 
 using System;
 using System.Diagnostics;
@@ -49,7 +16,7 @@ namespace Hikari.ImGui;
 /// <remarks>
 /// <para>
 /// Canonical Dear ImGui expresses programmer-error guards with <c>IM_ASSERT</c>
-/// (<c>ThirdParty/imgui/imgui.h:98</c>), which the port previously wrote directly as
+///., which the port previously wrote directly as
 /// <see cref="Debug.Assert(bool)"/>. Routing every guard through this type gives the port one
 /// auditable assertion seam, keeps the canonical "assert only reports programmer error, never
 /// substitutes for validation" contract, and lets a host or the test harness record guard failures

@@ -1,68 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-/*================================================================================================
- * DEAR IMGUI MULTI-SELECT AND BOX-SELECT
- *================================================================================================
- * ROLE IN ENGINE:
- * Implements the canonical Dear ImGui multi-selection and box-selection subsystem of the
- * Hikari.ImGui port (v1.92.9b-docking). Multi-selection lets a caller submit a scope of items with
- * stable selection data, drive Ctrl/Shift range selection and keyboard navigation, and receive a
- * list of selection requests that describe what changed. Box-selection adds a drag rectangle that
- * toggles the selection of every multi-select item it overlaps, including items that are outside the
- * ordinary clip rectangle.
- *
- * SUBSYSTEM CONNECTIONS & DATA FLOW:
- *
- *   ┌──────────────────────────────────────┐
- *   │ ImGui::BeginMultiSelect()            │
- *   │ • pushes focus scope, binds storage  │
- *   └──────────────────────────────────────┘
- *                │ CurrentMultiSelect
- *                ▼
- *   ┌──────────────────────────────────────┐
- *   │ ImGuiMultiSelectTempData             │
- *   │ • IO.Requests, flags, key mods       │
- *   └──────────────────────────────────────┘
- *                │ header/footer
- *                ▼
- *   ┌──────────────────────────────────────┐
- *   │ Selectable / Checkbox item submission│
- *   │ • SetNextItemSelectionUserData()     │
- *   └──────────────────────────────────────┘
- *                │ IO
- *                ▼
- *   ┌──────────────────────────────────────┐
- *   │ ImGuiSelectionBasicStorage           │
- *   │ • ApplyRequests / GetNextSelectedItem│
- *   └──────────────────────────────────────┘
- *
- * STYLIZED USAGE EXAMPLE:
- *
- *   ImGuiMultiSelectIO io = ImGui.BeginMultiSelect(ImGuiMultiSelectFlags.None, -1, items.Count);
- *   ImGuiSelectionBasicStorage selection = new();
- *   selection.AdapterIndexToStorageId = static (_, idx) => (uint)idx;
- *   selection.ApplyRequests(io);
- *   for (int n = 0; n < items.Count; n++)
- *   {
- *       ImGui.SetNextItemSelectionUserData(n);
- *       bool selected = selection.Contains((uint)n);
- *       if (ImGui.Selectable(items[n], selected))
- *           ImGui.MarkItemEdited();
- *   }
- *   selection.ApplyRequests(ImGui.EndMultiSelect());
- *
- * THREADING & LIFECYCLE NOTES:
- * - Every type in this file is plain single-threaded mutable state owned by the current
- *   ImGuiContext. No internal synchronization is provided; the frame-submitting thread is the only
- *   writer.
- * - The IO object returned by BeginMultiSelect()/EndMultiSelect() is owned by the context and is
- *   only valid until the next call to either function. The temporary-data entries are retained across
- *   frames so that their request buffers keep their capacity.
- * - ImGuiSelectionBasicStorage and ImGuiSelectionExternalStorage are caller-owned helpers; they are
- *   not registered on the context and are released with the caller's own storage.
- *
- * Canonical reference: ThirdParty/imgui/imgui_widgets.cpp:7798-8830 and
- * ThirdParty/imgui/imgui_internal.h:1930-2018 (v1.92.9b-docking, commit b48d1af).
- *================================================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -75,7 +15,6 @@ namespace Hikari.ImGui;
 /// <summary>
 /// The selection request list produced by <c>BeginMultiSelect()</c> and <c>EndMultiSelect()</c>, with
 /// the range endpoints that describe the current selection scope
-/// (<c>ThirdParty/imgui/imgui.h:3233-3242</c>).
 /// </summary>
 /// <remarks>
 /// The instance is owned by the context's stacked temporary data and is only valid until the next
@@ -86,13 +25,11 @@ public sealed class ImGuiMultiSelectIO
 {
     /// <summary>
     /// Gets the requests the application should apply to its selection data.
-    /// (<c>ThirdParty/imgui/imgui.h:3235</c>)
     /// </summary>
     public List<ImGuiSelectionRequest> Requests { get; } = new();
 
     /// <summary>
     /// Gets or sets the source item of the current range selection, or <c>-1</c> when there is none.
-    /// (<c>ThirdParty/imgui/imgui.h:3236</c>)
     /// </summary>
     /// <remarks>
     /// A clipped list must keep this item submitted so range selection can be evaluated; the application
@@ -102,7 +39,6 @@ public sealed class ImGuiMultiSelectIO
 
     /// <summary>
     /// Gets or sets the selection user data of the navigation identifier, or <c>-1</c> when unknown.
-    /// (<c>ThirdParty/imgui/imgui.h:3237</c>)
     /// </summary>
     /// <remarks>
     /// Used by applications that delete items to restore navigation focus to a surviving item.
@@ -111,13 +47,11 @@ public sealed class ImGuiMultiSelectIO
 
     /// <summary>
     /// Gets or sets the last known selection state of <see cref="NavIdItem"/>.
-    /// (<c>ThirdParty/imgui/imgui.h:3238</c>)
     /// </summary>
     public bool NavIdSelected { get; set; }
 
     /// <summary>
     /// Gets or sets a request to discard the stored range source before the next frame.
-    /// (<c>ThirdParty/imgui/imgui.h:3239</c>)
     /// </summary>
     /// <remarks>
     /// The application sets this before calling <c>EndMultiSelect()</c> when the range source item was
@@ -127,14 +61,13 @@ public sealed class ImGuiMultiSelectIO
 
     /// <summary>
     /// Gets or sets the item count copied from <c>BeginMultiSelect()</c> for the convenience of the
-    /// request-application handler. (<c>ThirdParty/imgui/imgui.h:3240</c>)
+    /// request-application handler.
     /// </summary>
     public int ItemsCount { get; set; } = -1;
 }
 
 /// <summary>
 /// One selection change requested by the multi-select subsystem
-/// (<c>ThirdParty/imgui/imgui.h:3253-3262</c>).
 /// </summary>
 /// <remarks>
 /// Requests are value types so a request list can be produced without per-request heap allocation.
@@ -144,38 +77,35 @@ public sealed class ImGuiMultiSelectIO
 public struct ImGuiSelectionRequest
 {
     /// <summary>
-    /// Gets or sets the request kind. (<c>ThirdParty/imgui/imgui.h:3256</c>)
+    /// Gets or sets the request kind.
     /// </summary>
     public ImGuiSelectionRequestType Type { get; set; }
 
     /// <summary>
     /// Gets or sets whether the requested items become selected; <c>false</c> clears them.
-    /// (<c>ThirdParty/imgui/imgui.h:3257</c>)
     /// </summary>
     public bool Selected { get; set; }
 
     /// <summary>
     /// Gets or sets the direction of a range request: <c>+1</c> when the first endpoint was produced
-    /// before the last, <c>-1</c> otherwise. (<c>ThirdParty/imgui/imgui.h:3258</c>)
+    /// before the last, <c>-1</c> otherwise.
     /// </summary>
     public sbyte RangeDirection { get; set; }
 
     /// <summary>
     /// Gets or sets the first endpoint of a range request, inclusive.
-    /// (<c>ThirdParty/imgui/imgui.h:3259</c>)
     /// </summary>
     public long RangeFirstItem { get; set; }
 
     /// <summary>
     /// Gets or sets the last endpoint of a range request, inclusive.
-    /// (<c>ThirdParty/imgui/imgui.h:3260</c>)
     /// </summary>
     public long RangeLastItem { get; set; }
 }
 
 /// <summary>
 /// A convenience selection store backed by an <see cref="ImGuiStorage"/> keyed by persistent item
-/// identifier (<c>ThirdParty/imgui/imgui.h:3279-3300</c>).
+/// identifier.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -192,25 +122,22 @@ public class ImGuiSelectionBasicStorage
 {
     /// <summary>
     /// Gets the number of selected items currently held by this store.
-    /// (<c>ThirdParty/imgui/imgui.h:3282</c>)
     /// </summary>
     public int Size { get; private set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether <see cref="GetNextSelectedItem"/> returns items in the
-    /// order they were selected. (<c>ThirdParty/imgui/imgui.h:3283</c>)
+    /// order they were selected.
     /// </summary>
     public bool PreserveOrder { get; set; }
 
     /// <summary>
     /// Gets or sets caller data passed back to <see cref="AdapterIndexToStorageId"/>.
-    /// (<c>ThirdParty/imgui/imgui.h:3284</c>)
     /// </summary>
     public object? UserData { get; set; }
 
     /// <summary>
     /// Gets or sets the adapter that maps an index to its persistent item identifier.
-    /// (<c>ThirdParty/imgui/imgui.h:3285</c>)
     /// </summary>
     /// <remarks>
     /// The default adapter returns the index cast to an identifier, which is the simplest possible
@@ -220,7 +147,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Gets or sets the increasing counter used to record selection order.
-    /// (<c>ThirdParty/imgui/imgui.h:3286</c>)
     /// </summary>
     /// <remarks>
     /// The counter always starts above zero so that a stored value of zero unambiguously means
@@ -231,7 +157,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Gets the identifier-keyed selection set.
-    /// (<c>ThirdParty/imgui/imgui.h:3287</c>)
     /// </summary>
     /// <remarks>
     /// This is the port's <see cref="ImGuiStorage"/> reuse of the canonical key-to-value store. It is
@@ -242,7 +167,7 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Initializes an empty selection store whose default adapter maps an index directly to its
-    /// identifier. (<c>ThirdParty/imgui/imgui_widgets.cpp:8640-8648</c>)
+    /// identifier.
     /// </summary>
     public ImGuiSelectionBasicStorage()
     {
@@ -254,7 +179,7 @@ public class ImGuiSelectionBasicStorage
     }
 
     /// <summary>
-    /// Removes every selected item. (<c>ThirdParty/imgui/imgui_widgets.cpp:8650-8655</c>)
+    /// Removes every selected item.
     /// </summary>
     public void Clear()
     {
@@ -265,7 +190,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Exchanges the selection contents of two stores.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8657-8662</c>)
     /// </summary>
     /// <param name="r">The store to exchange contents with.</param>
     public void Swap(ImGuiSelectionBasicStorage r)
@@ -277,7 +201,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Queries whether an item identifier is selected.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8664-8667</c>)
     /// </summary>
     /// <param name="id">The persistent item identifier.</param>
     /// <returns>True when the item is selected.</returns>
@@ -288,7 +211,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Converts an index to its persistent item identifier using the configured adapter.
-    /// (<c>ThirdParty/imgui/imgui.h:3299</c>)
     /// </summary>
     /// <param name="idx">The index passed to the multi-select API.</param>
     /// <returns>The persistent identifier produced by <see cref="AdapterIndexToStorageId"/>.</returns>
@@ -299,7 +221,7 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Adds or removes a single item. Usually called by <see cref="ApplyRequests"/>; applications may
-    /// also use it directly. (<c>ThirdParty/imgui/imgui_widgets.cpp:8703-8708</c>)
+    /// also use it directly.
     /// </summary>
     /// <param name="id">The persistent item identifier.</param>
     /// <param name="selected">True to select, false to clear.</param>
@@ -320,7 +242,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Iterates the selected identifiers.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8678-8701</c>)
     /// </summary>
     /// <param name="opaqueIt">
     /// The iteration cursor. Initialize it to <c>-1</c> before the first call; each call advances it.
@@ -354,7 +275,7 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Applies every request produced by <c>BeginMultiSelect()</c> and <c>EndMultiSelect()</c> to this
-    /// store. (<c>ThirdParty/imgui/imgui_widgets.cpp:8730-8800</c>)
+    /// store.
     /// </summary>
     /// <param name="msIo">The IO instance whose requests are applied.</param>
     /// <remarks>
@@ -410,7 +331,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Inserts or clears one item against a known sorted prefix without re-sorting after every change.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8710-8723</c>)
     /// </summary>
     /// <param name="selection">The store being amended.</param>
     /// <param name="id">The persistent item identifier.</param>
@@ -438,7 +358,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Restores the identifier ordering after a batch of selections.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8725-8730</c>)
     /// </summary>
     /// <param name="selection">The store whose entries were amended.</param>
     /// <param name="selected">Whether the batch selected items.</param>
@@ -451,7 +370,6 @@ public class ImGuiSelectionBasicStorage
 
     /// <summary>
     /// Returns the first index in the sorted prefix whose key is not less than <paramref name="key"/>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2065-2080</c>)
     /// </summary>
     /// <param name="data">The pair buffer to search.</param>
     /// <param name="end">The exclusive end of the sorted prefix.</param>
@@ -481,7 +399,7 @@ public class ImGuiSelectionBasicStorage
 
 /// <summary>
 /// A convenience adapter that applies multi-selection requests to caller-owned storage by invoking a
-/// callback for each item (<c>ThirdParty/imgui/imgui.h:3302-3314</c>).
+/// callback for each item.
 /// </summary>
 /// <remarks>
 /// The helper makes no assumption about the underlying storage; the caller decides how an index maps
@@ -492,19 +410,16 @@ public sealed class ImGuiSelectionExternalStorage
 {
     /// <summary>
     /// Gets or sets caller data passed back to <see cref="AdapterSetItemSelected"/>.
-    /// (<c>ThirdParty/imgui/imgui.h:3306</c>)
     /// </summary>
     public object? UserData { get; set; }
 
     /// <summary>
     /// Gets or sets the callback that applies a selection state to one item.
-    /// (<c>ThirdParty/imgui/imgui.h:3307</c>)
     /// </summary>
     public Action<ImGuiSelectionExternalStorage, int, bool>? AdapterSetItemSelected { get; set; }
 
     /// <summary>
     /// Initializes an external storage helper with no adapter.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8804-8808</c>)
     /// </summary>
     public ImGuiSelectionExternalStorage()
     {
@@ -514,7 +429,6 @@ public sealed class ImGuiSelectionExternalStorage
 
     /// <summary>
     /// Applies every request through <see cref="AdapterSetItemSelected"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8810-8829</c>)
     /// </summary>
     /// <param name="msIo">The IO instance whose requests are applied.</param>
     /// <remarks>
@@ -547,7 +461,7 @@ public sealed class ImGuiSelectionExternalStorage
 
 /// <summary>
 /// The single active box-selection state, covering both the persistent drag data and the transient
-/// clip-unlock geometry (<c>ThirdParty/imgui/imgui_internal.h:1933-1962</c>).
+/// clip-unlock geometry.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -566,105 +480,97 @@ public sealed class ImGuiBoxSelectState
 {
     /// <summary>
     /// Gets or sets the identifier shared by the box-selection and the active identifier while the
-    /// drag is active. (<c>ThirdParty/imgui/imgui_internal.h:1936</c>)
+    /// drag is active.
     /// </summary>
     public uint ID { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the drag rectangle is currently active.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1937</c>)
     /// </summary>
     public bool IsActive { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether an initial click is a candidate for starting a
-    /// box-selection. (<c>ThirdParty/imgui/imgui_internal.h:1938</c>)
+    /// box-selection.
     /// </summary>
     public bool IsStarting { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the starting click landed on empty space rather than an
-    /// item. (<c>ThirdParty/imgui/imgui_internal.h:1939</c>)
+    /// item.
     /// </summary>
     public bool IsStartedFromVoid { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the first overlapped item should set the navigation
-    /// identifier once. (<c>ThirdParty/imgui/imgui_internal.h:1940</c>)
+    /// identifier once.
     /// </summary>
     public bool IsStartedSetNavIdOnce { get; set; }
 
     /// <summary>
     /// Gets or sets a request to clear the selection, raised when a drag starts from empty space
-    /// without Ctrl or Shift. (<c>ThirdParty/imgui/imgui_internal.h:1941</c>)
+    /// without Ctrl or Shift.
     /// </summary>
     public bool RequestClear { get; set; }
 
     /// <summary>
     /// Gets or sets the key modifiers latched when the box-selection started.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1942</c>)
     /// </summary>
     public ImGuiKey KeyMods { get; set; }
 
     /// <summary>
     /// Gets or sets the start position in window-content relative space.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1943</c>)
     /// </summary>
     public ImVec2 StartPosRel { get; set; }
 
     /// <summary>
     /// Gets or sets the previous end position in window-content relative space, clamped to the
-    /// scrolling view. (<c>ThirdParty/imgui/imgui_internal.h:1944</c>)
+    /// scrolling view.
     /// </summary>
     public ImVec2 EndPosRel { get; set; }
 
     /// <summary>
     /// Gets or sets the sub-pixel scrolling accumulator used to keep scrolling stable at high frame
-    /// rates. (<c>ThirdParty/imgui/imgui_internal.h:1945</c>)
+    /// rates.
     /// </summary>
     public ImVec2 ScrollAccum { get; set; }
 
     /// <summary>
     /// Gets or sets the window containing the box-selection, or <c>null</c> while inactive.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1946</c>)
     /// </summary>
     public ImGuiWindow? Window { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether widgets should ignore clipping for the difference
     /// rectangle. This transient field is written by <c>BeginBoxSelect()</c> and cleared by
-    /// <c>EndBoxSelect()</c>. (<c>ThirdParty/imgui/imgui_internal.h:1949</c>)
+    /// <c>EndBoxSelect()</c>.
     /// </summary>
     public bool UnclipMode { get; set; }
 
     /// <summary>
     /// Gets or sets the merged rectangle where item clipping may be temporarily disabled.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1950</c>)
     /// </summary>
     public ImRect UnclipRect { get; set; }
 
     /// <summary>
     /// Gets the per-axis versions of <see cref="UnclipRect"/>: index zero covers the horizontal
-    /// change, index one the vertical change. (<c>ThirdParty/imgui/imgui_internal.h:1951</c>)
+    /// change, index one the vertical change.
     /// </summary>
     public ImRect[] UnclipRects { get; } = new ImRect[2];
 
     /// <summary>
     /// Gets or sets the selection rectangle of the previous frame in absolute coordinates.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1952</c>)
     /// </summary>
     public ImRect BoxSelectRectPrev { get; set; }
 
     /// <summary>
     /// Gets or sets the selection rectangle of the current frame in absolute coordinates.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1953</c>)
     /// </summary>
     public ImRect BoxSelectRectCurr { get; set; }
 }
 
 /// <summary>
 /// Persistent per-scope multi-selection state that survives across frames while a selection is alive
-/// (<c>ThirdParty/imgui/imgui_internal.h:2006-2018</c>).
 /// </summary>
 /// <remarks>
 /// Instances live in the context's <c>MultiSelectStorage</c> pool keyed by the selection scope
@@ -675,55 +581,48 @@ public sealed class ImGuiMultiSelectState
 {
     /// <summary>
     /// Gets or sets the window that owns the selection scope.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2008</c>)
     /// </summary>
     public ImGuiWindow? Window { get; set; }
 
     /// <summary>
     /// Gets or sets the selection scope identifier.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2009</c>)
     /// </summary>
     public uint ID { get; set; }
 
     /// <summary>
     /// Gets or sets the last frame on which the scope was submitted, used for garbage collection.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2010</c>)
     /// </summary>
     public int LastFrameActive { get; set; }
 
     /// <summary>
     /// Gets or sets the last known selection size supplied by the caller, or <c>-1</c> when unknown.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2011</c>)
     /// </summary>
     public int LastSelectionSize { get; set; }
 
     /// <summary>
     /// Gets or sets the selection state of the range source item: <c>-1</c> unknown, <c>0</c> unselected,
-    /// <c>1</c> selected. (<c>ThirdParty/imgui/imgui_internal.h:2012</c>)
+    /// <c>1</c> selected.
     /// </summary>
     public sbyte RangeSelected { get; set; }
 
     /// <summary>
     /// Gets or sets the selection state of the navigation item: <c>-1</c> unknown, <c>0</c> unselected,
-    /// <c>1</c> selected. (<c>ThirdParty/imgui/imgui_internal.h:2013</c>)
+    /// <c>1</c> selected.
     /// </summary>
     public sbyte NavIdSelected { get; set; }
 
     /// <summary>
     /// Gets or sets the selection user data that anchors a range selection, or <c>-1</c> when unset.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2014</c>)
     /// </summary>
     public long RangeSrcItem { get; set; } = -1;
 
     /// <summary>
     /// Gets or sets the selection user data of the last focused item, or <c>-1</c> when unset.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2015</c>)
     /// </summary>
     public long NavIdItem { get; set; } = -1;
 
     /// <summary>
     /// Initializes the record to the canonical empty state
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2017</c>).
     /// </summary>
     public ImGuiMultiSelectState()
     {
@@ -741,7 +640,6 @@ public sealed class ImGuiMultiSelectState
 /// <summary>
 /// Temporary multi-selection data for one active scope, alive between a matching
 /// <c>BeginMultiSelect()</c> and <c>EndMultiSelect()</c>
-/// (<c>ThirdParty/imgui/imgui_internal.h:1966-2003</c>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -757,104 +655,93 @@ public sealed class ImGuiMultiSelectTempData
 {
     /// <summary>
     /// Gets the IO structure returned to the application and filled with selection requests.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1968</c>)
     /// </summary>
     public ImGuiMultiSelectIO IO { get; } = new();
 
     /// <summary>
     /// Gets or sets the persistent storage bound to this scope.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1969</c>)
     /// </summary>
     public ImGuiMultiSelectState? Storage { get; set; }
 
     /// <summary>
     /// Gets or sets the focus scope identifier captured when the scope opened.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1970</c>)
     /// </summary>
     public uint FocusScopeId { get; set; }
 
     /// <summary>
     /// Gets or sets the effective multi-select flags after canonical normalization.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1971</c>)
     /// </summary>
     public ImGuiMultiSelectFlags Flags { get; set; }
 
     /// <summary>
     /// Gets or sets the cursor position at the start of the scope, used to measure a
-    /// <c>ScopeRect</c>. (<c>ThirdParty/imgui/imgui_internal.h:1972</c>)
+    /// <c>ScopeRect</c>.
     /// </summary>
     public ImVec2 ScopeRectMin { get; set; }
 
     /// <summary>
     /// Gets or sets the window cursor maximum saved when the scope opened and restored when it closes.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1973</c>)
     /// </summary>
     public ImVec2 BackupCursorMaxPos { get; set; }
 
     /// <summary>
     /// Gets or sets the identifier of the box-selection following this scope, or zero when box-select
-    /// is disabled. (<c>ThirdParty/imgui/imgui_internal.h:1976</c>)
+    /// is disabled.
     /// </summary>
     public uint BoxSelectId { get; set; }
 
     /// <summary>
     /// Gets or sets the key modifiers latched when the scope opened, so a keyboard range selection does
     /// not require holding the modifiers for an extra frame.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1977</c>)
     /// </summary>
     public ImGuiKey KeyMods { get; set; }
 
     /// <summary>
     /// Gets or sets the pending select-all operation: <c>-1</c> none, <c>0</c> clear all, <c>1</c>
-    /// select all. (<c>ThirdParty/imgui/imgui_internal.h:1978</c>)
+    /// select all.
     /// </summary>
     public sbyte LoopRequestSetAll { get; set; } = -1;
 
     /// <summary>
     /// Gets or sets a value indicating that the request list has switched from the begin-phase to the
-    /// end-phase of the scope. (<c>ThirdParty/imgui/imgui_internal.h:1979</c>)
+    /// end-phase of the scope.
     /// </summary>
     public bool IsEndIO { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the selection scope is focused, which enables keyboard
-    /// range selection. (<c>ThirdParty/imgui/imgui_internal.h:1980</c>)
+    /// range selection.
     /// </summary>
     public bool IsFocused { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the scope is performing a keyboard-driven range selection.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1981</c>)
     /// </summary>
     public bool IsKeyboardSetRange { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the navigation item was submitted this frame.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1982</c>)
     /// </summary>
     public bool NavIdPassedBy { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the stored range source item was submitted this frame.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1983</c>)
     /// </summary>
     public bool RangeSrcPassedBy { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the range destination item was submitted this frame.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1984</c>)
     /// </summary>
     public bool RangeDstPassedBy { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating that the last known selection size is one or unknown, which
-    /// allows a narrower drag-and-drop behavior. (<c>ThirdParty/imgui/imgui_internal.h:1985</c>)
+    /// allows a narrower drag-and-drop behavior.
     /// </summary>
     public bool IsSoleOrUnknownSelectionSize { get; set; }
 
     /// <summary>
     /// Initializes the record to its cleared state
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1987</c>).
     /// </summary>
     public ImGuiMultiSelectTempData()
     {
@@ -863,7 +750,6 @@ public sealed class ImGuiMultiSelectTempData
 
     /// <summary>
     /// Clears every field while preserving the capacity of <see cref="ImGuiMultiSelectIO.Requests"/>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1988</c>)
     /// </summary>
     public void Clear()
     {
@@ -887,7 +773,6 @@ public sealed class ImGuiMultiSelectTempData
 
     /// <summary>
     /// Clears only the IO fields, preserving the request buffer allocation.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1989</c>)
     /// </summary>
     public void ClearIO()
     {
@@ -901,13 +786,17 @@ public sealed class ImGuiMultiSelectTempData
 
 #endregion
 
+/// <summary>
+/// Provides immediate-mode GUI operations, context and frame lifecycle management, windowing,
+/// layout, input routing, styling, widgets, tables, and docking facilities.
+/// </summary>
 public static partial class ImGui
 {
     #region [SECTION] Widgets: Box-Select support
 
     /// <summary>
     /// Returns the active box-selection state when <paramref name="id"/> identifies it, or <c>null</c>
-    /// otherwise (<c>ThirdParty/imgui/imgui_internal.h:3978</c>).
+    /// otherwise.
     /// </summary>
     /// <param name="id">The box-selection identifier.</param>
     /// <returns>The active state record, or <c>null</c> when it is not the active box-selection.</returns>
@@ -919,7 +808,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Records the initial click of a possible box-selection and latches the geometry and modifier keys
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7813-7822</c>).
     /// </summary>
     /// <param name="id">The box-selection identifier.</param>
     /// <param name="clickedItem">
@@ -941,7 +829,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Promotes a starting click to a live box-selection drag and takes the active identifier
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7824-7835</c>).
     /// </summary>
     /// <param name="bs">The box-selection state to activate.</param>
     /// <param name="window">The window that owns the drag.</param>
@@ -959,7 +846,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Deactivates an active box-selection drag and releases the active identifier
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7837-7847</c>).
     /// </summary>
     /// <param name="bs">The box-selection state to deactivate.</param>
     private static void BoxSelectDeactivateDrag(ImGuiBoxSelectState bs)
@@ -973,7 +859,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Scrolls a window while the box-selection drag approaches an edge of the inner rectangle
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7849-7875</c>).
     /// </summary>
     /// <param name="bs">The active box-selection state.</param>
     /// <param name="window">The window to scroll; it must be the box-selection window.</param>
@@ -1037,7 +922,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts or updates a box-selection drag, computing the previous and current selection rectangles
-    /// and the clip-unlock geometry (<c>ThirdParty/imgui/imgui_widgets.cpp:7877-7970</c>).
+    /// and the clip-unlock geometry.
     /// </summary>
     /// <param name="scopeRect">The rectangle that bounds the selection scope.</param>
     /// <param name="window">The window that owns the scope.</param>
@@ -1151,7 +1036,6 @@ public static partial class ImGui
     /// <summary>
     /// Ends an active box-selection frame by rendering the selection rectangle and, when scrolling is
     /// enabled, scrolling the window while the mouse sits near an edge
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7972-8006</c>).
     /// </summary>
     /// <param name="scopeRect">The rectangle that bounds the selection scope.</param>
     /// <param name="msFlags">The effective multi-select flags.</param>
@@ -1187,7 +1071,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the deepest visible child window of <paramref name="window"/>, or the window itself when
-    /// it has no visible children (<c>ThirdParty/imgui/imgui.cpp:6979-6985</c>).
+    /// it has no visible children.
     /// </summary>
     /// <param name="window">The window to descend from.</param>
     /// <returns>The front-most visible child window.</returns>
@@ -1209,7 +1093,6 @@ public static partial class ImGui
     /// <summary>
     /// Returns the persistent selection storage bound to a selection scope identifier, or <c>null</c>
     /// when no scope has been opened for that identifier
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3979</c>).
     /// </summary>
     /// <param name="id">The multi-selection scope identifier.</param>
     /// <returns>The scope's selection storage, or <c>null</c> when the identifier is unknown.</returns>
@@ -1228,7 +1111,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Writes the current selection requests to the debug log when the selection event channel is
-    /// enabled (<c>ThirdParty/imgui/imgui_widgets.cpp:8012-8023</c>).
+    /// enabled.
     /// </summary>
     /// <param name="function">Name of the caller, recorded with each request.</param>
     /// <param name="io">The IO instance whose requests are described.</param>
@@ -1246,7 +1129,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the rectangle that bounds a multi-select scope: either the measured scope rectangle or
-    /// the window inner clip rectangle (<c>ThirdParty/imgui/imgui_widgets.cpp:8025-8046</c>).
+    /// the window inner clip rectangle.
     /// </summary>
     /// <param name="ms">The active temporary multi-select data.</param>
     /// <param name="window">The window that owns the scope.</param>
@@ -1271,7 +1154,6 @@ public static partial class ImGui
     /// <summary>
     /// Opens a multi-selection scope and returns the begin-phase IO. The caller submits items with
     /// <c>SetNextItemSelectionUserData()</c> between this call and <c>EndMultiSelect()</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8053-8181</c>).
     /// </summary>
     /// <param name="flags">The multi-select flags.</param>
     /// <param name="selectionSize">
@@ -1424,7 +1306,6 @@ public static partial class ImGui
     /// <summary>
     /// Closes the current multi-selection scope and returns the end-phase IO, containing the range
     /// requests accumulated while items were submitted
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8183-8280</c>).
     /// </summary>
     /// <returns>The IO instance owned by the scope; it is valid until the next multi-select call.</returns>
     /// <remarks>
@@ -1519,7 +1400,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Queues the selection user data that identifies the next submitted item within a multi-select
-    /// scope (<c>ThirdParty/imgui/imgui_widgets.cpp:8282-8304</c>).
+    /// scope.
     /// </summary>
     /// <param name="selectionUserData">
     /// The item's selection user data; <c>-1</c> is invalid. Canonical uses an index for most
@@ -1553,7 +1434,6 @@ public static partial class ImGui
     /// <summary>
     /// Applies the pending select-all request and range-selection state to an item before its button
     /// behavior runs, and adjusts the button flags to support drag-and-drop of a multi-item selection
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8292-8362</c>).
     /// </summary>
     /// <param name="id">The item identifier.</param>
     /// <param name="selected">The item's selection state, updated in place.</param>
@@ -1624,7 +1504,6 @@ public static partial class ImGui
     /// Applies navigation auto-selection, box-select toggling, right-click selection, and the
     /// Ctrl/Shift selection rules to an item after its button behavior runs, then records the item's
     /// selection state for range and navigation tracking
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8364-8584</c>).
     /// </summary>
     /// <param name="id">The item identifier.</param>
     /// <param name="selected">The item's selection state, updated in place.</param>
@@ -1835,7 +1714,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Replaces the request list with a single select-all or clear-all request
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8586-8591</c>).
     /// </summary>
     /// <param name="ms">The active temporary multi-select data.</param>
     /// <param name="selected">True to select all items, false to clear the selection.</param>
@@ -1856,7 +1734,6 @@ public static partial class ImGui
     /// <summary>
     /// Appends a range request, storing its endpoints already ordered left-to-right and recording the
     /// direction in which the user produced the range
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8593-8634</c>).
     /// </summary>
     /// <param name="ms">The active temporary multi-select data.</param>
     /// <param name="selected">True to select the range, false to clear it.</param>
@@ -1882,7 +1759,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Shows one persistent multi-select state record in the debug tools
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8614-8632</c>).
     /// </summary>
     /// <param name="storage">The state record to display.</param>
     /// <remarks>
@@ -1907,7 +1783,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Pushes a focus scope identifier and records the owning window
-    /// (<c>ThirdParty/imgui/imgui.cpp:9487-9495</c>).
     /// </summary>
     /// <param name="id">The focus scope identifier to push.</param>
     public static void PushFocusScope(uint id)
@@ -1919,7 +1794,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Pops the current focus scope and restores the enclosing scope
-    /// (<c>ThirdParty/imgui/imgui.cpp:9497-9503</c>).
     /// </summary>
     public static void PopFocusScope()
     {
@@ -1933,7 +1807,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns whether a focus scope is on the current navigation focus route
-    /// (<c>ThirdParty/imgui/imgui.cpp:9505-9514</c>).
     /// </summary>
     /// <param name="focusScopeId">The focus scope identifier to test.</param>
     /// <returns>True when the identifier is the focused scope or lies on the focus route.</returns>
@@ -1952,7 +1825,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Converts an absolute screen position to window-content relative space
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3604</c>).
     /// </summary>
     /// <param name="window">The window whose content origin is subtracted.</param>
     /// <param name="p">The absolute position.</param>
@@ -1965,7 +1837,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Converts a window-content relative position back to absolute screen space
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3605</c>).
     /// </summary>
     /// <param name="window">The window whose content origin is added.</param>
     /// <param name="p">The relative position.</param>

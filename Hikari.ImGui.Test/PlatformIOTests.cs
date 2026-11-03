@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -12,14 +16,6 @@ namespace Hikari.ImGui.Test;
 /// main-viewport geometry.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. The platform interface is
-/// <c>ImGuiPlatformIO</c> (<c>ThirdParty/imgui/imgui.h:4253-4371</c>) with the accessors at
-/// <c>imgui.cpp:5374-5385</c> and the clear operations at <c>16844-16880</c>. The session date is set
-/// at <c>4577</c> and consumed at <c>5800</c>. Viewport lookup and monitor association are at
-/// <c>16883-16899</c> and <c>17833-17879</c>. The multi-viewport recovery is at
-/// <c>11788-11819</c>.
-/// </para>
 /// <para>
 /// Every test runs on the shared <see cref="ImGuiTestFixture"/> lifecycle. Canonical guard failures are
 /// recorded by the fixture instead of aborting the run; a test that intentionally trips one declares it
@@ -59,7 +55,7 @@ public class PlatformIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that both <c>GetPlatformIO()</c> overloads return the live platform interface owned by
-    /// the context, not a copy (<c>ThirdParty/imgui/imgui.cpp:5374-5385</c>).
+    /// the context, not a copy.
     /// </summary>
     [Test]
     public void GetPlatformIO_ReturnsTheContextInstance()
@@ -75,7 +71,6 @@ public class PlatformIOTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <c>ClearPlatformHandlers()</c> clears every platform handler and its user data
     /// while leaving the renderer handlers and resource limits untouched
-    /// (<c>ThirdParty/imgui/imgui.cpp:16844-16863</c>).
     /// </summary>
     [Test]
     public void ClearPlatformHandlers_LeavesRendererHandlers()
@@ -106,7 +101,7 @@ public class PlatformIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>ClearRendererHandlers()</c> clears every renderer handler and resource limit
-    /// while leaving the platform handlers untouched (<c>ThirdParty/imgui/imgui.cpp:16865-16880</c>).
+    /// while leaving the platform handlers untouched.
     /// </summary>
     [Test]
     public void ClearRendererHandlers_LeavesPlatformHandlers()
@@ -138,7 +133,7 @@ public class PlatformIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>FindViewportByID()</c> resolves the main viewport and returns null for an
-    /// unknown identifier (<c>ThirdParty/imgui/imgui.cpp:16883-16890</c>).
+    /// unknown identifier.
     /// </summary>
     [Test]
     public void FindViewportByID_ResolvesMainViewportAndRejectsUnknown()
@@ -155,7 +150,6 @@ public class PlatformIOTests : ImGuiTestFixture
     /// Verifies that <c>FindViewportByPlatformHandle()</c> resolves a viewport by its stored handle and
     /// returns null for an unknown handle. Canonical compares the handle directly, so the default zero
     /// handle of the main viewport matches a zero query
-    /// (<c>ThirdParty/imgui/imgui.cpp:16892-16899</c>).
     /// </summary>
     [Test]
     public void FindViewportByPlatformHandle_ResolvesStoredHandleOnly()
@@ -184,7 +178,6 @@ public class PlatformIOTests : ImGuiTestFixture
     /// Verifies that a viewport is associated with the monitor that contains its rectangle and that
     /// <c>GetViewportPlatformMonitor()</c> returns that monitor, falling back to the context's fallback
     /// monitor when the registered list is empty
-    /// (<c>ThirdParty/imgui/imgui.cpp:17833-17879</c>).
     /// </summary>
     [Test]
     public void GetViewportPlatformMonitor_SelectsContainingMonitorAndFallsBack()
@@ -218,8 +211,7 @@ public class PlatformIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>NewFrame()</c> derives the context session date from
-    /// <c>PlatformIO.Platform_SessionDate</c> and that a change is observed on the next frame
-    /// (<c>ThirdParty/imgui/imgui.cpp:4577,5800</c>).
+    /// <c>PlatformIO.Platform_SessionDate</c> and that a change is observed on the next frame.
     /// </summary>
     [Test]
     public void Platform_SessionDate_PropagatesToContextSessionDate()
@@ -248,13 +240,13 @@ public class PlatformIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that multi-viewport support is cleared when the backend does not advertise both
-    /// viewport backend flags (<c>ThirdParty/imgui/imgui.cpp:11788-11819</c>).
+    /// viewport backend flags.
     /// </summary>
     [Test]
     public void ViewportsEnable_IsClearedWithoutBackendFlags()
     {
         // ViewportsEnable is set before the first frame, which is what canonical requires: enabling it
-        // exactly at frame 1 would warn that the .ini settings are lost. Without the backend viewport
+        // exactly at frame 1 would warn that the.ini settings are lost. Without the backend viewport
         // flags, NewFrame must clear the feature again.
         _ctx.IO.ConfigFlags |= ImGuiConfigFlags.ViewportsEnable;
         _ctx.IO.BackendFlags &= ~(ImGuiBackendFlags.PlatformHasViewports | ImGuiBackendFlags.RendererHasViewports);
@@ -270,8 +262,7 @@ public class PlatformIOTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the main-viewport geometry for a single-viewport frame: the rectangle follows
     /// <c>io.DisplaySize</c>, the work rectangle is inset-free, the DPI scale is 1.0, the canonical
-    /// flags are set, and the user-facing viewport list contains exactly the main viewport
-    /// (<c>ThirdParty/imgui/imgui.cpp:17144-17182,17330-17349</c>).
+    /// flags are set, and the user-facing viewport list contains exactly the main viewport.
     /// </summary>
     [Test]
     public void MainViewportGeometry_MatchesDisplaySizeAndFlags()
@@ -302,7 +293,7 @@ public class PlatformIOTests : ImGuiTestFixture
     /// Verifies the multi-viewport callback path when a backend advertises both viewport flags: a
     /// secondary viewport is published, <c>UpdatePlatformWindows()</c> creates and positions its platform
     /// window, and <c>RenderPlatformWindowsDefault()</c> renders then presents it, skipping the main
-    /// viewport (<c>ThirdParty/imgui/imgui.cpp:17689-17816</c>).
+    /// viewport.
     /// </summary>
     [Test]
     public void UpdatePlatformWindows_CreatesAndRendersSecondaryViewport()

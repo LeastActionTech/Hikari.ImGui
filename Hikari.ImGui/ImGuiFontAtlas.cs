@@ -1,42 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-// ROLE IN ENGINE
-//   Canonical Dear ImGui font pipeline for the pure C# port: font sources (ImFontConfig), baked
-//   glyph metrics (ImFontBaked / ImFontGlyph), text measurement, pixel-snapped text emission, and
-//   the CPU-side texture atlas that holds the rasterized glyph bitmaps. Hikari.ImGui builds its
-//   default font from the embedded TrueType data (the bitmap ProggyClean face or the scalable
-//   ProggyForever face) through ImStbTrueTypeFont.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-//
-//   ┌───────────────────────────────────────────┐
-//   │ ImStbTrueTypeFont                         │
-//   │ • glyph metrics, boxes and bitmaps        │
-//   └───────────────────────────────────────────┘
-//                          │ baked glyph data
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImFontAtlas / ImFontBaked / ImFont        │
-//   │ • advances, offsets, UVs, RGBA32 texture  │
-//   └───────────────────────────────────────────┘
-//                          │ glyph quads
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImDrawList.AddText / RenderText           │
-//   │ • pixel-snapped text geometry             │
-//   └───────────────────────────────────────────┘
-//
-// STYLIZED USAGE EXAMPLE
-//
-//   var atlas = new ImFontAtlas();
-//   ImFont font = atlas.AddFontDefault();
-//   atlas.Build();
-//   ImVec2 size = font.CalcTextSizeA(13.0f, float.MaxValue, 0.0f, "Hamburgefonstiv".AsSpan());
-//   font.RenderText(drawList, 13.0f, new ImVec2(10, 10), 0xFFFFFFFF, clipRect, "Hello".AsSpan());
-//
-// THREADING & LIFECYCLE NOTES
-//   An atlas and its fonts are single-threaded: Build() mutates font and texture state and must not
-//   run concurrently with measurement or rendering. Text measurement and rendering are read-only
-//   after Build() and may run on any thread that owns the atlas.
 
 using System;
 using System.Collections.Generic;
@@ -51,7 +17,6 @@ namespace Hikari.ImGui;
 
 /// <summary>
 /// Pixel rectangle within a texture. Mirrors canonical <c>ImTextureRect</c>
-/// (<c>ThirdParty/imgui/imgui.h:3691-3695</c>).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct ImTextureRect
@@ -72,7 +37,6 @@ public struct ImTextureRect
 /// <summary>
 /// Rectangle reserved in the atlas texture by a custom-rectangle request, with UV coordinates valid
 /// for the atlas's current texture. Mirrors canonical <c>ImFontAtlasRect</c>
-/// (<c>ThirdParty/imgui/imgui.h:3825-3832</c>).
 /// </summary>
 /// <remarks>
 /// Canonical returns this from <c>ImFontAtlas::GetCustomRect()</c> and warns that the values may not
@@ -107,7 +71,6 @@ public struct ImFontAtlasRect
 /// <summary>
 /// Lightweight reference to a texture, either as a backend identifier or through an
 /// <see cref="ImTextureData"/>. Mirrors canonical <c>ImTextureRef</c>
-/// (<c>ThirdParty/imgui/imgui.h:3596-3615</c>).
 /// </summary>
 public struct ImTextureRef
 {
@@ -142,7 +105,7 @@ public struct ImTextureRef
 
 /// <summary>
 /// CPU-side pixel storage and lifecycle state for one texture. Mirrors canonical
-/// <c>ImTextureData</c> (<c>ThirdParty/imgui/imgui.h:3697-3740</c>). Renderer backends read the
+/// <c>ImTextureData</c>. Renderer backends read the
 /// pixels, upload them, and record the resulting identifier with <see cref="SetTexID"/>.
 /// </summary>
 public sealed class ImTextureData
@@ -185,21 +148,21 @@ public sealed class ImTextureData
 
     /// <summary>
     /// Convenience storage owned by the renderer backend. Mirrors canonical
-    /// <c>ImTextureData::BackendUserData</c> (<c>ThirdParty/imgui/imgui.h:3702</c>), which lets a
+    /// <c>ImTextureData::BackendUserData</c>., which lets a
     /// backend attach its own resource state to the texture without a side table.
     /// </summary>
     public object? BackendUserData { get; set; }
 
     /// <summary>
     /// Convenience storage for a staged or multi-threaded rendering texture queue. Mirrors canonical
-    /// <c>ImTextureData::QueueUserData</c> (<c>ThirdParty/imgui/imgui.h:3703</c>), where a non-null
+    /// <c>ImTextureData::QueueUserData</c>., where a non-null
     /// value signals that the texture is still referenced by the queue.
     /// </summary>
     public object? QueueUserData { get; set; }
 
     /// <summary>
     /// Count of successive frames in which the texture was not used. Mirrors canonical
-    /// <c>ImTextureData::UnusedFrames</c> (<c>ThirdParty/imgui/imgui.h:3718</c>); canonical keeps this
+    /// <c>ImTextureData::UnusedFrames</c>.; canonical keeps this
     /// above zero whenever the status is <see cref="ImTextureStatus.WantDestroy"/> so a backend can
     /// release resources safely.
     /// </summary>
@@ -207,7 +170,7 @@ public sealed class ImTextureData
 
     /// <summary>
     /// Number of contexts currently using the texture, used during backend shutdown. Mirrors canonical
-    /// <c>ImTextureData::RefCount</c> (<c>ThirdParty/imgui/imgui.h:3719</c>).
+    /// <c>ImTextureData::RefCount</c>.
     /// </summary>
     /// <remarks>
     /// Canonical declares this as <c>unsigned short</c>; the port uses <see cref="int"/> so reference
@@ -218,7 +181,7 @@ public sealed class ImTextureData
 
     /// <summary>
     /// Regions whose pixels changed since the backend last observed this texture. Mirrors canonical
-    /// <c>ImTextureData::Updates</c> (<c>ThirdParty/imgui/imgui.h:3716</c>). A backend uploads each
+    /// <c>ImTextureData::Updates</c>. A backend uploads each
     /// rectangle in turn while the status is <see cref="ImTextureStatus.WantUpdates"/>; the list is
     /// empty for a full <see cref="ImTextureStatus.WantCreate"/> upload.
     /// </summary>
@@ -248,7 +211,7 @@ public sealed class ImTextureData
         Updates.Clear();
         UsedRect = default;
         // The update rectangle starts at the maximum coordinate so the first queued upload
-        // establishes the true origin (ThirdParty/imgui/imgui_draw.cpp:2513-2514).
+        // establishes the true origin.
         UpdateRect = new ImTextureRect { X = 0xFFFF, Y = 0xFFFF, W = 0, H = 0 };
         UseColors = false;
         Status = ImTextureStatus.WantCreate;
@@ -265,7 +228,7 @@ public sealed class ImTextureData
     /// <summary>
     /// Queues a changed pixel rectangle for the backend to upload and widens the update and used
     /// bounds. Mirrors canonical <c>ImTextureDataQueueUpload</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3012-3035</c>). While the texture is awaiting
+    ///. While the texture is awaiting
     /// creation the whole surface is uploaded anyway, so no partial rectangle is recorded.
     /// </summary>
     /// <param name="x">Left coordinate of the changed rectangle.</param>
@@ -347,7 +310,7 @@ public sealed class ImTextureData
 
 /// <summary>
 /// Input description for one font source. Mirrors canonical <c>ImFontConfig</c>
-/// (<c>ThirdParty/imgui/imgui.h:3744-3786</c>) with the fields the pure C# loader honors.
+///. with the fields the pure C# loader honors.
 /// </summary>
 /// <remarks>
 /// The canonical <c>Name[40]</c> character buffer is represented as a managed string, and the
@@ -379,15 +342,14 @@ public sealed class ImFontConfig
 
     /// <summary>
     /// Whether canonical would align the scaled vertical glyph offset to pixel boundaries,
-    /// defaulting to <see langword="true"/>. Mirrors canonical <c>ImFontConfig::PixelSnapV</c>
-    /// (<c>ThirdParty/imgui/imgui.h:3780</c>), which is declared only while obsolete functions
-    /// are enabled and is marked "[Obsoleted in 1.91.6]".
+    /// defaulting to <see langword="true"/>. Mirrors canonical <c>ImFontConfig::PixelSnapV</c>,
+    /// which is declared only while obsolete functions are enabled and is marked as obsoleted.
     /// </summary>
     /// <remarks>
-    /// Canonical Dear ImGui 1.92.9b declares this field but never reads it: no reference to
-    /// <c>PixelSnapV</c> remains in <c>imgui_draw.cpp</c>, and the release notes record that the
-    /// behavior was removed because post-rescale <c>GlyphOffset</c> is always rounded
-    /// (<c>ThirdParty/imgui/imgui.cpp:478</c>). The port models the field so the configuration
+    /// Canonical Dear ImGui declares this field but never reads it: no reference to
+    /// <c>PixelSnapV</c> remains in the draw list implementation, and the release notes record that the
+    /// behavior was removed because post-rescale <c>GlyphOffset</c> is always rounded.
+    /// The port models the field so the configuration
     /// structure matches canonical, and deliberately attaches no behavior to it: changing the
     /// value cannot affect rasterization, metrics or layout.
     /// </remarks>
@@ -411,13 +373,13 @@ public sealed class ImFontConfig
     /// <summary>
     /// Inclusive Unicode ranges to exclude from this source, as zero-terminated codepoint pairs, or
     /// <see langword="null"/> when the source contributes every glyph its face contains. Mirrors
-    /// canonical <c>ImFontConfig::GlyphExcludeRanges</c> (<c>ThirdParty/imgui/imgui.h:3760</c>), which
+    /// canonical <c>ImFontConfig::GlyphExcludeRanges</c>., which
     /// exists so overlapping glyphs can be attributed to exactly one source when several faces are
     /// merged.
     /// </summary>
     /// <remarks>
     /// The exclusion list is consulted only while resolving a glyph from a source
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4538-4548</c>); it does not change what the face contains.
+    ///.; it does not change what the face contains.
     /// The list shares the <see cref="GlyphRanges"/> representation: two values per range, both
     /// inclusive, terminated by a zero pair. <see cref="ImFontAtlas.AddFont"/> replaces the array with
     /// a private copy so the source never aliases caller memory.
@@ -457,7 +419,7 @@ public sealed class ImFontConfig
     /// <summary>
     /// Cached TrueType parser for this source, initialized on the first glyph bake. Mirrors the
     /// canonical per-source loader state <c>ImFontConfig::FontLoaderData</c> and the loader's
-    /// <c>ImGui_ImplStbTrueType_FontSrcData</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4694-4734</c>).
+    /// <c>ImGui_ImplStbTrueType_FontSrcData</c>.
     /// Each source keeps its own parser so a merged source can rasterize codepoints the first source
     /// does not contain.
     /// </summary>
@@ -466,7 +428,6 @@ public sealed class ImFontConfig
     /// <summary>
     /// Font-unit-to-pixel scale for this source, including <see cref="ExtraSizeScale"/> and, for a
     /// merged source, the canonical relative-size factor
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4726-4733</c>).
     /// </summary>
     internal float StbScaleFactor;
 
@@ -478,8 +439,7 @@ public sealed class ImFontConfig
 
     /// <summary>
     /// Creates a shallow copy of this configuration. Canonical <c>AddFont*</c> entry points copy a
-    /// configuration template by value before altering it (<c>ThirdParty/imgui/imgui_draw.cpp:3193</c>,
-    /// <c>3221</c>, <c>3260</c>, <c>3287</c>); the managed port performs the equivalent copy here so a
+    /// configuration template by value before altering it; the managed port performs the equivalent copy here so a
     /// caller-supplied instance is never mutated or compounded across calls.
     /// </summary>
     /// <returns>A new configuration with the same field values; array and object references are shared.</returns>
@@ -518,7 +478,7 @@ public sealed class ImFontConfig
 
 /// <summary>
 /// Rendering data for one glyph. Mirrors canonical <c>ImFontGlyph</c>
-/// (<c>ThirdParty/imgui/imgui.h:3787-3802</c>). The canonical 1-bit/1-bit/4-bit/26-bit bitfields
+///. The canonical 1-bit/1-bit/4-bit/26-bit bitfields
 /// are flattened into separate fields, which is semantically identical on the managed runtime.
 /// </summary>
 public struct ImFontGlyph
@@ -572,13 +532,13 @@ public struct ImFontGlyph
 
 /// <summary>
 /// Baked glyph set and metrics for one font at one pixel size and rasterizer density. Mirrors
-/// canonical <c>ImFontBaked</c> (<c>ThirdParty/imgui/imgui.h:4015-4050</c>). An instance is created
+/// canonical <c>ImFontBaked</c>. An instance is created
 /// lazily the first time its size is requested, and glyphs are added on demand as text at that size
 /// is measured or rendered.
 /// </summary>
 /// <remarks>
 /// The lookup tables use two sentinels from canonical
-/// (<c>ThirdParty/imgui/imgui_draw.cpp:2666-2667</c>): <see cref="GlyphIndexUnused"/> means the
+///.: <see cref="GlyphIndexUnused"/> means the
 /// codepoint has not been requested yet, while <see cref="GlyphIndexNotFound"/> means the source
 /// font has no such glyph and the fallback advance applies. This distinction lets a lazy bake avoid
 /// repeating a failed lookup while still growing the table for later codepoints.
@@ -631,7 +591,6 @@ public sealed class ImFontBaked
     /// Whether the atlas has discarded this baked set. A discarded set keeps its identity fields but
     /// loses its glyph output, and the atlas skips it when evacuating idle bakes so it is never
     /// discarded twice. Mirrors canonical <c>ImFontBaked::WantDestroy</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4031</c>).
     /// </summary>
     public bool WantDestroy;
 
@@ -640,16 +599,13 @@ public sealed class ImFontBaked
     /// <see cref="ImFont.GetFontBaked"/>. The atlas treats a set whose
     /// <c>LastUsedFrame + unusedFrames</c> has fallen behind the current frame count as idle and
     /// returns its packed rectangles to the packer. Mirrors canonical <c>ImFontBaked::LastUsedFrame</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4034</c>).
     /// </summary>
     public int LastUsedFrame;
 
     /// <summary>
     /// Stable identifier for this baked set, derived from the owning font's identity together with
-    /// the set's size and rasterizer density. Mirrors canonical <c>ImFontBaked::BakedId</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4035</c>), computed by <c>ImFontAtlasBakedGetId</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5420-5429</c>) and stored when the baked storage is
-    /// created (<c>3909</c>).
+    /// the set's size and rasterizer density. Mirrors canonical <c>ImFontBaked::BakedId</c>,
+    /// computed by <c>ImFontAtlasBakedGetId</c> and stored when the baked storage is created.
     /// </summary>
     /// <remarks>
     /// Because the value is a pure function of the font, size and density, it does not change while
@@ -672,7 +628,6 @@ public sealed class ImFontBaked
     /// <summary>
     /// Finds a glyph, baking it on demand and returning the fallback glyph when the source font has
     /// no such codepoint. Mirrors canonical <c>ImFontBaked::FindGlyph</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5349-5361</c>).
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns>The matching glyph, the fallback glyph, or a synthetic invisible glyph when the
@@ -695,7 +650,7 @@ public sealed class ImFontBaked
 
     /// <summary>
     /// Finds a glyph without installing or applying the fallback. Mirrors canonical
-    /// <c>ImFontBaked::FindGlyphNoFallback</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5364-5378</c>).
+    /// <c>ImFontBaked::FindGlyphNoFallback</c>.
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns>The matching glyph, or <see langword="null"/> when the source font does not have it.</returns>
@@ -718,7 +673,6 @@ public sealed class ImFontBaked
     /// <summary>
     /// Returns the advance width of a codepoint, baking it on demand. Mirrors canonical
     /// <c>ImFontBaked::GetCharAdvance</c> and the advance-only layout mode
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4636-4650</c>).
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns>The advance width in pixels at <see cref="Size"/>.</returns>
@@ -745,7 +699,6 @@ public sealed class ImFontBaked
     /// <summary>
     /// Grows both lookup tables so they cover a newly requested codepoint. Mirrors canonical
     /// <c>ImFontBaked_BuildGrowIndex</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4549-4556</c>).
     /// </summary>
     /// <param name="newSize">Minimum number of codepoint entries the tables must hold.</param>
     internal void GrowIndex(int newSize)
@@ -767,7 +720,6 @@ public sealed class ImFontBaked
     /// Releases everything this baked set produced: glyph output, advance tables and cached vertical
     /// metrics. Identity fields (size, density and owning font) are preserved so a discarded set
     /// remains inspectable. Mirrors canonical <c>ImFontBaked::ClearOutputData</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5207-5216</c>).
     /// </summary>
     internal void ClearOutputData()
     {
@@ -800,7 +752,7 @@ public sealed class ImFontBaked
 
 /// <summary>
 /// A loaded font that can measure and render text at any requested size. Mirrors canonical
-/// <c>ImFont</c> (<c>ThirdParty/imgui/imgui.h:4091-4139</c>).
+/// <c>ImFont</c>.
 /// </summary>
 public sealed class ImFont
 {
@@ -813,7 +765,6 @@ public sealed class ImFont
     /// <summary>
     /// Baked sets created for this font, one per requested (size, density) pair. Mirrors the
     /// canonical builder's baked pool filtered by owner font
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5455-5488</c>).
     /// </summary>
     /// <returns>The baked sets in creation order.</returns>
     internal readonly List<ImFontBaked> BakedList = new();
@@ -824,7 +775,6 @@ public sealed class ImFont
 
     /// <summary>
     /// Key for the per-size baked-set cache. Canonical hashes the same two values
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5422-5429</c>).
     /// </summary>
     private readonly struct BakedSizeKey : IEquatable<BakedSizeKey>
     {
@@ -866,9 +816,8 @@ public sealed class ImFont
 
     /// <summary>
     /// Identifier unique within the owning atlas, assigned when the font is created. Mirrors
-    /// canonical <c>ImFont::FontId</c> (<c>ThirdParty/imgui/imgui.h:4074</c>), which is drawn from
+    /// canonical <c>ImFont::FontId</c>., which is drawn from
     /// the atlas <c>FontNextUniqueID</c> counter on add
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3090</c>).
     /// </summary>
     /// <remarks>
     /// Merged sources join an existing font and therefore do not allocate a new identifier. The
@@ -884,7 +833,7 @@ public sealed class ImFont
     /// <summary>
     /// Codepoint used for ellipsis rendering, or zero before a source resolves it. Canonical leaves
     /// the field zero on construction and fills it in <c>ImFontAtlasBuildSetupFontSpecialGlyphs</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3855-3886</c>); the default bitmap font explicitly requests
+    ///.; the default bitmap font explicitly requests
     /// U+0085 when it is added.
     /// </summary>
     public uint EllipsisChar { get; set; }
@@ -892,18 +841,17 @@ public sealed class ImFont
     /// <summary>
     /// Codepoint substituted when a requested glyph is missing, or zero before a source resolves a
     /// usable face character. Canonical leaves the field zero on construction and auto-detects it in
-    /// <c>ImFontAtlasBuildSetupFontSpecialGlyphs</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3855-3886</c>).
+    /// <c>ImFontAtlasBuildSetupFontSpecialGlyphs</c>.
     /// </summary>
     public uint FallbackChar { get; set; }
 
     /// <summary>
     /// Whether <see cref="EllipsisChar"/> must be synthesized from period glyphs because no source
     /// supplies it. Mirrors canonical <c>ImFont::EllipsisAutoBake</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4080</c>).
     /// </summary>
     /// <remarks>
     /// The lazy glyph resolver synthesizes the three-period ellipsis only while this flag is set
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4586-4589</c>). Clearing it lets a caller substitute a
+    ///. Clearing it lets a caller substitute a
     /// different ellipsis codepoint without triggering synthesis, as canonical documents.
     /// </remarks>
     public bool EllipsisAutoBake { get; set; }
@@ -912,13 +860,13 @@ public sealed class ImFont
     /// Sparse codepoint remapping pairs installed by <see cref="AddRemapChar"/>. Each entry maps a
     /// requested codepoint to the codepoint whose glyph must be used for it; the table stays empty
     /// until a remap is requested. Mirrors canonical <c>ImFont::RemapPairs</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4081</c>), an <c>ImGuiStorage</c> keyed by codepoint.
+    ///., an <c>ImGuiStorage</c> keyed by codepoint.
     /// </summary>
     /// <remarks>
     /// A dictionary is used because the port already represents sparse codepoint tables this way. The
     /// table is consulted only while a glyph is lazily resolved, and only when it is non-empty, matching
     /// canonical <c>ImFontAtlas_FontHookRemapCodepoint</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4558-4563</c>). The member is <see langword="internal"/>
+    ///. The member is <see langword="internal"/>
     /// rather than private because canonical exposes it as an inspectable font field and the font debug
     /// nodes report it.
     /// </remarks>
@@ -929,10 +877,8 @@ public sealed class ImFont
 
     /// <summary>
     /// Reference size in pixels captured when the font was added, used by legacy helpers that need a
-    /// default size. Mirrors canonical <c>ImFont::LegacySize</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4075</c>), assigned from the add-time
-    /// <see cref="ImFontConfig.SizePixels"/> (<c>ThirdParty/imgui/imgui_draw.cpp:3092</c>) and read
-    /// by the legacy preload (<c>3548</c>) and the legacy custom-rectangle path (<c>3407</c>).
+    /// default size. Mirrors canonical <c>ImFont::LegacySize</c>, assigned from the add-time
+    /// <see cref="ImFontConfig.SizePixels"/> and read by the legacy preload and custom-rectangle paths.
     /// </summary>
     public float LegacySize { get; set; } = 13.0f;
 
@@ -944,7 +890,7 @@ public sealed class ImFont
     /// <summary>
     /// Reports whether any attached source face maps a codepoint to a real glyph, without baking or
     /// packing it. Mirrors canonical <c>ImFont::IsGlyphInFont</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5394-5404</c>), which asks each source's loader whether its
+    ///., which asks each source's loader whether its
     /// face contains the codepoint.
     /// </summary>
     /// <param name="c">Codepoint to look up.</param>
@@ -954,7 +900,7 @@ public sealed class ImFont
     /// (<see cref="ImStbTrueTypeFont.FindGlyphIndex"/>), so the result matches what lazy baking would
     /// find. The codepoint is first resolved through <see cref="AddRemapCodepoint"/>, so a remapped codepoint
     /// is reported present when its target is present
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5397</c>). Excluded ranges are deliberately ignored, matching
+    ///. Excluded ranges are deliberately ignored, matching
     /// canonical: exclusion decides which source supplies a requested glyph, not whether the face
     /// contains it.
     /// </remarks>
@@ -989,7 +935,6 @@ public sealed class ImFont
 
     /// <summary>
     /// Remaps a codepoint to another codepoint. Mirrors canonical <c>ImFont::AddRemapCodepoint</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6040-6045</c>).
     /// </summary>
     /// <param name="fromCodepoint">Codepoint that callers request.</param>
     /// <param name="toCodepoint">Codepoint whose glyph supplies the requested codepoint.</param>
@@ -1002,7 +947,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Remaps a codepoint to a raw glyph index inside the font. Allows accessing glyphs which are not mapped to codepoints.
-    /// Mirrors canonical <c>ImFont::AddRemapCodepointToGlyphIndex</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6055-6063</c>).
+    /// Mirrors canonical <c>ImFont::AddRemapCodepointToGlyphIndex</c>.
     /// </summary>
     /// <param name="fromCodepoint">Codepoint that callers request.</param>
     /// <param name="fontSrcIdx">Index in <see cref="Sources"/>, or -1 for last added source.</param>
@@ -1028,7 +973,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Resolves a requested codepoint through <see cref="RemapPairs"/>. Mirrors canonical
-    /// <c>ImFontAtlas_FontHookRemapCodepoint</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6065-6079</c>).
+    /// <c>ImFontAtlas_FontHookRemapCodepoint</c>.
     /// </summary>
     /// <param name="c">Codepoint to resolve.</param>
     /// <param name="outFontSrcIdx">Output font source index when mapped to a raw glyph index, or -1.</param>
@@ -1053,7 +998,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Resolves a requested codepoint through <see cref="RemapPairs"/>. Mirrors canonical
-    /// <c>ImFontAtlas_FontHookRemapCodepoint</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6065-6079</c>).
+    /// <c>ImFontAtlas_FontHookRemapCodepoint</c>.
     /// </summary>
     /// <param name="c">Codepoint to resolve.</param>
     /// <returns>The mapped codepoint, or <paramref name="c"/> unchanged when no remap is installed.</returns>
@@ -1071,7 +1016,7 @@ public sealed class ImFont
     /// <summary>
     /// One bit per block of 8192 codepoints, set when a bubble of that block has at least one baked
     /// glyph. Mirrors canonical <c>ImFont::Used8kPagesMap</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4079</c>), which is primarily used to iterate across all used
+    ///., which is primarily used to iterate across all used
     /// codepoints without walking the full Unicode space.
     /// </summary>
     /// <remarks>
@@ -1083,14 +1028,14 @@ public sealed class ImFont
 
     /// <summary>
     /// Whether this font is currently attached to an atlas. Mirrors canonical <c>ImFont::IsLoaded</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4090</c>), which reports <c>OwnerAtlas != NULL</c>.
+    ///., which reports <c>OwnerAtlas != NULL</c>.
     /// </summary>
     /// <returns><see langword="true"/> when the font has an owning atlas.</returns>
     public bool IsLoaded => OwnerAtlas != null;
 
     /// <summary>
     /// Returns the debug name of the font. Mirrors canonical <c>ImFont::GetDebugName</c>
-    /// (<c>ThirdParty/imgui/imgui.h:4091</c>), which reports the first source's
+    ///., which reports the first source's
     /// <c>ImFontConfig::Name</c> or the literal <c>"&lt;unknown&gt;"</c> when the font has no source.
     /// </summary>
     /// <returns>The first source name, or <c>"&lt;unknown&gt;"</c> when no source is attached.</returns>
@@ -1099,7 +1044,7 @@ public sealed class ImFont
     /// <summary>
     /// Releases every baked glyph set owned by this font, clears <see cref="Used8kPagesMap"/>, and
     /// drops the <see cref="LastBaked"/> cache. Mirrors canonical <c>ImFont::ClearOutputData</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5231-5238</c>), which is also invoked from the canonical
+    ///., which is also invoked from the canonical
     /// destructor.
     /// </summary>
     /// <remarks>
@@ -1119,7 +1064,7 @@ public sealed class ImFont
     /// <summary>
     /// Reports whether no baked glyph has been recorded for any codepoint in the inclusive range.
     /// Mirrors canonical <c>ImFont::IsGlyphRangeUnused</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5242-5252</c>), which the font preloading path uses to skip
+    ///., which the font preloading path uses to skip
     /// building ranges that no source needs.
     /// </summary>
     /// <param name="cBegin">First codepoint of the range.</param>
@@ -1149,7 +1094,7 @@ public sealed class ImFont
     /// <summary>
     /// Returns the baked glyph set for a requested size, creating and caching it on first use.
     /// Mirrors canonical <c>ImFont::GetFontBaked</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5432-5453</c>). Each distinct rounded size receives an
+    ///. Each distinct rounded size receives an
     /// independent <see cref="ImFontBaked"/>, so glyph advances and line metrics are rasterized at
     /// that size rather than scaled from another.
     /// </summary>
@@ -1198,7 +1143,7 @@ public sealed class ImFont
         }
 
         // A locked atlas (its renderer cannot receive new texture data) must not create a bake. Canonical
-        // substitutes the closest existing bake instead (imgui_draw.cpp:5470-5482).
+        // substitutes the closest existing bake instead.
         if (!allowLockedCreation && (atlas.Locked || (Flags & ImFontFlags.LockBakedSizes) != 0))
         {
             ImFontBaked? closest = FindClosestBaked(roundedSize, density);
@@ -1221,7 +1166,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Finds the existing bake closest to a requested size, preferring the same rasterizer density in a first
-    /// pass. Mirrors canonical <c>ImFontAtlasBakedGetClosestMatch</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3935-3957</c>).
+    /// pass. Mirrors canonical <c>ImFontAtlasBakedGetClosestMatch</c>.
     /// </summary>
     /// <param name="size">Requested rounded size in pixels.</param>
     /// <param name="density">Requested rasterizer density.</param>
@@ -1262,7 +1207,7 @@ public sealed class ImFont
     /// Removes a baked glyph set from this font and releases its output. The atlas calls this only
     /// after it has returned the set's packed rectangles to the packer, so the space is already
     /// available for reuse. Mirrors the font-side portion of canonical <c>ImFontAtlasBakedDiscard</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3963-3989</c>): the size cache entry is dropped so a later
+    ///.: the size cache entry is dropped so a later
     /// request at the same size creates a fresh set instead of resurrecting the discarded one.
     /// </summary>
     /// <param name="baked">Baked set to discard; it must belong to this font.</param>
@@ -1294,7 +1239,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Measures a UTF-16 text run with canonical <c>ImFontCalcTextSizeEx</c> semantics. Mirrors
-    /// canonical <c>ImFont::CalcTextSizeA</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5764-5767</c>).
+    /// canonical <c>ImFont::CalcTextSizeA</c>.
     /// </summary>
     /// <param name="size">Line height in pixels.</param>
     /// <param name="maxWidth">Maximum line width; rendering stops before exceeding it.</param>
@@ -1306,7 +1251,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Measures a text run and reports how much of it was consumed. Ports
-    /// <c>ImFontCalcTextSizeEx</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5673-5756</c>).
+    /// <c>ImFontCalcTextSizeEx</c>.
     /// </summary>
     /// <param name="font">Font to measure with.</param>
     /// <param name="size">Line height in pixels.</param>
@@ -1388,7 +1333,6 @@ public sealed class ImFont
 
     /// <summary>
     /// Finds the word-wrap position for a text run. Ports <c>ImFontCalcWordWrapPositionEx</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5550-5668</c>).
     /// </summary>
     /// <param name="size">Line height in pixels.</param>
     /// <param name="text">Text starting at the current line position.</param>
@@ -1475,7 +1419,6 @@ public sealed class ImFont
 
     /// <summary>
     /// Emits one glyph's quad into a draw list. Ports <c>ImFont::RenderChar</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5770-5825</c>).
     /// </summary>
     /// <param name="drawList">Destination draw list.</param>
     /// <param name="size">Line height in pixels.</param>
@@ -1526,7 +1469,6 @@ public sealed class ImFont
     /// <summary>
     /// Emits a whole text run into a draw list with canonical line layout, word wrapping and
     /// pixel snapping. Ports <c>ImFont::RenderText</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5830-6000</c>).
     /// </summary>
     /// <param name="drawList">Destination draw list.</param>
     /// <param name="size">Line height in pixels.</param>
@@ -1697,7 +1639,6 @@ public sealed class ImFont
     /// <summary>
     /// Classifies a codepoint for word wrapping. Reproduces the canonical classifier built from
     /// <c>" \t"</c> and <c>".,;!?\""</c> plus the CJK separator range
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5530-5548</c>).
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns>One of the <c>WcharClass</c> constants.</returns>
@@ -1716,7 +1657,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Advances past trailing blanks and a newline to the start of the next wrapped line. Ports
-    /// <c>ImTextCalcWordWrapNextLineStart</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5491-5499</c>).
+    /// <c>ImTextCalcWordWrapNextLineStart</c>.
     /// </summary>
     /// <param name="text">Source text.</param>
     /// <param name="i">Current position.</param>
@@ -1748,7 +1689,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Returns the number of UTF-16 units needed to express one codepoint at the cursor. Ports
-    /// <c>ImTextCountUtf8BytesFromChar</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2837-2841</c>) in
+    /// <c>ImTextCountUtf8BytesFromChar</c>. in
     /// managed terms.
     /// </summary>
     /// <param name="text">Source text.</param>
@@ -1758,7 +1699,7 @@ public sealed class ImFont
 
     /// <summary>
     /// Decodes one codepoint from UTF-8 bytes. Ports <c>ImTextCharFromUtf8</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2712-2760</c>) for callers holding canonical UTF-8 buffers.
+    ///. for callers holding canonical UTF-8 buffers.
     /// </summary>
     /// <param name="input">UTF-8 byte buffer.</param>
     /// <param name="i">Cursor, advanced past the consumed bytes.</param>
@@ -1835,8 +1776,8 @@ public sealed class ImFont
 /// <summary>
 /// Collects the Unicode code points an application wants baked, then coalesces them into the
 /// zero-terminated inclusive range representation consumed by <see cref="ImFontConfig.GlyphRanges"/>.
-/// Mirrors canonical <c>ImFontGlyphRangesBuilder</c> (<c>ThirdParty/imgui/imgui.h:3803-3824</c>),
-/// with the builder methods defined in <c>ThirdParty/imgui/imgui_draw.cpp:5161-5195</c>.
+/// Mirrors canonical <c>ImFontGlyphRangesBuilder</c>.,
+/// with the builder methods defined.
 /// </summary>
 /// <remarks>
 /// Canonical <c>AddText</c> takes a UTF-8 byte buffer and decodes it through
@@ -1851,7 +1792,6 @@ public sealed class ImFontGlyphRangesBuilder
     /// <summary>
     /// Largest Unicode scalar value the builder tracks. Mirrors canonical
     /// <c>IM_UNICODE_CODEPOINT_MAX</c> for the <c>IMGUI_USE_WCHAR32</c> build
-    /// (<c>ThirdParty/imgui/imgui.h:2884</c>).
     /// </summary>
     private const uint UnicodeCodepointMax = 0x10FFFF;
 
@@ -1860,7 +1800,6 @@ public sealed class ImFontGlyphRangesBuilder
     /// <c>UsedChars[n &gt;&gt; 5]</c> under mask <c>1u &lt;&lt; (n &amp; 31)</c>, where zero means
     /// unused. The array holds <c>(0x10FFFF + 1) / 32 = 34816</c> words, matching the canonical
     /// storage of <c>(IM_UNICODE_CODEPOINT_MAX + 1) / 8</c> bytes
-    /// (<c>ThirdParty/imgui/imgui.h:3808</c>).
     /// </summary>
     public uint[] UsedChars = new uint[(UnicodeCodepointMax + 1) / 32];
 
@@ -1954,7 +1893,7 @@ public sealed class ImFontGlyphRangesBuilder
 /// <summary>
 /// Owns a set of fonts, bakes their glyphs into <see cref="ImFontBaked"/> entries, and packs the
 /// rasterized bitmaps into a single CPU-side RGBA32 texture. Mirrors the canonical
-/// <c>ImFontAtlas</c> subset used by this port (<c>ThirdParty/imgui/imgui.h:3862-3990</c>).
+/// <c>ImFontAtlas</c> subset used by this port.
 /// </summary>
 public sealed class ImFontAtlas
 {
@@ -1968,24 +1907,34 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Maximum integer line width, in pixels, for which the atlas bakes anti-aliased line UVs.
-    /// Mirrors canonical <c>IM_DRAWLIST_TEX_LINES_WIDTH_MAX</c> (<c>ThirdParty/imgui/imgui.h:3320</c>).
+    /// Mirrors canonical <c>IM_DRAWLIST_TEX_LINES_WIDTH_MAX</c>.
     /// Widths above this limit are stroked with polygon geometry instead of the baked texture.
     /// </summary>
     public const int TexLinesWidthMax = 32;
+    /// <summary>
+    /// Width threshold up to which detailed sub-pixel line antialiasing tables are computed.
+    /// </summary>
     public const int TexLinesDetailedWidth = 4;
+
+    /// <summary>
+    /// Number of sub-pixel sample steps per unit width in the line texture table.
+    /// </summary>
     public const int TexLinesSampleCount = 4;
+
+    /// <summary>
+    /// Total count of detailed line width sample slots baked into the font atlas.
+    /// </summary>
     public const int TexLinesDetailedWidthCount = (TexLinesDetailedWidth - 1) * TexLinesSampleCount + 1; // 13
 
     /// <summary>
     /// Width of the baked line texture region, in pixels. The two extra columns give each line row
     /// one transparent pixel of end-cap space on either side
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5066</c>).
     /// </summary>
     private const int LinesTextureWidth = TexLinesWidthMax + 2;
 
     /// <summary>
     /// Height of the baked line texture region, in pixels. The extra row holds the zero-width line
-    /// plus detailed sampled lines (<c>ThirdParty/imgui/imgui_draw.cpp:5066</c>).
+    /// plus detailed sampled lines.
     /// </summary>
     private const int LinesTextureHeight = TexLinesWidthMax + 1 + TexLinesDetailedWidthCount;
 
@@ -1995,7 +1944,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Expected default font size, in pixels, at or above which canonical selects the scalable
     /// ProggyForever face instead of the ProggyClean bitmap face
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3185</c>).
     /// </summary>
     private const float DefaultVectorFontThreshold = 15.0f;
 
@@ -2023,7 +1971,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Pixel format requested for the atlas texture. Mirrors canonical
-    /// <c>ImFontAtlas::TexDesiredFormat</c> (<c>ThirdParty/imgui/imgui.h:3968</c>), which the legacy
+    /// <c>ImFontAtlas::TexDesiredFormat</c>., which the legacy
     /// <c>GetTexDataAsAlpha8</c> and <c>GetTexDataAsRGBA32</c> accessors set before building.
     /// </summary>
     /// <remarks>
@@ -2038,7 +1986,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Legacy entry point a renderer backend calls after creating the atlas texture, recording the
     /// backend identifier on the atlas and on its texture data. Mirrors canonical
-    /// <c>ImFontAtlas::SetTexID</c> (<c>ThirdParty/imgui/imgui.h:3899</c>), which asserts that the
+    /// <c>ImFontAtlas::SetTexID</c>., which asserts that the
     /// atlas texture reference is texture-data-backed and then stores the identifier on
     /// <c>ImTextureData::TexID</c>.
     /// </summary>
@@ -2070,9 +2018,9 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Baked UV rectangles for textured anti-aliased lines, indexed by integer line width. Entry
     /// <c>n</c> stores <c>(u0, v, u1, v)</c> for a line of width <c>n</c>; widths
-    /// 0..<see cref="TexLinesWidthMax"/> are present. The table is empty when
+    /// 0.<see cref="TexLinesWidthMax"/> are present. The table is empty when
     /// <see cref="Flags"/> includes <see cref="ImFontAtlasFlags.NoBakedLines"/>, which forces the
-    /// draw list back to polygon stroking (<c>ThirdParty/imgui/imgui_draw.cpp:3634-3696</c>).
+    /// draw list back to polygon stroking.
     /// </summary>
     /// <returns>The baked line UV rectangle table, or an empty table when lines are not baked.</returns>
     public ImVec4[] TexUvLines { get; private set; } = Array.Empty<ImVec4>();
@@ -2093,10 +2041,9 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Whether the atlas contents are currently locked against modification. Mirrors canonical
-    /// <c>ImFontAtlas::Locked</c> (<c>ThirdParty/imgui/imgui.h:3976</c>), which canonical sets for
-    /// the <c>NewFrame()..EndFrame()</c> span whenever the renderer backend cannot consume texture
-    /// updates (<c>ThirdParty/imgui/imgui.cpp:9715</c>, cleared at <c>6429</c>) and then rejects
-    /// mutations such as <c>AddFont</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3073</c>).
+    /// <c>ImFontAtlas::Locked</c>, which canonical sets for
+    /// the <c>NewFrame().EndFrame()</c> span whenever the renderer backend cannot consume texture
+    /// updates and then rejects mutations such as <c>AddFont</c>.
     /// </summary>
     /// <remarks>
     /// This port has no frame or backend wiring yet, so the lock marks the synchronous windows in
@@ -2109,17 +2056,15 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Next value to store in <see cref="ImTextureData.UniqueID"/>. Mirrors canonical
-    /// <c>ImFontAtlas::TexNextUniqueID</c> (<c>ThirdParty/imgui/imgui.h:3985</c>), which starts at
-    /// one (<c>ThirdParty/imgui/imgui_draw.cpp:2680</c>) and is consumed when a texture is created
-    /// (<c>4109</c>).
+    /// <c>ImFontAtlas::TexNextUniqueID</c>, which starts at
+    /// one and is consumed when a texture is created.
     /// </summary>
     public int TexNextUniqueID { get; private set; } = 1;
 
     /// <summary>
     /// Next value to store in <see cref="ImFont.FontId"/>. Mirrors canonical
-    /// <c>ImFontAtlas::FontNextUniqueID</c> (<c>ThirdParty/imgui/imgui.h:3986</c>), which starts at
-    /// one (<c>ThirdParty/imgui/imgui_draw.cpp:2681</c>) and is consumed when a font is created
-    /// (<c>3090</c>).
+    /// <c>ImFontAtlas::FontNextUniqueID</c>, which starts at
+    /// one and is consumed when a font is created.
     /// </summary>
     public int FontNextUniqueID { get; private set; } = 1;
 
@@ -2128,7 +2073,7 @@ public sealed class ImFontAtlas
     /// idle when its <see cref="ImFontBaked.LastUsedFrame"/> plus an unused-frame threshold has fallen
     /// behind this value, at which point the atlas may return the set's packed rectangles to the
     /// packer. Mirrors canonical <c>ImFontAtlasBuilder::FrameCount</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:4297</c>), which starts at -1 so an atlas that is never
+    ///., which starts at -1 so an atlas that is never
     /// advanced retains every bake.
     /// </summary>
     /// <returns>The most recent frame counter value passed to <see cref="UpdateNewFrame"/>.</returns>
@@ -2143,7 +2088,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Persistent identifier table mapping <c>ImFontAtlasRectId</c> values to entries in
     /// <see cref="_rects"/>. Mirrors canonical <c>ImFontAtlasBuilder::RectsIndex</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:4290</c>).
     /// </summary>
     private readonly List<ImFontAtlasRectEntry> _rectEntries = new();
 
@@ -2191,7 +2135,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Draw lists that read this atlas's white texel and line UV tables. Mirrors canonical
-    /// <c>ImFontAtlas::DrawListSharedDatas</c> (<c>ThirdParty/imgui/imgui_internal.h:4406</c>): the
+    /// <c>ImFontAtlas::DrawListSharedDatas</c>.: the
     /// atlas refreshes every registered list whenever it repacks or re-derives its regions, so a
     /// mid-frame lazy bake cannot leave any list with stale UVs.
     /// </summary>
@@ -2205,7 +2149,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Returns the canonical default glyph ranges: Basic Latin plus Latin Supplement. Mirrors
     /// <c>ImFontAtlas::GetGlyphRangesDefault</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4895-4903</c>).
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     /// <remarks>
@@ -2217,7 +2160,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Returns the canonical Greek ranges: default plus Greek and Coptic. Mirrors
-    /// <c>ImFontAtlas::GetGlyphRangesGreek</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4906-4915</c>).
+    /// <c>ImFontAtlas::GetGlyphRangesGreek</c>.
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     public uint[] GetGlyphRangesGreek() => new uint[]
@@ -2229,7 +2172,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Returns the canonical Korean ranges: default plus Korean alphabets and syllables. Mirrors
-    /// <c>ImFontAtlas::GetGlyphRangesKorean</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4917-4928</c>).
+    /// <c>ImFontAtlas::GetGlyphRangesKorean</c>.
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     public uint[] GetGlyphRangesKorean() => new uint[]
@@ -2244,7 +2187,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Returns the canonical full Chinese ranges: default plus punctuation, kana, half-width forms
     /// and the full CJK Unified Ideographs block. Mirrors
-    /// <c>ImFontAtlas::GetGlyphRangesChineseFull</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4930-4944</c>).
+    /// <c>ImFontAtlas::GetGlyphRangesChineseFull</c>.
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     public uint[] GetGlyphRangesChineseFull() => new uint[]
@@ -2263,7 +2206,6 @@ public sealed class ImFontAtlas
     /// Returns the canonical commonly used Simplified Chinese ranges: default plus punctuation, kana,
     /// half-width forms and the 2500 most frequently used CJK Unified Ideographs. Mirrors
     /// <c>ImFontAtlas::GetGlyphRangesChineseSimplifiedCommon</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4956-5022</c>).
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     /// <remarks>
@@ -2285,7 +2227,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Base ranges prepended to the expanded Simplified Chinese offsets. Verbatim canonical
-    /// <c>base_ranges[]</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5006-5014</c>); the list is not
+    /// <c>base_ranges[]</c>.; the list is not
     /// zero-terminated because the expansion helper appends the terminator.
     /// </summary>
     private static readonly uint[] ChineseSimplifiedCommonBaseRanges = new uint[]
@@ -2301,7 +2243,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Cumulative codepoint offsets from U+4E00 for the 2500 commonly used Simplified Chinese
     /// characters. Verbatim canonical <c>accumulative_offsets_from_0x4E00[]</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4963-5004</c>); entry <c>n</c> both closes the previous
+    ///.; entry <c>n</c> both closes the previous
     /// single-codepoint range and advances the running base.
     /// </summary>
     private static readonly short[] ChineseSimplifiedCommonOffsets = new short[]
@@ -2436,7 +2378,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Returns the canonical Japanese ranges: default plus punctuation, kana, half-width forms and a
     /// selection of 2999 CJK Unified Ideographs. Mirrors
-    /// <c>ImFontAtlas::GetGlyphRangesJapanese</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5024-5112</c>).
+    /// <c>ImFontAtlas::GetGlyphRangesJapanese</c>.
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     /// <remarks>
@@ -2453,7 +2395,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Base ranges prepended to the expanded Japanese offsets. Verbatim canonical <c>base_ranges[]</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5097-5104</c>); the list is not zero-terminated because the
+    ///.; the list is not zero-terminated because the
     /// expansion helper appends the terminator.
     /// </summary>
     private static readonly uint[] JapaneseBaseRanges = new uint[]
@@ -2468,7 +2410,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Cumulative codepoint offsets from U+4E00 for the 2999 selected Japanese ideographs. Verbatim
     /// canonical <c>accumulative_offsets_from_0x4E00[]</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5046-5095</c>); entry <c>n</c> both closes the previous
+    ///.; entry <c>n</c> both closes the previous
     /// single-codepoint range and advances the running base.
     /// </summary>
     private static readonly short[] JapaneseOffsets = new short[]
@@ -2628,7 +2570,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Returns the canonical Cyrillic ranges: default plus the Cyrillic and Cyrillic Supplement
     /// blocks and the two extended blocks. Mirrors <c>ImFontAtlas::GetGlyphRangesCyrillic</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5114-5125</c>).
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     public uint[] GetGlyphRangesCyrillic() => new uint[]
@@ -2642,7 +2583,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Returns the canonical Thai ranges: default plus Thai punctuation and the Thai block. Mirrors
-    /// <c>ImFontAtlas::GetGlyphRangesThai</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5127-5137</c>).
+    /// <c>ImFontAtlas::GetGlyphRangesThai</c>.
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     public uint[] GetGlyphRangesThai() => new uint[]
@@ -2656,7 +2597,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Returns the canonical Vietnamese ranges: default plus the Latin Extended Additional letters
     /// used by Vietnamese. Mirrors <c>ImFontAtlas::GetGlyphRangesVietnamese</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5139-5154</c>).
     /// </summary>
     /// <returns>Inclusive codepoint pairs terminated by zero.</returns>
     public uint[] GetGlyphRangesVietnamese() => new uint[]
@@ -2675,7 +2615,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Expands a compact table of cumulative codepoint offsets into the inclusive start/end range
     /// representation and appends the zero terminator. Mirrors canonical
-    /// <c>UnpackAccumulativeOffsetsIntoRanges</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4946-4954</c>).
+    /// <c>UnpackAccumulativeOffsetsIntoRanges</c>.
     /// </summary>
     /// <param name="baseCodepoint">Codepoint the first offset is relative to.</param>
     /// <param name="offsets">Cumulative offsets; each entry both closes the previous range and opens the next.</param>
@@ -2704,7 +2644,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Identifier table entry for one packed rectangle. Mirrors canonical
-    /// <c>ImFontAtlasRectEntry</c> (<c>ThirdParty/imgui/imgui_internal.h:4250-4257</c>). The
+    /// <c>ImFontAtlasRectEntry</c>. The
     /// generation guards against stale identifiers after a rectangle is discarded and reused.
     /// </summary>
     internal struct ImFontAtlasRectEntry
@@ -2727,12 +2667,11 @@ public sealed class ImFontAtlas
     /// Loads a default font through the canonical legacy selection heuristic, which prefers the
     /// scalable ProggyForever face and falls back to the ProggyClean bitmap face for small text.
     /// Mirrors canonical <c>ImFontAtlas::AddFontDefault</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3183-3189</c>).
     /// </summary>
     /// <param name="fontConfig">Optional configuration template; a default configuration is used when null.</param>
     /// <param name="expectedFontSize">
     /// Expected text size in pixels, standing in for the canonical
-    /// <c>GetExpectedContextFontSize</c> probe (<c>ThirdParty/imgui/imgui_draw.cpp:3175-3178</c>),
+    /// <c>GetExpectedContextFontSize</c> probe.,
     /// which multiplies <c>Style.FontSizeBase</c> by the main and DPI scale factors. A value of zero
     /// or less means no owner context exists, which canonical resolves to the vector face; a value
     /// of 15 or more selects the vector face; a smaller positive value selects the bitmap face.
@@ -2754,7 +2693,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Loads the embedded ProggyClean bitmap-oriented font. Mirrors canonical
-    /// <c>AddFontDefaultBitmap</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3193-3220</c>).
+    /// <c>AddFontDefaultBitmap</c>.
     /// </summary>
     /// <param name="fontConfig">Optional configuration template; a default configuration is used when null.</param>
     /// <returns>The loaded font.</returns>
@@ -2764,7 +2703,7 @@ public sealed class ImFontAtlas
         if (fontConfig is null)
         {
             // Without a template the bitmap font snaps horizontally, preventing sub-integer scaling in the
-            // lower layers (ThirdParty/imgui/imgui_draw.cpp:3197-3198).
+            // lower layers.
             cfg = new ImFontConfig { PixelSnapH = true };
         }
         else
@@ -2794,7 +2733,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Loads the embedded ProggyForever scalable vector font, which canonical describes as a
     /// minimal face designed to match ProggyClean while scaling cleanly. Mirrors canonical
-    /// <c>AddFontDefaultVector</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3221-3246</c>).
+    /// <c>AddFontDefaultVector</c>.
     /// </summary>
     /// <param name="fontConfig">Optional configuration template; a default configuration is used when null.</param>
     /// <returns>The loaded font.</returns>
@@ -2831,7 +2770,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Adds a font from an in-memory TrueType image. Mirrors canonical
-    /// <c>AddFontFromMemoryTTF</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3260-3285</c>).
+    /// <c>AddFontFromMemoryTTF</c>.
     /// </summary>
     /// <param name="fontData">TTF/OTF file image; ownership is governed by <paramref name="fontConfig"/>.</param>
     /// <param name="sizePixels">Reference size in pixels.</param>
@@ -2850,7 +2789,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Adds a font from an stb_compress stream, as produced by the canonical
     /// <c>binary_to_compressed_c</c> tool. Mirrors <c>AddFontFromMemoryCompressedTTF</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3287-3297</c>).
     /// </summary>
     /// <param name="compressedFontData">stb_compress stream.</param>
     /// <param name="sizePixels">Reference size in pixels.</param>
@@ -2867,7 +2805,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Adds a font from a TrueType or OpenType file on disk. Mirrors canonical
-    /// <c>ImFontAtlas::AddFontFromFileTTF</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3248-3259</c>).
+    /// <c>ImFontAtlas::AddFontFromFileTTF</c>.
     /// </summary>
     /// <param name="filename">Path to the font file.</param>
     /// <param name="sizePixels">Reference size in pixels.</param>
@@ -2917,7 +2855,6 @@ public sealed class ImFontAtlas
     /// Adds a font from an stb_compress stream encoded as base85 text, as produced by the canonical
     /// <c>binary_to_compressed_c</c> tool with <c>-base85</c>. Mirrors
     /// <c>ImFontAtlas::AddFontFromMemoryCompressedBase85TTF</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3299-3307</c>).
     /// </summary>
     /// <param name="compressedTtfDataBase85">Base85-encoded stb_compress stream.</param>
     /// <param name="sizePixels">Reference size in pixels.</param>
@@ -2937,7 +2874,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Decodes the canonical base85 encoding used by <c>binary_to_compressed_c -base85</c>. Mirrors
-    /// <c>Decode85Byte</c>/<c>Decode85</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3156-3167</c>).
+    /// <c>Decode85Byte</c>/<c>Decode85</c>.
     /// </summary>
     /// <param name="text">Base85 text; each five characters encode four bytes.</param>
     /// <returns>The decoded bytes.</returns>
@@ -2985,7 +2922,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Removes a font and all of its sources from the atlas. Mirrors canonical
-    /// <c>ImFontAtlas::RemoveFont</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3343-3368</c>).
+    /// <c>ImFontAtlas::RemoveFont</c>.
     /// </summary>
     /// <param name="font">Font to remove; it must belong to this atlas.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="font"/> is null.</exception>
@@ -3023,7 +2960,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Removes every font and source while keeping the texture and builder state, then resets the
     /// builder so the freed rectangles are not left referring to removed fonts. Mirrors canonical
-    /// <c>ImFontAtlas::ClearFonts</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2708-2725</c>).
+    /// <c>ImFontAtlas::ClearFonts</c>.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown when the atlas is <see cref="Locked"/>.</exception>
     /// <remarks>
@@ -3046,7 +2983,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Releases each font's output state, detaches and clears its sources, marks the fonts as
     /// glyph-less, and clears the atlas source list. Mirrors canonical
-    /// <c>ImFontAtlas::ClearInputData</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2727-2743</c>).
+    /// <c>ImFontAtlas::ClearInputData</c>.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown when the atlas is <see cref="Locked"/>.</exception>
     /// <remarks>
@@ -3074,7 +3011,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Discards the builder's rectangle and packer state without releasing the texture, so the next
     /// build recreates the reserved white and line regions. Mirrors the builder-destroy portion of
-    /// canonical <c>ImFontAtlasBuildDestroy</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3955-3961</c>).
+    /// canonical <c>ImFontAtlasBuildDestroy</c>.
     /// </summary>
     private void ResetBuilder()
     {
@@ -3101,7 +3038,7 @@ public sealed class ImFontAtlas
     /// <exception cref="ArgumentException">Thrown when no font data is attached.</exception>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the atlas is <see cref="Locked"/> because it is rebuilding its contents. Canonical
-    /// rejects the same case (<c>ThirdParty/imgui/imgui_draw.cpp:3073</c>) since a source added
+    /// rejects the same case. since a source added
     /// mid-rebuild would leave the atlas and its bakes inconsistent.
     /// </exception>
     public ImFont AddFont(ImFontConfig fontConfig)
@@ -3119,14 +3056,13 @@ public sealed class ImFontAtlas
             font = Fonts[^1];
             // The merged source changes every baked set's glyph output, so existing sets must be
             // discarded before the new source is appended. Mirrors canonical
-            // ImFontAtlasFontDiscardBakes(this, font, 0) at ThirdParty/imgui/imgui_draw.cpp:3100.
+            // ImFontAtlasFontDiscardBakes(this, font, 0) at.
             FontDiscardBakes(font, 0);
         }
         else
         {
             // Only a newly created font consumes an identifier; a merged source joins the previous
             // font. Canonical assigns from FontNextUniqueID and captures LegacySize here
-            // (ThirdParty/imgui/imgui_draw.cpp:3089-3092).
             font = new ImFont
             {
                 OwnerAtlas = this,
@@ -3141,14 +3077,14 @@ public sealed class ImFontAtlas
         Sources.Add(fontConfig);
 
         // Canonical copies the exclusion list when a source is stored so the font owns its range data
-        // independently of the caller's array (ThirdParty/imgui/imgui_draw.cpp:3113-3120). The
+        // independently of the caller's array. The
         // managed port performs the same defensive copy here; the property is replaced on the stored
         // configuration, whose lifetime is now the font atlas's, not the caller's.
         if (fontConfig.GlyphExcludeRanges != null)
             fontConfig.GlyphExcludeRanges = (uint[])fontConfig.GlyphExcludeRanges.Clone();
 
         // Canonical resolves the fallback and ellipsis characters whenever a source is attached
-        // (ImFontAtlasFontSourceAddToFont at ThirdParty/imgui/imgui_draw.cpp:3749).
+        // (ImFontAtlasFontSourceAddToFont at ).
         SetupFontSpecialGlyphs(font, fontConfig);
         return font;
     }
@@ -3181,27 +3117,24 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Font size at or above which text layout loads advances only and defers rasterization until
     /// the glyph is drawn. Mirrors canonical <c>IMGUI_FONT_SIZE_THRESHOLD_FOR_LOADADVANCEXONLYMODE</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:4230</c>).
     /// </summary>
     private const float AdvanceOnlySizeThreshold = 128.0f;
 
     /// <summary>
     /// Initializes the packer, reserves the white texel block and the baked line region, then
     /// preloads every source glyph range at each font's reference size. This is the canonical legacy
-    /// build path used when the renderer does not support incremental textures
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3486-3504</c>, <c>3543-3561</c>).
+    /// build path used when the renderer does not support incremental textures.
     /// </summary>
     /// <returns>Always <see langword="true"/> for the supported font set.</returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the atlas is already <see cref="Locked"/>, matching the canonical legacy build
-    /// entry point, which rejects a locked atlas (<c>ThirdParty/imgui/imgui_draw.cpp:3487</c>).
+    /// entry point, which rejects a locked atlas.
     /// </exception>
     /// <remarks>
     /// The default font is added before the lock is taken so the atlas can populate itself, then
     /// <see cref="Locked"/> covers the builder, texture and preload work because none of it may
     /// interleave with adding a source. The lock is released before this method returns; canonical
     /// instead holds the lock across the whole frame when the backend cannot consume texture updates
-    /// (<c>ThirdParty/imgui/imgui.cpp:9715</c>).
     /// </remarks>
     public bool Build()
     {
@@ -3215,7 +3148,7 @@ public sealed class ImFontAtlas
         try
         {
             // Canonical ImFontAtlasBuildMain clears the texture and builder when the existing texture
-            // format differs from TexDesiredFormat (ThirdParty/imgui/imgui_draw.cpp:3489-3490), so a
+            // format differs from TexDesiredFormat., so a
             // legacy GetTexDataAsAlpha8/GetTexDataAsRGBA32 call after an earlier build recreates the
             // texture in the requested format.
             if (TexData != null && TexData.Format != TexDesiredFormat)
@@ -3238,9 +3171,9 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Advances the atlas to a new frame: records the frame counter and drops every font's one-entry
     /// baked-set cache so baked pointers do not cross frames. Mirrors the frame bookkeeping of
-    /// canonical <c>ImFontAtlasUpdateNewFrame</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2781-2830</c>)
+    /// canonical <c>ImFontAtlasUpdateNewFrame</c>
     /// that idle-bake eviction depends on, including its protection against being advanced twice for
-    /// one frame (<c>2784</c>); texture upload and legacy-build handling remain the caller's
+    /// one frame; texture upload and legacy-build handling remain the caller's
     /// responsibility in this port.
     /// </summary>
     /// <param name="frameCount">
@@ -3250,7 +3183,7 @@ public sealed class ImFontAtlas
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown when <paramref name="frameCount"/> is not greater than <see cref="FrameCount"/>, which
     /// means the atlas was advanced twice for one frame or the counter was rewound. Canonical guards
-    /// the same condition (<c>ThirdParty/imgui/imgui_draw.cpp:2784</c>) because bake ages are derived
+    /// the same condition. because bake ages are derived
     /// from the frame counter.
     /// </exception>
     public void UpdateNewFrame(int frameCount)
@@ -3269,7 +3202,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Releases idle baked sets and shrinks the texture toward the smallest surface that still holds
     /// the remaining rectangles. Mirrors canonical <c>ImFontAtlas::CompactCache</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2745-2748</c>), which delegates to
+    ///., which delegates to
     /// <c>ImFontAtlasTextureCompact</c>. Hosts call this when memory should be reclaimed outside the
     /// packing path; the packing path instead reclaims automatically through
     /// <c>ImFontAtlasTextureMakeSpace</c>.
@@ -3283,7 +3216,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Creates the initial texture and packer state if they do not exist yet. Safe to call
     /// repeatedly; the white texel block and line region are reserved exactly once per build.
-    /// Mirrors canonical <c>ImFontAtlasBuildInit</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4321-4365</c>).
+    /// Mirrors canonical <c>ImFontAtlasBuildInit</c>.
     /// </summary>
     private void EnsureBuilder()
     {
@@ -3306,7 +3239,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Loads every codepoint in each source's glyph ranges at the font's reference size. Ports the
-    /// canonical legacy preload (<c>ThirdParty/imgui/imgui_draw.cpp:3543-3561</c>) so behavior at the
+    /// canonical legacy preload. so behavior at the
     /// 13 px reference size is unchanged by lazy per-size baking.
     /// </summary>
     private void PreloadAllGlyphs()
@@ -3318,7 +3251,6 @@ public sealed class ImFontAtlas
                 continue;
 
             // Canonical preloads at the font's captured legacy size
-            // (ThirdParty/imgui/imgui_draw.cpp:3548).
             ImFontBaked baked = font.GetFontBakedCore(font.LegacySize, -1.0f, allowLockedCreation: true);
 
             if (font.FallbackChar != 0)
@@ -3342,8 +3274,8 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Creates the baked glyph set for one font, size and density, initializes its vertical metrics
     /// and blank glyphs, and registers it on the font. Mirrors canonical <c>ImFontAtlasBakedAdd</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3903-3932</c>) and the stb loader's
-    /// <c>FontBakedInit</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4758-4774</c>).
+    ///. and the stb loader's
+    /// <c>FontBakedInit</c>.
     /// </summary>
     /// <param name="font">Font that owns the new baked set.</param>
     /// <param name="size">Rounded pixel size.</param>
@@ -3372,7 +3304,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// CRC32c lookup table used to derive baked identifiers, equivalent to canonical
     /// <c>GCrc32LookupTable</c> for the default (non-legacy) variant
-    /// (<c>ThirdParty/imgui/imgui.cpp:2519-2538</c>). Building it from the reflected polynomial
+    ///. Building it from the reflected polynomial
     /// produces exactly the canonical constants while keeping the derivation visible.
     /// </summary>
     private static readonly uint[] Crc32cTable = BuildCrc32cTable();
@@ -3397,9 +3329,9 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Derives the stable identifier canonical stores in <see cref="ImFontBaked.BakedId"/>. Mirrors
-    /// <c>ImFontAtlasBakedGetId</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5420-5429</c>), which hashes
+    /// <c>ImFontAtlasBakedGetId</c>., which hashes
     /// the font identifier together with the baked size and rasterizer density, and
-    /// <c>ImHashData</c> (<c>ThirdParty/imgui/imgui.cpp:2540-2555</c>), which consumes the bytes of
+    /// <c>ImHashData</c>., which consumes the bytes of
     /// that struct in memory order with a zero seed.
     /// </summary>
     /// <param name="fontId">Identifier of the owning font.</param>
@@ -3432,7 +3364,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Initializes ascent and descent for a newly created baked set from the font's first source.
     /// Mirrors the stb loader's <c>FontBakedInit</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4758-4774</c>).
     /// </summary>
     /// <param name="font">Font being baked.</param>
     /// <param name="baked">Baked set receiving the vertical metrics.</param>
@@ -3458,7 +3389,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Lazily initializes the TrueType parser and font-unit scale for one source. Mirrors the
     /// canonical <c>FontSrcInit</c> cached on the source
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4704-4737</c>), including its merge-mode handling: a
+    ///., including its merge-mode handling: a
     /// merged source with no explicit size inherits the first source's reference size and scales its
     /// own size relative to it, so glyphs merged from a differently sized source align with the
     /// base face.
@@ -3501,7 +3432,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Marks the space glyph invisible and installs a tab glyph whose advance spans
     /// <see cref="TabSize"/> spaces. Mirrors canonical <c>ImFontAtlasBuildSetupFontBakedBlanks</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3835-3851</c>).
     /// </summary>
     /// <param name="baked">Baked set to configure.</param>
     private void SetupBlanks(ImFontBaked baked)
@@ -3525,8 +3455,8 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Resolves the fallback and ellipsis characters for a font when a source is attached, and marks
     /// the ellipsis for synthesis when no source supplies one. Ports canonical
-    /// <c>ImFontAtlasBuildSetupFontSpecialGlyphs</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3855-3886</c>),
-    /// which canonical invokes from <c>ImFontAtlasFontSourceAddToFont</c> at <c>3749</c> for every
+    /// <c>ImFontAtlasBuildSetupFontSpecialGlyphs</c>,
+    /// which canonical invokes from <c>ImFontAtlasFontSourceAddToFont</c> for every
     /// source, including merged ones.
     /// </summary>
     /// <param name="font">Font whose special glyphs are resolved.</param>
@@ -3582,7 +3512,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Reports whether a source accepts a codepoint for lazy glyph resolution, honoring its exclusion
     /// ranges. Ports canonical <c>ImFontAtlasBuildAcceptCodepointForSource</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4538-4548</c>).
     /// </summary>
     /// <param name="source">Source whose exclusion list is consulted.</param>
     /// <param name="codepoint">Codepoint being requested.</param>
@@ -3606,11 +3535,10 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Bakes one codepoint on demand, packing and rasterizing it from the first source that contains
-    /// it. Ports the stb loader's glyph load and glyph registration
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4565-4634</c>, <c>4776-4862</c>, <c>5256-5307</c>),
+    /// it. Ports the stb loader's glyph load and glyph registration,
     /// including the canonical scan across every source of the font so merged sources participate in
-    /// lazy baking (<c>4593-4614</c>). The requested codepoint is first resolved through the font's
-    /// remap pairs (<c>4578-4579</c>).
+    /// lazy baking. The requested codepoint is first resolved through the font's
+    /// remap pairs.
     /// </summary>
     /// <param name="baked">Baked set receiving the glyph.</param>
     /// <param name="codepoint">Codepoint to bake.</param>
@@ -3625,7 +3553,7 @@ public sealed class ImFontAtlas
 
         // Canonical refuses to bake new glyphs while the atlas is locked or while the font has opted out of
         // loading, and in both cases lazily installs the fallback so the caller still resolves a visible
-        // glyph (<c>ThirdParty/imgui/imgui_draw.cpp:4569-4576</c>). Only the opt-out clause is applied
+        // glyph. Only the opt-out clause is applied
         // here: canonical preloads every configured glyph range during the atlas build, whereas this port
         // bakes glyphs on demand while the atlas can still hold its build or repack lock, so refusing to
         // load under <see cref="Locked"/> would leave ordinary text without glyphs.
@@ -3645,7 +3573,6 @@ public sealed class ImFontAtlas
 
         // Canonical copies the requested codepoint, applies the font's remap pairs, and only then runs
         // the ellipsis hook and the source scan
-        // (ThirdParty/imgui/imgui_draw.cpp:6093-6130). The glyph that is eventually stored
         // keeps the requested codepoint while its outline comes from the remap target,
         // so the baked lookup tables remain keyed by what the caller asked for rather than by the target.
         uint sourceCodepoint = codepoint;
@@ -3663,7 +3590,7 @@ public sealed class ImFontAtlas
             if (codepoint != uint.MaxValue)
             {
                 // Canonical skips a source whose exclusion ranges claim the codepoint, leaving it to a
-                // later source or to the fallback (ThirdParty/imgui/imgui_draw.cpp:6119).
+                // later source or to the fallback.
                 if (!AcceptCodepointForSource(source, codepoint))
                     continue;
 
@@ -3719,13 +3646,11 @@ public sealed class ImFontAtlas
             {
                 // Canonical records the requested codepoint on the glyph it stores; the outline, box and
                 // advance above came from the remap target
-                // (ThirdParty/imgui/imgui_draw.cpp:4604).
                 Codepoint = sourceCodepoint,
                 AdvanceX = advance * scaleForLayout,
                 Visible = visible,
                 PackId = RectIdInvalid,
                 // Canonical records which source supplied the glyph
-                // (ThirdParty/imgui/imgui_draw.cpp:4604).
                 SourceIdx = (uint)sourceIndex,
             };
 
@@ -3769,7 +3694,6 @@ public sealed class ImFontAtlas
 
         // Canonical synthesizes the ellipsis from the period only when no source supplies the
         // codepoint and the font still requests automatic baking
-        // (ThirdParty/imgui/imgui_draw.cpp:4586-4589, 3771-3813).
         if (codepoint == font.EllipsisChar && font.EllipsisAutoBake)
         {
             int synthesized = SetupBakedEllipsis(baked);
@@ -3782,7 +3706,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Records an advance-only glyph entry. Mirrors canonical
-    /// <c>ImFontAtlasBakedAddFontGlyphAdvancedX</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5310-5330</c>).
+    /// <c>ImFontAtlasBakedAddFontGlyphAdvancedX</c>.
     /// </summary>
     /// <param name="baked">Baked set receiving the advance.</param>
     /// <param name="source">Source supplying clamp, snap and spacing settings.</param>
@@ -3805,7 +3729,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Loads the advance for a lazily requested codepoint, deferring rasterization for very large
     /// sizes. Mirrors canonical <c>ImFontBaked_BuildLoadGlyphAdvanceX</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4636-4650</c>).
     /// </summary>
     /// <param name="baked">Baked set being measured.</param>
     /// <param name="codepoint">Codepoint to measure.</param>
@@ -3827,7 +3750,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Records a codepoint the source font does not contain, installing the fallback first when
     /// permitted. Mirrors canonical <c>ImFontBaked_BuildLoadGlyph</c> miss handling
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4623-4633</c>).
     /// </summary>
     /// <param name="baked">Baked set being queried.</param>
     /// <param name="codepoint">Missing codepoint.</param>
@@ -3849,7 +3771,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Installs the fallback glyph for a baked set, synthesizing one when the font lacks a usable
     /// fallback character. Mirrors canonical <c>ImFontAtlasBuildSetupFontBakedFallback</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3815-3833</c>).
     /// </summary>
     /// <param name="baked">Baked set to configure.</param>
     private void SetupFallback(ImFontBaked baked)
@@ -3886,9 +3807,8 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Synthesizes the ellipsis glyph from three copies of the period glyph when the loaded face has
-    /// no ellipsis character. Ports canonical <c>ImFontAtlasBuildSetupFontBakedEllipsis</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3771-3813</c>), which canonical invokes from the glyph
-    /// load path at <c>4586-4589</c>. The synthesized glyph packs a new rectangle three periods wide
+    /// no ellipsis character. Ports canonical <c>ImFontAtlasBuildSetupFontBakedEllipsis</c>,
+    /// which canonical invokes from the glyph load path. The synthesized glyph packs a new rectangle three periods wide
     /// with one pixel of spacing, copies the period pixels into it, and queues the texture update.
     /// </summary>
     /// <param name="baked">Baked set receiving the synthesized glyph.</param>
@@ -3896,7 +3816,7 @@ public sealed class ImFontAtlas
     /// combined rectangle cannot be packed.</returns>
     /// <remarks>
     /// The period rectangle is re-resolved after the combined rectangle is added because packing can
-    /// repack the atlas and move the period, matching canonical's re-fetch at <c>3804-3805</c>. The
+    /// repack the atlas and move the period, matching canonical's re-fetch. The
     /// copied pixels are not post-processed again: canonical notes that the period is already
     /// post-processed and a second multiply would damage it.
     /// </remarks>
@@ -3932,7 +3852,7 @@ public sealed class ImFontAtlas
         {
             Codepoint = font.EllipsisChar,
             // Canonical widens the advance past the last dot so an elided string keeps a visible
-            // trailing gap (ThirdParty/imgui/imgui_draw.cpp:3787).
+            // trailing gap.
             AdvanceX = MathF.Max(dotGlyph.Value.AdvanceX, dotGlyph.Value.X0 + dotStep * 3.0f - DotSpacing),
             X0 = dotGlyph.Value.X0,
             Y0 = dotGlyph.Value.Y0,
@@ -3963,7 +3883,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Appends a glyph to a baked set, assigns its UVs from its packed rectangle, applies advance
     /// clamping and pixel snapping, and updates the lookup tables. Ports
-    /// <c>ImFontAtlasBakedAddFontGlyph</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5256-5307</c>).
+    /// <c>ImFontAtlasBakedAddFontGlyph</c>.
     /// </summary>
     /// <param name="baked">Baked set receiving the glyph.</param>
     /// <param name="source">Source supplying clamp, snap and spacing settings, or null for synthetic glyphs.</param>
@@ -3972,7 +3892,6 @@ public sealed class ImFontAtlas
     /// <remarks>
     /// The advance is clamped to the source bounds and, when <see cref="ImFontConfig.PixelSnapH"/>
     /// is set, rounded to a whole pixel after any recentering, matching canonical order
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5280-5293</c>).
     /// </remarks>
     private int AddGlyph(ImFontBaked baked, ImFontConfig? source, ImFontGlyph glyph)
     {
@@ -4009,7 +3928,7 @@ public sealed class ImFontAtlas
             }
 
             // Snap to a whole pixel after recentering, exactly as canonical does for sources that
-            // request it (ThirdParty/imgui/imgui_draw.cpp:5289-5290).
+            // request it.
             if (source.PixelSnapH)
                 advanceX = MathF.Round(advanceX);
 
@@ -4025,7 +3944,6 @@ public sealed class ImFontAtlas
 
         // Record that the 8K codepoint block containing this glyph now has a baked glyph, so
         // ImFont.IsGlyphRangeUnused can skip ranges no source needs
-        // (ThirdParty/imgui/imgui_draw.cpp:5303-5305).
         if (baked.OwnerFont is ImFont ownerFont)
         {
             int page = codepoint / 8192;
@@ -4038,7 +3956,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Writes a freshly rasterized coverage bitmap into the current texture, applies the source's
     /// rasterizer multiply, and queues the changed rectangle for the backend. Mirrors
-    /// <c>ImFontAtlasBakedSetFontGlyphBitmap</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5333-5341</c>)
+    /// <c>ImFontAtlasBakedSetFontGlyphBitmap</c>.
     /// plus the Alpha8-to-RGBA32 conversion it performs.
     /// </summary>
     /// <param name="rect">Destination rectangle inside the texture.</param>
@@ -4065,7 +3983,6 @@ public sealed class ImFontAtlas
         }
 
         // Canonical post-processes the converted block before queueing the upload
-        // (ThirdParty/imgui/imgui_draw.cpp:5338-5340).
         PostProcessTextureBlock(rect, source.RasterizerMultiply);
 
         tex.QueueUpload(rect.X, rect.Y, rect.W, rect.H);
@@ -4075,7 +3992,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Applies the canonical post-processing multiply to a texture block that was just written.
     /// Ports <c>ImFontAtlasTextureBlockPostProcess</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2931-2936</c>), which is a no-op at the default factor of
+    ///., which is a no-op at the default factor of
     /// 1.0. The atlas currently allocates its texture in RGBA32, so the alpha channel is the one
     /// scaled; the Alpha8 branch mirrors the canonical single-channel format for textures created in
     /// that format.
@@ -4117,7 +4034,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Scales one coverage byte and clamps the result to the byte range. Mirrors
     /// <c>ImFontAtlasTextureBlockPostProcessMultiply</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2938-2970</c>); canonical leaves a negative factor
+    ///.; canonical leaves a negative factor
     /// undefined, and the managed port clamps it to zero for a well-defined result.
     /// </summary>
     /// <param name="coverage">Coverage byte being scaled.</param>
@@ -4135,7 +4052,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Packs a caller rectangle using the canonical rectangle API. Mirrors
-    /// <c>ImFontAtlas::AddCustomRect</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3369-3389</c>) and is
+    /// <c>ImFontAtlas::AddCustomRect</c>. and is
     /// used for the white texel block and the baked line region as well as caller content.
     /// </summary>
     /// <param name="width">Rectangle width in pixels; must be positive.</param>
@@ -4159,7 +4076,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Resolves a caller rectangle's position, size and UV coordinates for the current texture.
     /// Mirrors <c>ImFontAtlas::GetCustomRect</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3448-3462</c>).
     /// </summary>
     /// <param name="id">Rectangle identifier returned by <see cref="AddCustomRect"/>.</param>
     /// <param name="rect">Receives the packed rectangle when the identifier is still live.</param>
@@ -4189,7 +4105,6 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Releases a caller rectangle. Mirrors <c>ImFontAtlas::RemoveCustomRect</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3391-3396</c>).
     /// </summary>
     /// <param name="id">Rectangle identifier to release; unknown identifiers are ignored.</param>
     public void RemoveCustomRect(int id) => PackDiscardRect(id);
@@ -4197,7 +4112,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Packs a custom glyph rectangle for a font at its legacy size and adds the glyph to that
     /// size's baked set. Mirrors canonical <c>ImFontAtlas::AddCustomRectFontGlyph</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3404-3409</c>).
     /// </summary>
     /// <param name="font">Font that receives the glyph.</param>
     /// <param name="codepoint">Codepoint the glyph represents.</param>
@@ -4213,7 +4127,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Packs a custom glyph rectangle for a font at an explicit size and adds the glyph to that
     /// size's baked set. Mirrors canonical <c>ImFontAtlas::AddCustomRectFontGlyphForSize</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3412-3444</c>).
     /// </summary>
     /// <param name="font">Font that receives the glyph.</param>
     /// <param name="fontSize">Baked size the glyph belongs to.</param>
@@ -4275,7 +4188,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Discards one loaded glyph from a baked set, returning its packed rectangle to the packer and
     /// marking the lookup entry unused. Mirrors canonical <c>ImFontAtlasBakedDiscardFontGlyph</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3888-3900</c>).
     /// </summary>
     /// <param name="font">Font that owns the baked set; retained for parity with the canonical signature.</param>
     /// <param name="baked">Baked set containing the glyph.</param>
@@ -4318,7 +4230,6 @@ public sealed class ImFontAtlas
     /// discards every set owned by the font regardless of age, which the merge-mode path needs
     /// because a merged source changes the glyph output of sets that may still be in use. Mirrors
     /// canonical <c>ImFontAtlasFontDiscardBakes</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3993-4006</c>).
     /// </summary>
     /// <param name="font">Font whose idle baked sets are released.</param>
     /// <param name="unusedFrames">
@@ -4343,7 +4254,6 @@ public sealed class ImFontAtlas
     /// so the freed surface can be reassigned by a later repack or packing retry. Fonts flagged with
     /// <see cref="ImFontFlags.LockBakedSizes"/> are exempt so a caller that locked a font to fixed
     /// sizes keeps every bake alive. Mirrors canonical <c>ImFontAtlasBuildDiscardBakes</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4008-4021</c>).
     /// </summary>
     /// <param name="unusedFrames">
     /// Number of frames a set must have gone unused before it is released; zero releases every set in
@@ -4372,7 +4282,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Releases one baked glyph set: returns each live glyph rectangle to the packer so its surface
     /// can be reassigned, then removes the set from its font. Mirrors canonical
-    /// <c>ImFontAtlasBakedDiscard</c> (<c>ThirdParty/imgui/imgui_draw.cpp:3963-3989</c>). Loader-owned
+    /// <c>ImFontAtlasBakedDiscard</c>. Loader-owned
     /// per-source scratch data needs no release here because this port caches the TrueType parser once
     /// per source and shares it across every baked size.
     /// </summary>
@@ -4393,7 +4303,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Initializes (or re-initializes) the skyline packer for the current texture size and resets
     /// the packing statistics. Mirrors canonical <c>ImFontAtlasPackInit</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4383-4396</c>).
     /// </summary>
     private void PackInit()
     {
@@ -4410,7 +4319,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Packs a rectangle with padding, growing or repacking the texture when it does not fit.
     /// Mirrors canonical <c>ImFontAtlasPackAddRect</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4460-4505</c>).
     /// </summary>
     /// <param name="w">Rectangle width in pixels.</param>
     /// <param name="h">Rectangle height in pixels.</param>
@@ -4461,7 +4369,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Allocates a rectangle entry from the free list or by appending. Mirrors canonical
-    /// <c>ImFontAtlasPackAllocRectEntry</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4399-4421</c>).
+    /// <c>ImFontAtlasPackAllocRectEntry</c>.
     /// </summary>
     /// <param name="rectIndex">Index of the packed rectangle in <see cref="_rects"/>.</param>
     /// <returns>A fresh identifier for the entry.</returns>
@@ -4491,7 +4399,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Reuses an existing rectangle entry during repacking, preserving its identifier and
     /// generation. Mirrors canonical <c>ImFontAtlasPackReuseRectEntry</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4424-4430</c>).
     /// </summary>
     /// <param name="entryIndex">Index of the entry to overwrite.</param>
     /// <returns>The existing identifier with its updated target.</returns>
@@ -4506,7 +4413,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Releases a rectangle, clears its packed size so it is skipped during repacking, and returns
     /// its entry to the free list. Mirrors canonical <c>ImFontAtlasPackDiscardRect</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4433-4456</c>).
     /// </summary>
     /// <param name="id">Rectangle identifier to release.</param>
     private void PackDiscardRect(int id)
@@ -4538,7 +4444,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Resolves a rectangle identifier that is known to be valid. Mirrors canonical
-    /// <c>ImFontAtlasPackGetRect</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4508-4517</c>).
+    /// <c>ImFontAtlasPackGetRect</c>.
     /// </summary>
     /// <param name="id">Rectangle identifier.</param>
     /// <returns>The packed rectangle.</returns>
@@ -4552,7 +4458,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Attempts to resolve a rectangle identifier, validating its index and generation. Mirrors
     /// canonical <c>ImFontAtlasPackGetRectSafe</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4521-4536</c>).
     /// </summary>
     /// <param name="id">Rectangle identifier.</param>
     /// <param name="rect">Receives the rectangle on success.</param>
@@ -4596,8 +4501,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Creates a fresh texture of the given size, releases any pin on the previous pixels, marks the
     /// previous texture for destruction, and rebinds the atlas UV scale. Mirrors canonical
-    /// <c>ImFontAtlasTextureAdd</c> and <c>ImFontAtlasBuildSetTexture</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4073-4081</c>, <c>4090-4125</c>).
+    /// <c>ImFontAtlasTextureAdd</c> and <c>ImFontAtlasBuildSetTexture</c>.
     /// </summary>
     /// <param name="w">Texture width in pixels.</param>
     /// <param name="h">Texture height in pixels.</param>
@@ -4670,7 +4574,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Re-packs every live rectangle into a texture of the given size, copying pixels and patching
     /// all baked glyph UVs. Mirrors canonical <c>ImFontAtlasTextureRepack</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4139-4208</c>). Falls back to growing the texture when a
+    ///. Falls back to growing the texture when a
     /// rectangle cannot fit.
     /// </summary>
     /// <param name="w">New texture width in pixels.</param>
@@ -4746,7 +4650,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Adds a draw list to the set refreshed whenever this atlas repacks or re-derives its white
     /// texel and line regions. Mirrors canonical <c>ImFontAtlasAddDrawListSharedData</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4023-4027</c>).
     /// </summary>
     /// <param name="drawList">Draw list that reads this atlas; already-registered lists are ignored.</param>
     internal void RegisterDrawList(ImDrawList drawList)
@@ -4757,8 +4660,8 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Pushes refreshed atlas UV tables into every registered draw list. Mirrors canonical
-    /// <c>ImFontAtlasUpdateDrawListsSharedData</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4062-4070</c>),
-    /// called from the texture-repack and build-init paths (<c>4206</c>, <c>4358</c>).
+    /// <c>ImFontAtlasUpdateDrawListsSharedData</c>,
+    /// called from the texture-repack and build-init paths.
     /// </summary>
     private void UpdateDrawListsSharedData()
     {
@@ -4790,7 +4693,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Grows the texture roughly towards a square and repacks into it. Mirrors canonical
-    /// <c>ImFontAtlasTextureGrow</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4210-4240</c>).
+    /// <c>ImFontAtlasTextureGrow</c>.
     /// </summary>
     private void TextureGrow()
     {
@@ -4817,7 +4720,7 @@ public sealed class ImFontAtlas
     /// Makes room for a rectangle that did not fit: first returns the rectangles of idle baked sets
     /// to the packer, then grows the texture when little surface has been discarded, otherwise
     /// repacks at the same size. Mirrors canonical <c>ImFontAtlasTextureMakeSpace</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4242-4254</c>), including its
+    ///., including its
     /// <c>ImFontAtlasBuildDiscardBakes(atlas, 2)</c> call, so a stale bake is reclaimed before a
     /// larger surface is allocated.
     /// </summary>
@@ -4834,7 +4737,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Evicts idle baked sets and repacks the remaining rectangles into the smallest texture that
     /// still holds them. Mirrors canonical <c>ImFontAtlasTextureCompact</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4306-4318</c>), whose
+    ///., whose
     /// <c>ImFontAtlasBuildDiscardBakes(atlas, 1)</c> call releases bakes that have been idle for a
     /// single frame.
     /// </summary>
@@ -4854,7 +4757,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Estimates the smallest power-of-two texture that holds the live packed rectangles. Mirrors
     /// canonical <c>ImFontAtlasTextureGetSizeEstimate</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4256-4300</c>). The estimate ignores discards, so it grows
+    ///. The estimate ignores discards, so it grows
     /// only to fit the largest single rectangle and the currently packed surface.
     /// </summary>
     /// <returns>The estimated texture width and height in pixels.</returns>
@@ -4893,7 +4796,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Reserves the white texel block, paints it, and refreshes <see cref="TexUvWhitePixel"/>.
     /// Mirrors the white-texel portion of canonical <c>ImFontAtlasBuildUpdateTexDataBasic</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3600-3632</c>). The mouse-cursor sheet canonical packs
+    ///. The mouse-cursor sheet canonical packs
     /// alongside the white block is not ported because this port has no mouse-cursor rendering.
     /// </summary>
     private void BuildUpdateTexDataBasic()
@@ -4928,7 +4831,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Reserves the baked line region, paints the triangular per-width rows, and refreshes
     /// <see cref="TexUvLines"/>. Mirrors canonical <c>ImFontAtlasBuildUpdateTexDataLines</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3634-3696</c>).
     /// </summary>
     private void BuildUpdateTexDataLines()
     {
@@ -4952,7 +4854,7 @@ public sealed class ImFontAtlas
         byte[]? pixels = TexData?.Pixels;
         int bytesPerPixel = TexData?.BytesPerPixel ?? 4;
 
-        // 1. Integer lines: 0..TexLinesWidthMax (ThirdParty/imgui/imgui_draw.cpp:5073-5111)
+        // 1. Integer lines: 0.TexLinesWidthMax.
         for (int n = 0; n <= TexLinesWidthMax; n++)
         {
             int y = n;
@@ -5002,7 +4904,7 @@ public sealed class ImFontAtlas
             uvLines[n] = new ImVec4(uv0X, uv1X, halfV, invLineWidth);
         }
 
-        // 2. Super-sampled line textures: n = 0..TexLinesDetailedWidthCount - 1 (ThirdParty/imgui/imgui_draw.cpp:5114-5174)
+        // 2. Super-sampled line textures: n = 0.TexLinesDetailedWidthCount - 1.
         byte[] ramp = new byte[TexLinesSampleCount];
         for (int n = 0; n < TexLinesSampleCount; n++)
             ramp[n] = (byte)(((float)n / (float)TexLinesSampleCount) * 255.0f);
@@ -5068,7 +4970,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Refreshes every cached region after the texture size or layout changed. Mirrors canonical
-    /// <c>ImFontAtlasBuildUpdateTexData</c> (<c>ThirdParty/imgui/imgui_draw.cpp:4083-4087</c>).
+    /// <c>ImFontAtlasBuildUpdateTexData</c>.
     /// </summary>
     private void BuildUpdateTexData()
     {
@@ -5079,7 +4981,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Rewrites every baked glyph's UV coordinates from its packed rectangle after a repack.
     /// Mirrors the UV patch loop of canonical <c>ImFontAtlasTextureRepack</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4190-4200</c>).
     /// </summary>
     private void PatchGlyphUvs()
     {
@@ -5106,7 +5007,7 @@ public sealed class ImFontAtlas
 
     /// <summary>
     /// Copies a pixel block between two textures of the same format. Mirrors canonical
-    /// <c>ImFontAtlasTextureBlockCopy</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2993-3003</c>).
+    /// <c>ImFontAtlasTextureBlockCopy</c>.
     /// </summary>
     /// <param name="srcTex">Source texture.</param>
     /// <param name="srcX">Source left coordinate.</param>
@@ -5137,7 +5038,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Retrieves the atlas as a managed RGBA32 pixel array, building it on demand. Mirrors the
     /// canonical legacy <c>GetTexDataAsRGBA32</c> convenience
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3038-3052</c>).
     /// </summary>
     /// <param name="outPixels">Receives the pixel buffer.</param>
     /// <param name="outWidth">Receives the texture width.</param>
@@ -5163,7 +5063,6 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Retrieves the atlas as a managed single-channel Alpha8 pixel array, building it on demand.
     /// Mirrors the canonical legacy <c>GetTexDataAsAlpha8</c> convenience
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:3053-3056</c>).
     /// </summary>
     /// <param name="outPixels">Receives the single-channel pixel buffer.</param>
     /// <param name="outWidth">Receives the texture width.</param>
@@ -5241,7 +5140,7 @@ public sealed class ImFontAtlas
     /// <summary>
     /// Releases the managed texture buffer and its derived UV state without touching the builder, the
     /// font list or the frame counter. Mirrors the texture-release portion of canonical
-    /// <c>ImFontAtlas::ClearTexData</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2744-2750</c>) and is the
+    /// <c>ImFontAtlas::ClearTexData</c>. and is the
     /// shared step of <see cref="ClearTexData"/> and the format-change reset in <see cref="Build"/>.
     /// </summary>
     private void ClearTextureState()
@@ -5293,7 +5192,7 @@ public static partial class ImGui
 {
     /// <summary>
     /// Returns the byte count of one pixel for a texture format. Mirrors canonical
-    /// <c>ImTextureDataGetFormatBytesPerPixel</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2465-2475</c>).
+    /// <c>ImTextureDataGetFormatBytesPerPixel</c>.
     /// </summary>
     /// <param name="format">The texture pixel format to measure.</param>
     /// <returns>One for <see cref="ImTextureFormat.Alpha8"/> and four for
@@ -5320,8 +5219,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Measures a text run with canonical <c>ImFontCalcTextSizeEx</c> semantics. Mirrors canonical
-    /// <c>ImFontCalcTextSizeEx</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5673-5762</c>, declared in
-    /// <c>imgui_internal.h:458</c>).
+    /// <c>ImFontCalcTextSizeEx</c> (, declared in
     /// </summary>
     /// <param name="font">Font to measure with.</param>
     /// <param name="size">Line height in pixels.</param>
@@ -5345,7 +5243,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Decodes one UTF-8 codepoint. Mirrors canonical <c>ImTextCharFromUtf8</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2712-2763</c>, declared in <c>imgui_internal.h:441</c>).
+    /// (.).
     /// </summary>
     /// <param name="input">UTF-8 byte buffer.</param>
     /// <param name="i">Cursor, advanced past the consumed bytes.</param>

@@ -1,41 +1,7 @@
 #!/usr/bin/env python3
-"""
-Tools/verify_imgui_parity.py
-
-Extracts the canonical Dear ImGui symbol inventory (functions, enums, structs, and struct
-fields) from an external reference checkout, and measures the pure C# `Hikari.ImGui` port
-against it.
-
-Reliability of the measurement
-------------------------------
-Canonical symbols are attributed to the type that owns them. A declaration inside a
-`struct`/`class` body in `imgui.h` or `imgui_internal.h` is a member function of that type; a
-declaration at namespace scope is a free `ImGui::` function. The C# audit is equally
-type-aware: every member is attributed to its declaring type (partial declarations of one type
-are merged), and a canonical symbol counts as implemented only when a member of that name is
-declared on the *owning* type. A name that happens to exist on an unrelated type is reported as
-a misplacement rather than as coverage.
-
-`public` and `internal` C# members both count as implementations, because this port realizes
-several canonical render helpers as `internal` members. The report states separately how many
-matched symbols are publicly exposed. Canonical constructor declarations (which the header
-extractor captures with an empty return type) are not functions and are excluded from function
-coverage.
-
-Enum and struct coverage is measured per member rather than per type: enum member names and
-their evaluated constant values, and struct field names per structure, matched
-case-insensitively with any leading underscore ignored because the port exposes canonical
-fields as PascalCase members.
-
-This script is the definitive source for checking parity: it prints the full categorization to
-standard output, and `--json` writes the same measurement to a file for other tooling. No
-checked-in report is generated, so no snapshot can go stale.
-
-Outputs:
-  * the measured coverage categorization, printed to standard output;
-  * a JSON manifest of canonical symbols (`Tools/imgui_symbols_v1.93.0.json`);
-  * optionally, a JSON dump of the measured coverage (`--json`).
-"""
+# The MIT License (MIT)
+# Copyright (c) 2014-2026 Omar Cornut
+# Copyright (c) 2026 Least Action Technologies Inc.
 
 import argparse
 import json

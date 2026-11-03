@@ -1,39 +1,9 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-// ROLE IN ENGINE
-//   Provides the canonical embedded default fonts (ProggyClean.ttf bitmap and ProggyForever.ttf
-//   vector) that the pure C# Dear ImGui port uses when no external font file is supplied. The data
-//   is the exact stb_compress streams embedded in canonical Dear ImGui, and this file also owns the
-//   pure C# port of the matching stb_decompress routine used to expand them at atlas build time.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-//
-//   ┌─────────────────────────────────────────────────┐
-//   │ imgui_draw.cpp canonical compressed streams     │
-//   │ • proggy_clean_ttf_compressed_data (9583 bytes) │
-//   │ • proggy_forever_minimal_... (14562 bytes)      │
-//   └─────────────────────────────────────────────────┘
-//                          │ stb_decompress port
-//                          ▼
-//   ┌─────────────────────────────────────────────────┐
-//   │ ImGuiDefaultFontData                            │
-//   │ • DecompressProggyClean   -> 41208-byte TTF     │
-//   │ • DecompressProggyForever -> 18556-byte TTF     │
-//   └─────────────────────────────────────────────────┘
-//                          │ TTF bytes
-//                          ▼
-//   ┌─────────────────────────────────────────────────┐
-//   │ ImStbTrueTypeFont.Init                          │
-//   └─────────────────────────────────────────────────┘
-//
-// STYLIZED USAGE EXAMPLE
-//
-//   byte[] ttf = ImGuiDefaultFontData.DecompressProggyClean();
-//   ImStbTrueTypeFont? font = ImStbTrueTypeFont.Init(ttf, 0);
-//
-// THREADING & LIFECYCLE NOTES
-//   The compressed tables are immutable and shared across atlases. Each call to
-//   DecompressProggyClean or DecompressProggyForever returns a newly allocated managed array so
-//   callers may keep or discard it.
+
 namespace Hikari.ImGui;
 
 /// <summary>
@@ -41,9 +11,9 @@ namespace Hikari.ImGui;
 /// port of the stb_compress decompressor that expands them.
 /// </summary>
 /// <remarks>
-/// Canonical source: <c>ThirdParty/imgui/imgui_draw.cpp:6379-6555</c> (ProggyClean data),
-/// <c>ThirdParty/imgui/imgui_draw.cpp:6573-6817</c> (ProggyForever data) and
-/// <c>ThirdParty/imgui/imgui_draw.cpp:6262-6380</c> (decompressor). The streams are stb_compress
+/// Canonical source:  (ProggyClean data),
+///  (ProggyForever data) and
+///  (decompressor). The streams are stb_compress
 /// streams, not zlib streams, so <c>System.IO.Compression.ZLibStream</c> cannot read them; the
 /// canonical decompressor is ported here to preserve parity with the reference bytes.
 /// </remarks>
@@ -93,7 +63,7 @@ internal static class ImGuiDefaultFontData
     /// <summary>
     /// Decompresses an arbitrary stb_compress stream, reading its output length from the
     /// 16-byte stream header. Mirrors the canonical <c>AddFontFromMemoryCompressedTTF</c>
-    /// length probe (<c>ThirdParty/imgui/imgui_draw.cpp:3289</c>).
+    /// length probe.
     /// </summary>
     /// <param name="input">The stb_compress stream, beginning with the 0x57BC0000 magic.</param>
     /// <returns>The decompressed bytes, or <see langword="null"/> when the stream is malformed.</returns>
@@ -113,14 +83,13 @@ internal static class ImGuiDefaultFontData
 
     /// <summary>
     /// Pure C# port of <c>stb_decompress</c> for the stb_compress token stream
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6340-6365</c>).
     /// </summary>
     /// <param name="input">The stb_compress stream, beginning with the 0x57BC0000 magic.</param>
     /// <param name="expectedLength">Expected decompressed length used to size and validate the output.</param>
     /// <returns>The decompressed bytes, or <see langword="null"/> when the stream is malformed.</returns>
     /// <remarks>
     /// The token grammar mirrors <c>stb_decompress_token</c> at
-    /// <c>ThirdParty/imgui/imgui_draw.cpp:6292-6321</c>. Match tokens copy from earlier output
+    ///. Match tokens copy from earlier output
     /// bytes; literal tokens copy from the input stream. The stream ends with the 0x05 0xFA
     /// marker followed by a big-endian Adler-32 checksum (relative to the marker).
     /// </remarks>
@@ -193,7 +162,7 @@ internal static class ImGuiDefaultFontData
             }
             else if (token >= 0x08)
             {
-                // Literal with a 16-bit length: payload starts at i+2, per stb__lit(i+2, ...).
+                // Literal with a 16-bit length: payload starts at i+2, per stb__lit(i+2,.).
                 if (i + 1 >= input.Length) return null;
                 int length = ((input[i] << 8) + input[i + 1]) - 0x0800 + 1;
                 if (!CopyLiteral(input, i + 2, output, ref outPos, length)) return null;
@@ -201,7 +170,7 @@ internal static class ImGuiDefaultFontData
             }
             else if (token == 0x07)
             {
-                // Literal with a 16-bit length at i[1..2]: payload starts at i+3.
+                // Literal with a 16-bit length at i[1.2]: payload starts at i+3.
                 if (i + 2 >= input.Length) return null;
                 int length = ((input[i + 1] << 8) + input[i + 2]) + 1;
                 if (!CopyLiteral(input, i + 3, output, ref outPos, length)) return null;
@@ -245,7 +214,7 @@ internal static class ImGuiDefaultFontData
 
     /// <summary>
     /// Copies a back-reference from already decompressed output, mirroring <c>stb__match</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6273-6281</c>). Overlapping copies advance byte by byte.
+    ///. Overlapping copies advance byte by byte.
     /// </summary>
     /// <returns><see langword="true"/> when the copy fits within the output buffer.</returns>
     private static bool CopyMatch(byte[] output, ref int outPos, int distance, int length)
@@ -260,7 +229,6 @@ internal static class ImGuiDefaultFontData
 
     /// <summary>
     /// Copies a literal run from the input stream, mirroring <c>stb__lit</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6283-6290</c>).
     /// </summary>
     /// <param name="input">Compressed input stream.</param>
     /// <param name="dataStart">Offset of the literal payload; each token class places this differently.</param>
@@ -283,7 +251,7 @@ internal static class ImGuiDefaultFontData
 
     /// <summary>
     /// Computes the Adler-32 checksum used by the stb_compress stream terminator, mirroring
-    /// <c>stb_adler32</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6323-6338</c>).
+    /// <c>stb_adler32</c>.
     /// </summary>
     /// <param name="buffer">Bytes to checksum.</param>
     /// <returns>The 32-bit checksum with the low 16 bits holding s1 and the high 16 bits holding s2.</returns>
@@ -308,7 +276,6 @@ internal static class ImGuiDefaultFontData
 
     /// <summary>
     /// Canonical stb_compress stream for ProggyClean.ttf (9583 bytes), transcribed verbatim from
-    /// <c>ThirdParty/imgui/imgui_draw.cpp:6384-6551</c>.
     /// </summary>
     private static readonly byte[] CompressedProggyClean =
     {
@@ -716,9 +683,8 @@ internal static class ImGuiDefaultFontData
 
     /// <summary>
     /// Canonical stb_compress stream for the minimal ProggyForever.ttf vector face (14562 bytes),
-    /// transcribed verbatim from <c>ThirdParty/imgui/imgui_draw.cpp:6573-6817</c>. Canonical exposes
+    /// transcribed verbatim. Canonical exposes
     /// it through <c>ImGui_GetDefaultCompressedFontDataProggyForever</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6819-6824</c>).
     /// </summary>
     private static readonly byte[] CompressedProggyForever =
     {

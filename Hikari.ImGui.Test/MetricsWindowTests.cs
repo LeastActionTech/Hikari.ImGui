@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -11,13 +15,6 @@ namespace Hikari.ImGui.Test;
 /// text-encoding, storage, and window inspectors actually emit geometry.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. The metrics window options are
-/// <c>ImGuiMetricsConfig</c> (<c>ThirdParty/imgui/imgui_internal.h:2364-2383</c>); the allocation audit is
-/// <c>ImGui::DebugAllocHook</c> (<c>imgui.cpp:5317-5340</c>); the layout check is
-/// <c>imgui.cpp:11651-11662</c>; the style flash is <c>imgui.cpp:22341-22368</c>; the texture conversion is
-/// <c>imgui.cpp:22370-22376</c>; and the viewport name is <c>imgui.cpp:16838-16842</c>.
-/// </para>
 /// <para>
 /// Every test runs on the shared <see cref="ImGuiTestFixture"/> lifecycle. Canonical guard failures are
 /// recorded by the fixture instead of aborting the run; a test that intentionally trips one declares it
@@ -47,7 +44,6 @@ public class MetricsWindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies every canonical default of <see cref="ImGuiMetricsConfig"/>, and that the context owns one.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2364-2383</c>)
     /// </summary>
     [Test]
     public void MetricsConfig_HasCanonicalDefaults()
@@ -83,7 +79,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the allocation audit advances a six-entry ring once per active frame, that it
     /// accumulates totals, and that a release is recorded through the canonical <c>-1</c> size sentinel.
-    /// (<c>ThirdParty/imgui/imgui.cpp:5317-5340</c>)
     /// </summary>
     [Test]
     public void DebugAllocHook_RecordsPerFrameCountsInSixEntryRing()
@@ -129,7 +124,7 @@ public class MetricsWindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the version-and-layout check accepts this library's own version and rejects a
-    /// different one. (<c>ThirdParty/imgui/imgui.cpp:11651-11662</c>)
+    /// different one.
     /// </summary>
     /// <remarks>
     /// The managed port cannot compare structure sizes, so the size arguments are treated as satisfied; only
@@ -153,7 +148,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that starting a flash records the requested colour, its backup, and the half-second
     /// duration, and that the per-frame updater restores the original once the flash expires.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22350-22368</c>)
     /// </summary>
     [Test]
     public void DebugFlashStyleColor_RestoresTheBackupWhenTheFlashExpires()
@@ -186,7 +180,6 @@ public class MetricsWindowTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a backend texture identifier is reinterpreted as an unsigned 64-bit value.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22370-22376</c>)
     /// </summary>
     [Test]
     public void DebugTextureIDToU64_ReinterpretsTheIdentifier()
@@ -198,7 +191,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a viewport reports a printable debug name. The main viewport has no owning window
     /// until a window is submitted, so it reports the canonical placeholder.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16838-16842</c>)
     /// </summary>
     [Test]
     public void GetDebugName_ReturnsAPrintableName()
@@ -220,7 +212,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the text-encoding inspector emits geometry for a string that mixes ASCII, a two-byte
     /// character, and a non-BMP character, so each row of the canonical table is really produced.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22303-22339</c>)
     /// </summary>
     [Test]
     public void DebugTextEncoding_EmitsGeometry()
@@ -241,7 +232,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the storage and window inspectors emit geometry and that a window inspector recurses
     /// into the storage of the window it is given.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23814-23824</c>, <c>23912-23988</c>)
     /// </summary>
     [Test]
     public void DebugNodeStorageAndWindow_EmitGeometry()
@@ -282,7 +272,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the metrics window opens under its canonical title, survives repeated frames while
     /// open, closes when the caller clears the open flag, and never leaves an unbalanced window behind.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22578-23295</c>)
     /// </summary>
     /// <remarks>
     /// This is the end-to-end exercise of the metrics window: it drives every inspector root the window
@@ -324,7 +313,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the item-path query installs a hook for the previous frame's hovered identifier while
     /// the tool was active on the preceding frame, and that it stays idle otherwise.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24364-24371</c>)
     /// </summary>
     [Test]
     public void UpdateDebugToolItemPathQuery_StartsAHookForTheHoveredIdentifier()
@@ -358,7 +346,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the identifier hook records the whole stack plus the queried final identifier, that the
     /// final level carries the queried identifier, and that the root level is the window's own identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24374-24432</c>)
     /// </summary>
     [Test]
     public void DebugHookIdInfo_InitializesTheStackAndFinalIdentifier()
@@ -390,7 +377,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the identifier-stack tool opens under its canonical title, that it marks itself active
     /// for the frame, and that it closes cleanly when the caller clears the open flag.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24476-24544</c>)
     /// </summary>
     [Test]
     public void ShowIDStackToolWindow_OpensUnderItsCanonicalTitleAndClosesCleanly()
@@ -421,7 +407,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the identifier-stack tool renders the resolved stack levels once the query has produced
     /// results, so the table and the copyable path are exercised rather than skipped.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24503-24541</c>)
     /// </summary>
     [Test]
     public void ShowIDStackToolWindow_RendersResolvedStackLevels()
@@ -454,7 +439,6 @@ public class MetricsWindowTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the item picker's lifecycle: starting it marks it active, and pressing Escape during a
     /// subsequent frame aborts it.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24284-24323</c>)
     /// </summary>
     [Test]
     public void DebugStartItemPicker_ActivatesAndEscapeAborts()

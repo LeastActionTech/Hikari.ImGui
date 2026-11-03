@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using System.IO;
 using NUnit.Framework;
@@ -12,13 +16,6 @@ namespace Hikari.ImGui.Test;
 /// window-state recovery unwind.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. Capture lives in
-/// <c>ThirdParty/imgui/imgui.cpp:16120-16366</c> with its state at <c>imgui_internal.h:2796-2807</c>. The
-/// debug-log sink is <c>imgui.cpp:24034-24072</c> and its per-category macros are
-/// <c>imgui_internal.h:255-267</c>. The error log and tooltip are <c>imgui.cpp:11983-12109</c>, and the
-/// window-state recovery unwind is <c>imgui.cpp:11899-11981</c>.
-/// </para>
 /// <para>
 /// Every test runs on the shared <see cref="ImGuiTestFixture"/> lifecycle. Canonical guard failures are
 /// recorded by the fixture instead of aborting the run; a test that intentionally trips one declares it
@@ -53,7 +50,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that buffer capture accumulates the text handed to <see cref="ImGui.LogText"/> and that
     /// <see cref="ImGui.LogFinish"/> resets the capture state and empties the buffer.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16297-16303</c>, <c>16305-16337</c>)
     /// </summary>
     [Test]
     public void LogToBuffer_AccumulatesTextAndFinishClears()
@@ -77,7 +73,7 @@ public class DebugToolsTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a capture call is a no-op while no capture is active, so callers may log
-    /// unconditionally. (<c>ThirdParty/imgui/imgui.cpp:16142-16146</c>)
+    /// unconditionally.
     /// </summary>
     [Test]
     public void LogText_WithoutActiveCapture_IsIgnored()
@@ -93,7 +89,7 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.LogRenderedText"/> splits a run at its line breaks and indents the
     /// start of each line by four spaces per tree level, as measured from the depth recorded when the
-    /// capture began. (<c>ThirdParty/imgui/imgui.cpp:16191-16218</c>)
+    /// capture began.
     /// </summary>
     [Test]
     public void LogRenderedText_SplitsLinesAndIndentsByTreeDepth()
@@ -122,7 +118,7 @@ public class DebugToolsTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a rendered run stops at the <c>##</c> identifier marker, matching
-    /// <see cref="ImGui.FindRenderedTextEnd"/>. (<c>ThirdParty/imgui/imgui.cpp:16175-16176</c>)
+    /// <see cref="ImGui.FindRenderedTextEnd"/>.
     /// </summary>
     [Test]
     public void LogRenderedText_StopsAtIdentifierMarker()
@@ -141,7 +137,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// Verifies that a decoration latched by <see cref="ImGui.LogSetNextTextDecoration"/> is captured
     /// verbatim even when it begins with <c>##</c>, which would otherwise be mistaken for an identifier
     /// marker and dropped from the capture.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16187-16188</c>, <c>16220-16221</c>)
     /// </summary>
     /// <remarks>
     /// The single spaces around the label are canonical, not an artifact: capturing the prefix clears
@@ -165,7 +160,7 @@ public class DebugToolsTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that logging to a file appends the captured text and that finishing closes the file so the
-    /// content is durable. (<c>ThirdParty/imgui/imgui.cpp:16264-16286</c>, <c>16319-16321</c>)
+    /// content is durable.
     /// </summary>
     [Test]
     public void LogToFile_AppendsTextAndFinishClosesTheFile()
@@ -193,7 +188,7 @@ public class DebugToolsTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that starting a second capture while one is already active is ignored, so the first
-    /// destination is not silently replaced. (<c>ThirdParty/imgui/imgui.cpp:16254-16255</c>)
+    /// destination is not silently replaced.
     /// </summary>
     [Test]
     public void LogToBuffer_WhileAlreadyCapturing_IsIgnored()
@@ -216,7 +211,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.DebugLog"/> appends a frame-prefixed line to the debug buffer and
     /// records one index entry, so the debug-log window can page through it.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24034-24072</c>)
     /// </summary>
     [Test]
     public void DebugLog_AppendsLineAndIndexEntry()
@@ -235,7 +229,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the per-category debug-log helper writes only when its event flag is enabled, which
     /// is how the canonical <c>IMGUI_DEBUG_LOG_XXX</c> macros keep hot paths cheap.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:256-267</c>)
     /// </summary>
     [Test]
     public void DebugLogEvent_WritesOnlyWhenItsCategoryIsEnabled()
@@ -254,7 +247,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a suppressed error is counted rather than dropped silently, which is what lets the
     /// debug-log window warn that error output was skipped.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:255</c>)
     /// </summary>
     [Test]
     public void DebugLogError_IncrementsSkippedCountWhenCategoryDisabled()
@@ -271,7 +263,6 @@ public class DebugToolsTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that clearing the debug log empties both the text buffer and its line index.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24136-24141</c>)
     /// </summary>
     [Test]
     public void DebugLogBuffer_AndIndex_CanBeClearedTogether()
@@ -295,7 +286,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a recoverable error is written to the debug log, that the first-error banner is
     /// emitted once, and that the first-error flag is cleared afterwards.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11991-11998</c>)
     /// </summary>
     [Test]
     public void ErrorLog_WritesDebugLogLineAndClearsErrorFirst()
@@ -319,7 +309,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the error tooltip opens a real pseudo-tooltip window and that the window is named as
     /// canonical names it, so the tooltip can be found and amended at end of frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12082-12104</c>)
     /// </summary>
     [Test]
     public void BeginErrorTooltip_OpensThePseudoTooltipWindow()
@@ -334,7 +323,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the error counter advances only while the tooltip destination is enabled, so the
     /// end-of-frame amendment reports exactly the errors that were surfaced.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12001-12017</c>)
     /// </summary>
     [Test]
     public void ErrorLog_AdvancesCounterOnlyWhenTooltipEnabled()
@@ -360,7 +348,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the error callback is notified regardless of which built-in destinations are enabled,
     /// so a host that routes errors itself always observes them.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12020-12022</c>)
     /// </summary>
     [Test]
     public void ErrorLog_NotifiesCallbackRegardlessOfDestinations()
@@ -383,7 +370,6 @@ public class DebugToolsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the window-state recovery unwinds an unbalanced group and identifier stack back to
     /// the recorded sizes without leaving the context in a broken state.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11899-11981</c>)
     /// </summary>
     [Test]
     public void ErrorRecoveryTryToRecoverWindowState_UnwindsGroupAndIdStacks()

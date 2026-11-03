@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -9,10 +13,7 @@ namespace Hikari.ImGui.Test;
 /// <c>ImGuiWidgets.cs</c>.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui_widgets.cpp</c>; each test cites the
-/// canonical line range that defines the behavior it pins.
-/// </remarks>
+/// Each test drives a real <see cref="ImGuiContext"/>. /// </remarks>
 [TestFixture]
 public class TreeAndMenuTests : ImGuiTestFixture
 {
@@ -131,8 +132,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a tree node starts closed, opens on a click, and keeps its open state through the
     /// window's state storage on the following frames. Canonical reads and writes the per-window
-    /// <c>StateStorage</c> keyed by the node identifier
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6848-6893</c>, <c>6919-7196</c>).
+    /// <c>StateStorage</c> keyed by the node identifier.
     /// </summary>
     [Test]
     public void TreeNode_OpenClosePersistence()
@@ -172,7 +172,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.IsItemToggledOpen"/> reports the open-toggle edge only on the
     /// frame the node is clicked. Canonical sets <c>ImGuiItemStatusFlags_ToggledOpen</c> inside
-    /// <c>TreeNodeBehavior</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:7103-7121</c>).
+    /// <c>TreeNodeBehavior</c>.
     /// </summary>
     [Test]
     public void TreeNode_IsItemToggledOpen()
@@ -206,8 +206,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
     }
 
     /// <summary>
-    /// Verifies that <see cref="ImGuiTreeNodeFlags.DefaultOpen"/> opens a node without any interaction
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6848-6893</c>, <c>6919-6926</c>).
+    /// Verifies that <see cref="ImGuiTreeNodeFlags.DefaultOpen"/> opens a node without any interaction.
     /// </summary>
     [Test]
     public void TreeNodeEx_DefaultOpen()
@@ -223,8 +222,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a leaf node always reports open and still opens a tree scope (the canonical leaf
-    /// has no arrow but is not implicitly <c>NoTreePushOnOpen</c>)
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6851-6852</c>, <c>7003</c>, <c>7193-7196</c>).
+    /// has no arrow but is not implicitly <c>NoTreePushOnOpen</c>).
     /// </summary>
     [Test]
     public void TreeNodeEx_LeafPushesScope()
@@ -242,7 +240,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiTreeNodeFlags.NoTreePushOnOpen"/> opens the node visually while
-    /// leaving the identifier stack untouched (<c>ThirdParty/imgui/imgui_widgets.cpp:7193-7196</c>).
+    /// leaving the identifier stack untouched.
     /// </summary>
     [Test]
     public void TreeNodeEx_NoTreePushOnOpen()
@@ -262,7 +260,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGuiTreeNodeFlags.OpenOnArrow"/> ignores a click on the label but
     /// toggles on a click over the arrow column. Canonical only sets <c>toggled</c> when
     /// <c>is_mouse_x_over_arrow</c> holds for this flag
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7045-7092</c>).
     /// </summary>
     [Test]
     public void TreeNodeEx_OpenOnArrow()
@@ -301,7 +298,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiTreeNodeFlags.OpenOnDoubleClick"/> ignores a single click and
     /// toggles on the second click of a double-click pair
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7045-7092</c>).
     /// </summary>
     [Test]
     public void TreeNodeEx_OpenOnDoubleClick()
@@ -361,7 +357,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiTreeNodeFlags.SpanAllColumns"/> inside a table widens the node's frame
     /// to the parent work rectangle, and that the flag has no effect outside a table
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6942-6955</c>).
     /// </summary>
     [Test]
     public void TreeNodeEx_SpanAllColumns_UsesParentWorkRectInsideTable()
@@ -391,7 +386,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiTreeNodeFlags.SpanAvailWidth"/> widens the node's interaction
     /// rectangle to the full work width while the default node stays label-sized
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6960-6962</c>).
     /// </summary>
     [Test]
     public void TreeNodeEx_SpanAvailWidth()
@@ -413,7 +407,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the <see cref="ImGui.TreeNodeGetOpen"/> / <see cref="ImGui.TreeNodeSetOpen"/> storage
     /// round trip keyed by an explicit storage identifier
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6834-6846</c>).
     /// </summary>
     [Test]
     public void TreeNodeGetOpen_SetOpenRoundTrip()
@@ -432,7 +425,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.TreePush(string)"/> and <see cref="ImGui.TreePop"/> balance the
     /// window identifier stack and tree depth while indenting and unindenting the cursor
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7260-7315</c>).
     /// </summary>
     [Test]
     public void TreePush_TreePop_Balance()
@@ -457,7 +449,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the canonical label spacing helper: the font size plus twice the horizontal frame
-    /// padding (<c>ThirdParty/imgui/imgui_widgets.cpp:7318-7322</c>).
+    /// padding.
     /// </summary>
     [Test]
     public void GetTreeNodeToLabelSpacing_MatchesCanonicalFormula()
@@ -471,7 +463,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// opens on a click, and that the visibility-bound overload returns false and draws nothing while
     /// the referenced flag is false. Canonical folds
     /// <c>Framed | NoTreePushOnOpen | NoAutoOpenOnLog</c> and gates on <c>p_visible</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7347-7391</c>).
     /// </summary>
     [Test]
     public void CollapsingHeader_OpenAndVisible()
@@ -507,11 +498,11 @@ public class TreeAndMenuTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the trailing close button of the visibility-bound collapsing header clears the
-    /// visibility flag. Canonical submits <c>CloseButton(GetIDWithSeed("#CLOSE", NULL, id), ...)</c>
-    /// and clears <c>p_visible</c> on press (<c>ThirdParty/imgui/imgui_widgets.cpp:7360-7391</c>).
+    /// visibility flag. Canonical submits <c>CloseButton(GetIDWithSeed("#CLOSE", NULL, id),.)</c>
+    /// and clears <c>p_visible</c> on press.
     /// </summary>
     /// <remarks>
-    /// Ignored because the port's <c>CollapsingHeader(string, ref bool, ...)</c> reserves the trailing
+    /// Ignored because the port's <c>CollapsingHeader(string, ref bool,.)</c> reserves the trailing
     /// button space via <c>ClipLabelForTrailingButton</c> but never submits the close button, so a
     /// click cannot clear <c>p_visible</c> (see the port's own remarks on that overload, and the
     /// unused <c>ImGui.CloseButton</c> helper at <c>Hikari.ImGui/ImGuiWidgets.cs:1736</c>). The
@@ -557,8 +548,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical menu-bar flow: <see cref="ImGui.BeginMenuBar"/> succeeds only inside a
     /// <see cref="ImGuiWindowFlags.MenuBar"/> window, and <see cref="ImGui.BeginMenu"/> opens its popup
-    /// when the entry is hovered, returning true for the popup content
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9208-9296</c>, <c>9405-9633</c>).
+    /// when the entry is hovered, returning true for the popup content.
     /// </summary>
     [Test]
     public void MenuBar_BeginMenu_OpensOnHover()
@@ -622,7 +612,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <summary>
     /// Verifies menu-item activation, the optional shortcut geometry, the selected checkmark, and the
     /// <c>ref bool</c> selection overload. Canonical submits a selectable row and renders the label,
-    /// icon, shortcut, and checkmark columns (<c>ThirdParty/imgui/imgui_widgets.cpp:9654-9758</c>).
+    /// icon, shortcut, and checkmark columns.
     /// </summary>
     [Test]
     public void MenuItem_ActivationSelectedShortcutAndRefBool()
@@ -639,7 +629,7 @@ public class TreeAndMenuTests : ImGuiTestFixture
         Assert.That(shortcutVtx - plainVtx, Is.EqualTo(6 * 4));
 
         int selectedVtx = MeasureVertices(() => ImGui.MenuItem("Save", null, selected: true));
-        // The selected row additionally renders the three-point checkmark stroke (10 vertices in Dear ImGui v1.93).
+        // The selected row additionally renders the three-point checkmark stroke (10 vertices in canonical Dear ImGui).
         Assert.That(selectedVtx - plainVtx, Is.EqualTo(10));
 
         bool selected = false;
@@ -692,7 +682,6 @@ public class TreeAndMenuTests : ImGuiTestFixture
     /// <c>"##MainMenuBar"</c> side-bar window on the main viewport, clears the queued safe-area offset,
     /// permits settings inside the bar, and that <see cref="ImGui.EndMainMenuBar"/> closes it and restores
     /// the previous current window
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9301-9379</c>).
     /// </summary>
     [Test]
     public void BeginMainMenuBar_OpensSideBarAndEndClosesIt()

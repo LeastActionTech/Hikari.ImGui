@@ -1,52 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-// ROLE IN ENGINE
-//   Implements the Dear ImGui 2D geometry and draw-command pipeline: vertex and command structures,
-//   the ImDrawList primitive builder (lines, rectangles, circles, triangles, paths), the ordered
-//   ImDrawListSplitter channels that batch Columns and Tables geometry, and the ImDrawData aggregate
-//   handed to a renderer backend. Text glyphs are emitted through the canonical ImFont pipeline
-//   defined in ImGuiFontAtlas.cs.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-//
-//   ┌───────────────────────────────────────────┐
-//   │ Callers / widgets                         │
-//   │ • ImGui widget layer                      │
-//   │ • ImFont.RenderText                       │
-//   └───────────────────────────────────────────┘
-//                          │ Add* / Prim* calls
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImDrawList                                │
-//   │ • vertex, index and command buffers       │
-//   │ • clip rectangle and texture stacks       │
-//   └───────────────────────────────────────────┘
-//                          │ ImDrawData.AddDrawList
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImDrawData                                │
-//   │ • borrowed CmdLists for the backend       │
-//   └───────────────────────────────────────────┘
-//
-// STYLIZED USAGE EXAMPLE
-//
-//   var atlas = new ImFontAtlas();
-//   ImFont font = atlas.AddFontDefault();
-//   atlas.Build();
-//   var drawList = new ImDrawList(atlas);
-//   drawList.AddRectFilled(new ImVec2(10, 10), new ImVec2(110, 40), 0xFF303030);
-//   drawList.AddText(new ImVec2(16, 16), 0xFFFFFFFF, "Hello".AsSpan());
-//
-// THREADING & LIFECYCLE NOTES
-//   A draw list is owned by one frame-building thread; the clip and texture stacks must be balanced
-//   across each frame. ImDrawData borrows the lists it aggregates and does not own their buffers.
-//
-// CANONICAL REFERENCE
-//   ThirdParty/imgui/imgui_draw.cpp; box-drawing diagrams are verified by Tools/check_ascii.py.
-//   Anti-aliased stroking follows imgui_draw.cpp:822-1085, arc tessellation follows
-//   imgui_draw.cpp:661-670 and 1168-1357, and the concave fill ear-clipping triangulator follows
-//   imgui_draw.cpp:1829-2040. Draw-list frame reset and memory release follow
-//   imgui_draw.cpp:456-500, channel splitting follows imgui_draw.cpp:2136-2281, and draw-data
-//   aggregation guards follow imgui_draw.cpp:2301-2306.
 
 using System;
 using System.Collections.Generic;
@@ -87,7 +43,7 @@ public struct ImDrawVert
 
 /// <summary>
 /// Backend callback invoked in place of a triangle draw for one command. Mirrors the canonical
-/// <c>ImDrawCallback</c> signature (<c>ThirdParty/imgui/imgui.h:3334</c>): the parent list and the
+/// <c>ImDrawCallback</c> signature.: the parent list and the
 /// command carrying the callback are supplied so the backend can alter render state or emit custom
 /// work before resuming normal geometry submission.
 /// </summary>
@@ -141,7 +97,7 @@ public struct ImDrawCmd
 
     /// <summary>
     /// Resolves the backend texture identifier associated with this command. Mirrors canonical
-    /// <c>ImDrawCmd::GetTexID</c> (<c>ThirdParty/imgui/imgui.h:3362</c>); the identifier is read
+    /// <c>ImDrawCmd::GetTexID</c>.; the identifier is read
     /// through the texture reference so atlas-owned texture data stays definitive.
     /// </summary>
     /// <returns>The backend texture identifier to bind while rendering this command.</returns>
@@ -194,8 +150,8 @@ public class ImDrawData
 
     /// <summary>
     /// Adds a command list and accumulates its buffer counts. Ports canonical
-    /// <c>ImGui::AddDrawListToDrawDataEx</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2301-2306</c>,
-    /// declared at <c>imgui_internal.h:3634</c>): a list with no command buffer, or with a single
+    /// <c>ImGui::AddDrawListToDrawDataEx</c> (,
+    /// declared.): a list with no command buffer, or with a single
     /// empty non-callback command, is skipped so it contributes no draw call and no vertex or index
     /// totals to the aggregate.
     /// </summary>
@@ -215,7 +171,7 @@ public class ImDrawData
     /// <summary>
     /// Converts every command list from indexed to non-indexed geometry for backends that cannot
     /// render indexed triangles. Ports canonical <c>ImDrawData::DeIndexAllBuffers</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2352-2366</c>). The operation expands vertices, so it is
+    ///. The operation expands vertices, so it is
     /// a deliberate slow path and indexed rendering remains preferred.
     /// </summary>
     public void DeIndexAllBuffers()
@@ -271,23 +227,23 @@ public class ImDrawList
 {
     #region Constants & Configuration
 
-    /// <summary>Number of precomputed arc samples covering the full circle (imgui_internal.h:893).</summary>
+    /// <summary>Number of precomputed arc samples covering the full circle.</summary>
     private const int ArcFastTableSize = 48;
-    /// <summary>Sample index that represents a full 360 degree turn (imgui_internal.h:895).</summary>
+    /// <summary>Sample index that represents a full 360 degree turn.</summary>
     private const int ArcFastSampleMax = ArcFastTableSize;
-    /// <summary>Lower clamp for the automatic circle segment count (imgui_internal.h:883).</summary>
+    /// <summary>Lower clamp for the automatic circle segment count.</summary>
     private const int CircleAutoSegmentMin = 4;
-    /// <summary>Upper clamp for the automatic circle segment count (imgui_internal.h:884).</summary>
+    /// <summary>Upper clamp for the automatic circle segment count.</summary>
     private const int CircleAutoSegmentMax = 512;
-    /// <summary>Number of radius buckets in the precomputed circle segment table (imgui_internal.h:921).</summary>
+    /// <summary>Number of radius buckets in the precomputed circle segment table.</summary>
     private const int CircleSegmentCountsCapacity = 64;
-    /// <summary>Default circle tessellation error in pixels (imgui.cpp:1607).</summary>
+    /// <summary>Default circle tessellation error in pixels.</summary>
     private const float DefaultCircleTessellationMaxError = 0.30f;
-    /// <summary>Default curve tessellation tolerance (imgui.cpp:1606).</summary>
+    /// <summary>Default curve tessellation tolerance.</summary>
     private const float DefaultCurveTessellationTol = 1.25f;
-    /// <summary>Upper bound on the join-normal inverse length squared (imgui_draw.cpp:817).</summary>
+    /// <summary>Upper bound on the join-normal inverse length squared.</summary>
     private const float FixNormalMaxInvLen2 = 100.0f;
-    /// <summary>Full-screen clip rectangle used before any clip rectangle is pushed (imgui.cpp:5762).</summary>
+    /// <summary>Full-screen clip rectangle used before any clip rectangle is pushed.</summary>
     private const float ClipRectFullscreenExtent = 8192.0f;
 
     /// <summary>Precomputed unit-circle sample points covering the full circle.</summary>
@@ -300,7 +256,6 @@ public class ImDrawList
     /// <summary>
     /// Gets or sets the optional owner name recorded when the draw list was created, used only by the
     /// debug tools to identify the list in the metrics window.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:2477</c>)
     /// </summary>
     public string? OwnerName { get; set; }
 
@@ -313,35 +268,35 @@ public class ImDrawList
     /// <summary>Vertex buffer for the frame.</summary>
     /// <returns>The vertex list accumulated so far.</returns>
     public List<ImDrawVert> VtxBuffer { get; } = new();
-    /// <summary>Draw-list behavior flags. (<c>ThirdParty/imgui/imgui.h:3545</c>)</summary>
+    /// <summary>Draw-list behavior flags.</summary>
     public ImDrawFlags Flags { get; set; } = ImDrawFlags.AALines | ImDrawFlags.AAFill;
-    /// <summary>Draw flags stack. (<c>ThirdParty/imgui/imgui.h:3558</c>)</summary>
+    /// <summary>Draw flags stack.</summary>
     public readonly List<ImDrawFlags> _DrawFlagsStack = new(4);
-    /// <summary>Anti-aliasing fringe scale factor. (<c>ThirdParty/imgui/imgui.h:3559</c>)</summary>
+    /// <summary>Anti-aliasing fringe scale factor.</summary>
     public float _FringeScale = 1.0f;
-    /// <summary>Inverse fringe scale factor (pixel density). (<c>ThirdParty/imgui/imgui.h:3560</c>)</summary>
+    /// <summary>Inverse fringe scale factor (pixel density).</summary>
     public float _InvFringeScale = 1.0f;
-    /// <summary>True if 1/_FringeScale is an integer. (<c>ThirdParty/imgui/imgui.h:3561</c>)</summary>
+    /// <summary>True if 1/_FringeScale is an integer.</summary>
     public bool _FringeScaleIsInteger = true;
-    /// <summary>Shared draw data pointer. (<c>ThirdParty/imgui/imgui.h:3549</c>)</summary>
+    /// <summary>Shared draw data pointer.</summary>
     public ImDrawListSharedData? _Data { get; set; }
-    /// <summary>Index of the next vertex relative to the active vertex-buffer base. (<c>ThirdParty/imgui/imgui.h:3548</c>)</summary>
+    /// <summary>Index of the next vertex relative to the active vertex-buffer base.</summary>
     public uint _VtxCurrentIdx => (uint)_vtxCurrentIdx;
     /// <summary>
     /// Channel splitter owned by this draw list, matching canonical <c>ImDrawList::_Splitter</c>
-    /// (<c>ThirdParty/imgui/imgui.h:3476</c>). Use <see cref="ChannelsSplit"/>,
+    ///. Use <see cref="ChannelsSplit"/>,
     /// <see cref="ChannelsSetCurrent"/> and <see cref="ChannelsMerge"/> to render column or table
     /// items in a batched order; <see cref="Clear()"/> merges an active splitter and resets it.
     /// </summary>
     public ImDrawListSplitter Splitter { get; } = new();
 
-    /// <summary>Active clip rectangle stack, innermost last. (<c>ThirdParty/imgui/imgui.h:3555</c>)</summary>
+    /// <summary>Active clip rectangle stack, innermost last.</summary>
     public readonly List<ImVec4> _ClipRectStack = new();
     private List<ImVec4> _clipRectStack => _ClipRectStack;
-    /// <summary>Active texture reference stack, innermost last. (<c>ThirdParty/imgui/imgui.h:3556</c>)</summary>
+    /// <summary>Active texture reference stack, innermost last.</summary>
     public readonly List<ImTextureRef> _TextureStack = new();
     private List<ImTextureRef> _textureStack => _TextureStack;
-    /// <summary>Current stateful path under construction. (<c>ThirdParty/imgui/imgui.h:3552</c>)</summary>
+    /// <summary>Current stateful path under construction.</summary>
     public readonly List<ImVec2> _Path = new();
     private List<ImVec2> _path => _Path;
     /// <summary>Precomputed circle segment counts indexed by rounded-up radius.</summary>
@@ -350,7 +305,7 @@ public class ImDrawList
     /// Baked anti-aliased line UV rectangles borrowed from the bound font atlas, indexed by integer
     /// line width. Empty when the atlas did not bake a line texture, in which case
     /// <see cref="AddPolyline"/> falls back to polygon stroking
-    /// (imgui_draw.cpp:949-952).
+    ///.
     /// </summary>
     private ImVec4[] _texUvLines = Array.Empty<ImVec4>();
     /// <summary>Pinned buffers backing callback user data copied through <see cref="AddCallback"/>.</summary>
@@ -378,7 +333,7 @@ public class ImDrawList
     private ImVec2 _texUvWhitePixel;
     /// <summary>Font atlas supplying the white texel, default font and backend texture identifier.</summary>
     private ImFontAtlas? _sharedAtlas;
-    /// <summary>Radius below which arcs use the precomputed fast table (imgui_draw.cpp:430).</summary>
+    /// <summary>Radius below which arcs use the precomputed fast table.</summary>
     private float _arcFastRadiusCutoff;
     /// <summary>Maximum circle tessellation error in pixels.</summary>
     private float _circleTessellationMaxError;
@@ -417,8 +372,8 @@ public class ImDrawList
     /// <summary>
     /// Copies the atlas-owned UV tables into the draw list and latches the textured-line flag to
     /// match. Mirrors canonical shared-data wiring
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:4062-4070</c>) and the <c>NewFrame</c> flag selection
-    /// (<c>ThirdParty/imgui/imgui.cpp:5768-5769</c>): the textured path is used only when the atlas
+    ///. and the <c>NewFrame</c> flag selection
+    ///.: the textured path is used only when the atlas
     /// actually baked lines. The owning atlas calls this whenever it repacks or refreshes its
     /// regions, so a mid-frame lazy bake cannot leave stale UVs here.
     /// </summary>
@@ -435,7 +390,7 @@ public class ImDrawList
 
     /// <summary>
     /// Resets all buffers, stacks and clipping state for a new frame. Ports canonical
-    /// <c>ImDrawList::_ResetForNewFrame</c> (<c>ThirdParty/imgui/imgui_draw.cpp:456-484</c>): an active
+    /// <c>ImDrawList::_ResetForNewFrame</c>.: an active
     /// splitter is merged back into the draw list, the vertex, index and command buffers are emptied,
     /// the shared initial flags and fringe scale are restored, all clip, texture, callback and path
     /// stacks are cleared, the splitter is reset, and exactly one empty command is pushed. Unlike the
@@ -489,7 +444,7 @@ public class ImDrawList
     /// <summary>
     /// Releases all buffers and stacks for a draw list that is no longer used this frame, without
     /// leaving the list ready for new commands. Ports canonical <c>ImDrawList::_ClearFreeMemory</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:485-500</c>): every buffer and stack is emptied, the flags
+    ///.: every buffer and stack is emptied, the flags
     /// are cleared, and the splitter's channel storage is released.
     /// </summary>
     public void ClearFreeMemory()
@@ -515,7 +470,7 @@ public class ImDrawList
 
     /// <summary>
     /// Pushes draw flags, scoping modifiers to subsequent drawing primitives.
-    /// (<c>ThirdParty/imgui/imgui.h:3574</c>, <c>ThirdParty/imgui/imgui_draw.cpp:723-733</c>)
+    /// (, )
     /// </summary>
     /// <param name="flags">Flags to enable or disable.</param>
     /// <param name="enabled">True to set flags, false to clear them.</param>
@@ -533,7 +488,7 @@ public class ImDrawList
 
     /// <summary>
     /// Restores draw flags popped from the stack.
-    /// (<c>ThirdParty/imgui/imgui.h:3575</c>, <c>ThirdParty/imgui/imgui_draw.cpp:735-740</c>)
+    /// (, )
     /// </summary>
     public void PopDrawFlag()
     {
@@ -544,7 +499,6 @@ public class ImDrawList
 
     /// <summary>
     /// Sets the pixel density / fringe scale for anti-aliasing.
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:752-758</c>)
     /// </summary>
     /// <param name="pixelDensity">Pixel density multiplier.</param>
     public void _SetPixelDensity(float pixelDensity)
@@ -557,7 +511,6 @@ public class ImDrawList
 
     /// <summary>
     /// Calculates the center-biased offset for <see cref="ImDrawFlags.StrokeCenterBiased"/>.
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:865-876</c>)
     /// </summary>
     public float _CalculateCenterBiasedOffset(float thickness)
     {
@@ -568,14 +521,13 @@ public class ImDrawList
 
     /// <summary>
     /// Resolves the stroke position from flags, falling back to the default position.
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:957</c>)
     /// </summary>
     private static ImDrawFlags _GetStrokePos(ImDrawFlags flags, ImDrawFlags defaultStrokePos)
         => (flags & ImDrawFlags.StrokeMask_) != 0 ? (flags & ImDrawFlags.StrokeMask_) : defaultStrokePos;
 
     /// <summary>
     /// Starts channel splitting so later geometry can be recorded into separate ordered layers.
-    /// Canonical inline <c>ImDrawList::ChannelsSplit</c> (<c>ThirdParty/imgui/imgui.h:3577</c>);
+    /// Canonical inline <c>ImDrawList::ChannelsSplit</c>.;
     /// nested splitting is not supported and requires a separate <see cref="ImDrawListSplitter"/>.
     /// </summary>
     /// <param name="count">Number of channels to activate, at least one.</param>
@@ -583,13 +535,13 @@ public class ImDrawList
 
     /// <summary>
     /// Merges all active channels back into a single command list in channel order. Canonical inline
-    /// <c>ImDrawList::ChannelsMerge</c> (<c>ThirdParty/imgui/imgui.h:3578</c>).
+    /// <c>ImDrawList::ChannelsMerge</c>.
     /// </summary>
     public void ChannelsMerge() => Splitter.Merge(this);
 
     /// <summary>
     /// Selects the channel that receives subsequent geometry. Canonical inline
-    /// <c>ImDrawList::ChannelsSetCurrent</c> (<c>ThirdParty/imgui/imgui.h:3579</c>).
+    /// <c>ImDrawList::ChannelsSetCurrent</c>.
     /// </summary>
     /// <param name="channelIndex">Zero-based index of the channel to make current.</param>
     public void ChannelsSetCurrent(int channelIndex) => Splitter.SetCurrentChannel(this, channelIndex);
@@ -612,7 +564,7 @@ public class ImDrawList
     /// <param name="intersectWithCurrent">When true, intersects with the current clip rectangle.</param>
     public void PushClipRect(ImVec2 clipRectMin, ImVec2 clipRectMax, bool intersectWithCurrent = false)
     {
-        // Ports ImDrawList::PushClipRect (imgui_draw.cpp:672-689). Inverted ranges are normalized so
+        // Ports ImDrawList::PushClipRect. Inverted ranges are normalized so
         // the command header never carries a negative-width scissor rectangle.
         ImVec4 cr = new(clipRectMin.X, clipRectMin.Y, clipRectMax.X, clipRectMax.Y);
         if (intersectWithCurrent)
@@ -696,7 +648,6 @@ public class ImDrawList
     /// <summary>
     /// Replaces the innermost texture reference without changing stack depth, used when the atlas
     /// texture identifier changes. Ports canonical <c>ImDrawList::_SetTexture</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:720-727</c>).
     /// </summary>
     /// <param name="texRef">New texture reference for the innermost stack slot.</param>
     private void _SetTexture(ImTextureRef texRef)
@@ -711,7 +662,7 @@ public class ImDrawList
 
     /// <summary>
     /// Appends a fresh command carrying the active clip rectangle, texture reference and vertex-buffer
-    /// base. Ports canonical <c>ImDrawList::AddDrawCmd</c> (<c>ThirdParty/imgui/imgui_draw.cpp:512-522</c>).
+    /// base. Ports canonical <c>ImDrawList::AddDrawCmd</c>.
     /// </summary>
     public void AddDrawCmd()
     {
@@ -720,7 +671,7 @@ public class ImDrawList
 
     /// <summary>
     /// Removes trailing commands that carry no geometry and no callback. Ports canonical
-    /// <c>ImDrawList::_PopUnusedDrawCmd</c> (<c>ThirdParty/imgui/imgui_draw.cpp:526-535</c>).
+    /// <c>ImDrawList::_PopUnusedDrawCmd</c>.
     /// </summary>
     public void PopUnusedDrawCmd()
     {
@@ -739,7 +690,7 @@ public class ImDrawList
     /// <summary>Reacts to a clip-rectangle change by splitting or merging the trailing command.</summary>
     public void _OnChangedClipRect()
     {
-        // Ports ImDrawList::_OnChangedClipRect (imgui_draw.cpp:598-618). Commands are only merged when
+        // Ports ImDrawList::_OnChangedClipRect. Commands are only merged when
         // clip rectangle, texture reference, vertex-buffer base and index offsets are contiguous.
         if (CmdBuffer.Count == 0)
         {
@@ -769,7 +720,7 @@ public class ImDrawList
     /// <summary>Reacts to a texture-reference change by splitting or merging the trailing command.</summary>
     public void _OnChangedTexture()
     {
-        // Ports ImDrawList::_OnChangedTexture (imgui_draw.cpp:620-643).
+        // Ports ImDrawList::_OnChangedTexture.
         if (CmdBuffer.Count == 0)
         {
             AddDrawCmd();
@@ -800,7 +751,6 @@ public class ImDrawList
     /// <summary>
     /// Reacts to a 64K vertex-buffer split by resetting the working vertex index and updating the
     /// trailing command. Ports canonical <c>ImDrawList::_OnChangedVtxOffset</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:645-659</c>).
     /// </summary>
     public void _OnChangedVtxOffset()
     {
@@ -823,7 +773,7 @@ public class ImDrawList
 
     /// <summary>
     /// Determines whether a command header equals the supplied clip rectangle, texture reference and
-    /// vertex-buffer base. Mirrors canonical <c>ImDrawCmd_HeaderCompare</c> (<c>imgui_draw.cpp:579</c>).
+    /// vertex-buffer base. Mirrors canonical <c>ImDrawCmd_HeaderCompare</c>.
     /// </summary>
     /// <param name="cmd">Command whose header fields are compared.</param>
     /// <param name="clipRect">Clip rectangle to compare.</param>
@@ -837,7 +787,7 @@ public class ImDrawList
 
     /// <summary>
     /// Determines whether a command continues the index range of the one before it. Mirrors canonical
-    /// <c>ImDrawCmd_AreSequentialIdxOffset</c> (<c>imgui_draw.cpp:581</c>).
+    /// <c>ImDrawCmd_AreSequentialIdxOffset</c>.
     /// </summary>
     /// <param name="first">Earlier command.</param>
     /// <param name="second">Later command.</param>
@@ -863,7 +813,6 @@ public class ImDrawList
     /// <summary>
     /// Reserves space for indices and vertices in the current command, splitting the vertex buffer
     /// when 16-bit indices would overflow. Ports canonical <c>ImDrawList::PrimReserve</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:732-755</c>).
     /// </summary>
     /// <param name="idxCount">Number of indices to reserve.</param>
     /// <param name="vtxCount">Number of vertices to reserve.</param>
@@ -889,7 +838,7 @@ public class ImDrawList
     /// <summary>
     /// Releases indices and vertices reserved by the most recent <see cref="PrimReserve"/> call from
     /// the tail of the command and index/vertex buffers. Ports canonical
-    /// <c>ImDrawList::PrimUnreserve</c> (<c>ThirdParty/imgui/imgui_draw.cpp:758-766</c>). The caller
+    /// <c>ImDrawList::PrimUnreserve</c>. The caller
     /// must unreserve at most what it reserved and must not have emitted other geometry since.
     /// </summary>
     /// <param name="idxCount">Number of indices to release.</param>
@@ -917,7 +866,7 @@ public class ImDrawList
     /// <summary>
     /// Creates an independent copy of this draw list's command, index and vertex buffers for use by
     /// another rendering thread. Ports canonical <c>ImDrawList::CloneOutput</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:502-510</c>); the clone is bound to no atlas and keeps only
+    ///.; the clone is bound to no atlas and keeps only
     /// the buffers and flags, so later edits to either list do not affect the other.
     /// </summary>
     /// <returns>A new draw list owning copies of the command, index and vertex buffers.</returns>
@@ -953,7 +902,7 @@ public class ImDrawList
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void PrimRectUV(ImVec2 a, ImVec2 c, ImVec2 uvA, ImVec2 uvC, uint col)
     {
-        // Ports ImDrawList::PrimRectUV (imgui_draw.cpp:784-797). Indices are relative to the active
+        // Ports ImDrawList::PrimRectUV. Indices are relative to the active
         // vertex-buffer base so 64K splits keep 16-bit offsets valid.
         ushort idx = (ushort)_vtxCurrentIdx;
         IdxBuffer.Add(idx);
@@ -983,7 +932,7 @@ public class ImDrawList
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void PrimQuadUV(ImVec2 a, ImVec2 b, ImVec2 c, ImVec2 d, ImVec2 uvA, ImVec2 uvB, ImVec2 uvC, ImVec2 uvD, uint col)
     {
-        // Ports ImDrawList::PrimQuadUV (imgui_draw.cpp:799-811).
+        // Ports ImDrawList::PrimQuadUV.
         ushort idx = (ushort)_vtxCurrentIdx;
         IdxBuffer.Add(idx);
         IdxBuffer.Add((ushort)(idx + 1));
@@ -1003,7 +952,7 @@ public class ImDrawList
 
     #region Geometry Helpers
 
-    /// <summary>Builds the precomputed full-circle arc sample table (imgui_draw.cpp:406-410).</summary>
+    /// <summary>Builds the precomputed full-circle arc sample table.</summary>
     /// <returns>The sample points in canonical order.</returns>
     private static ImVec2[] BuildArcFastVtx()
     {
@@ -1020,7 +969,7 @@ public class ImDrawList
     /// <param name="maxError">Maximum circle tessellation error in pixels; must be positive.</param>
     private void SetCircleTessellationMaxError(float maxError)
     {
-        // Ports ImDrawListSharedData::SetCircleTessellationMaxError (imgui_draw.cpp:418-431).
+        // Ports ImDrawListSharedData::SetCircleTessellationMaxError.
         if (_circleTessellationMaxError == maxError)
             return;
         _circleTessellationMaxError = maxError;
@@ -1035,7 +984,7 @@ public class ImDrawList
 
     /// <summary>
     /// Evaluates the canonical automatic circle segment formula. Ports
-    /// <c>IM_DRAWLIST_CIRCLE_AUTO_SEGMENT_CALC</c> (<c>ThirdParty/imgui/imgui_internal.h:885</c>).
+    /// <c>IM_DRAWLIST_CIRCLE_AUTO_SEGMENT_CALC</c>.
     /// </summary>
     /// <param name="radius">Circle radius in pixels.</param>
     /// <param name="maxError">Maximum chord error in pixels.</param>
@@ -1051,7 +1000,6 @@ public class ImDrawList
     /// <summary>
     /// Returns the automatic segment count for a radius, using the cached bucket or the dynamic
     /// formula. Ports canonical <c>ImDrawList::_CalcCircleAutoSegmentCount</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:661-669</c>).
     /// </summary>
     /// <param name="radius">Circle radius in pixels.</param>
     /// <returns>The number of circle segments to emit.</returns>
@@ -1081,7 +1029,7 @@ public class ImDrawList
 
     /// <summary>
     /// Computes a fast reciprocal square root. Ports canonical <c>ImRsqrt</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:517-520</c>), which uses the hardware SSE estimate
+    ///., which uses the hardware SSE estimate
     /// <c>_mm_rsqrt_ss</c> when available and otherwise falls back to <c>1.0f / sqrtf(x)</c>.
     /// </summary>
     /// <param name="x">The value to invert; callers guard against zero, where the hardware estimate diverges.</param>
@@ -1111,7 +1059,7 @@ public class ImDrawList
     /// <param name="vy">Y component to normalize.</param>
     private static void NormalizeOverZero(ref float vx, ref float vy)
     {
-        // Ports IM_NORMALIZE2F_OVER_ZERO (imgui_draw.cpp:816): a zero-length segment yields (0,0),
+        // Ports IM_NORMALIZE2F_OVER_ZERO.: a zero-length segment yields (0,0),
         // and non-zero lengths are normalized with the canonical ImRsqrt estimate.
         float d2 = (vx * vx) + (vy * vy);
         if (d2 > 0.0f)
@@ -1127,7 +1075,7 @@ public class ImDrawList
     /// <param name="vy">Y component to transform.</param>
     private static void FixNormal(ref float vx, ref float vy)
     {
-        // Ports IM_FIXNORMAL2F (imgui_draw.cpp:818): the inverse-length-squared clamp guards miter
+        // Ports IM_FIXNORMAL2F.: the inverse-length-squared clamp guards miter
         // joins against exploding on nearly opposite tangents.
         float d2 = (vx * vx) + (vy * vy);
         if (d2 > 0.000001f)
@@ -1140,7 +1088,7 @@ public class ImDrawList
         }
     }
 
-    /// <summary>Determines whether three points wind clockwise (imgui_internal.h:571).</summary>
+    /// <summary>Determines whether three points wind clockwise.</summary>
     /// <param name="a">First point.</param>
     /// <param name="b">Second point.</param>
     /// <param name="c">Third point.</param>
@@ -1150,7 +1098,7 @@ public class ImDrawList
         return ((b.X - a.X) * (c.Y - b.Y)) - ((c.X - b.X) * (b.Y - a.Y)) > 0.0f;
     }
 
-    /// <summary>Determines whether a point lies inside a triangle (imgui.cpp:2226-2233).</summary>
+    /// <summary>Determines whether a point lies inside a triangle.</summary>
     /// <param name="a">First triangle vertex.</param>
     /// <param name="b">Second triangle vertex.</param>
     /// <param name="c">Third triangle vertex.</param>
@@ -1170,7 +1118,7 @@ public class ImDrawList
 
     /// <summary>
     /// Calculates approximation (within 0.001%) distance from the center of the circumscribed circle
-    /// to the edge of the polygon, cos(pi / n). Ports canonical <c>ApproxApothem</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2696-2702</c>).
+    /// to the edge of the polygon, cos(pi / n). Ports canonical <c>ApproxApothem</c>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float ApproxApothem(int numSegments)
@@ -1181,7 +1129,7 @@ public class ImDrawList
 
     /// <summary>
     /// Selects baked or white UVs and fringe scale for line rendering.
-    /// Ports canonical <c>ImDrawList::_SelectLineTexture</c> (<c>ThirdParty/imgui/imgui_draw.cpp:924-955</c>).
+    /// Ports canonical <c>ImDrawList::_SelectLineTexture</c>.
     /// </summary>
     private void _SelectLineTexture(float screenThickness, out ImVec2 outUv0, out ImVec2 outUv1, out float outFringe, ImDrawFlags flags)
     {
@@ -1223,7 +1171,7 @@ public class ImDrawList
 
     /// <summary>
     /// Strokes a polyline with canonical stroke positioning modes, cap and join styles, and fringe AA geometry.
-    /// Ports canonical <c>ImDrawList::AddPolyline</c> (<c>ThirdParty/imgui/imgui.h:3610</c>).
+    /// Ports canonical <c>ImDrawList::AddPolyline</c>.
     /// </summary>
     /// <param name="points">Polyline vertices in screen space.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -1236,7 +1184,7 @@ public class ImDrawList
 
     /// <summary>
     /// Internal polyline implementation with inner stroke offset clamping for closed convex shapes.
-    /// Ports canonical <c>ImDrawList::_AddPolyline</c> (<c>ThirdParty/imgui/imgui_draw.cpp:961-1329</c>).
+    /// Ports canonical <c>ImDrawList::_AddPolyline</c>.
     /// </summary>
     public void _AddPolyline(ReadOnlySpan<ImVec2> points, int pointsCount, uint col, float thickness, ImDrawFlags flags, float maxInnerOffset)
     {
@@ -1580,8 +1528,8 @@ public class ImDrawList
 
     /// <summary>
     /// Fills a convex polygon with canonical anti-aliased fringe geometry. Ports
-    /// <c>ImDrawList::AddConvexPolyFilled</c> (<c>ThirdParty/imgui/imgui_draw.cpp:1086-1166</c>).
-    /// Filled shapes must be emitted clockwise so the fringe points outward. (<c>ThirdParty/imgui/imgui.h:3611</c>)
+    /// <c>ImDrawList::AddConvexPolyFilled</c>.
+    /// Filled shapes must be emitted clockwise so the fringe points outward.
     /// </summary>
     /// <param name="points">Convex polygon vertices in screen space.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -1663,14 +1611,13 @@ public class ImDrawList
         }
     }
 
-    /// <summary>Emits a filled convex polygon. (<c>ThirdParty/imgui/imgui.h:3611</c>)</summary>
+    /// <summary>Emits a filled convex polygon.</summary>
     public void AddConvexPolyFilled(ImVec2[] points, int numPoints, uint col, ImDrawFlags flags = ImDrawFlags.None)
         => AddConvexPolyFilled(points.AsSpan(0, numPoints), col, flags);
 
     /// <summary>
     /// Fills a simple concave polygon by ear-clipping it into triangles, then emits the same
     /// anti-aliased fringe as the convex fill. Ports <c>ImDrawList::AddConcavePolyFilled</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2047-2135</c>).
     /// </summary>
     /// <param name="points">Simple concave polygon vertices in screen space; no holes or self-intersections.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -1760,7 +1707,7 @@ public class ImDrawList
 
     #region High-Level Primitives
 
-    /// <summary>Emits a line segment as an anti-aliased stroke. (<c>ThirdParty/imgui/imgui.h:3586</c>)</summary>
+    /// <summary>Emits a line segment as an anti-aliased stroke.</summary>
     /// <param name="p1">Start point.</param>
     /// <param name="p2">End point.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -1785,6 +1732,12 @@ public class ImDrawList
         AddPolyline(pts, col, thickness, flags);
     }
 
+    /// <summary>
+    /// Multiplies the alpha channel of a 32-bit packed color by the specified scale factor.
+    /// </summary>
+    /// <param name="col">The 32-bit packed RGBA/ABGR color.</param>
+    /// <param name="alphaMul">The multiplier to apply to the alpha component.</param>
+    /// <returns>The resulting 32-bit packed color with the scaled alpha channel.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint ImAlphaMultiply(uint col, float alphaMul)
     {
@@ -1793,7 +1746,7 @@ public class ImDrawList
         return (col & ~0xFF000000u) | (a << 24);
     }
 
-    /// <summary>Emits a horizontal line. (<c>ThirdParty/imgui/imgui.h:3587</c>)</summary>
+    /// <summary>Emits a horizontal line.</summary>
     /// <param name="minX">Left end X coordinate.</param>
     /// <param name="maxX">Right end X coordinate.</param>
     /// <param name="y">Shared Y coordinate.</param>
@@ -1841,7 +1794,7 @@ public class ImDrawList
         }
     }
 
-    /// <summary>Emits a vertical line. (<c>ThirdParty/imgui/imgui.h:3588</c>)</summary>
+    /// <summary>Emits a vertical line.</summary>
     /// <param name="x">Shared X coordinate.</param>
     /// <param name="minY">Top end Y coordinate.</param>
     /// <param name="maxY">Bottom end Y coordinate.</param>
@@ -1967,7 +1920,7 @@ public class ImDrawList
 
             if (sRounding <= 0 || (flags & ImDrawFlags.RoundMask_) == ImDrawFlags.RoundNone)
             {
-                // Pixel aligned non-rounded rect (imgui_draw.cpp:2417-2446)
+                // Pixel aligned non-rounded rect.
                 ImVec2 opaqueUv = _texUvWhitePixel;
                 float t = (float)sThickness * _fringeScale;
 
@@ -2036,7 +1989,7 @@ public class ImDrawList
     {
         if ((col & 0xFF000000) == 0)
             return;
-        // Ports ImDrawList::AddRectFilled (imgui_draw.cpp:1532-1546).
+        // Ports ImDrawList::AddRectFilled.
         if (rounding < 0.5f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
         {
             PrimReserve(6, 4);
@@ -2076,7 +2029,7 @@ public class ImDrawList
         _vtxCurrentIdx += 4;
     }
 
-    /// <summary>Emits a quad outline as an anti-aliased stroke. (<c>ThirdParty/imgui/imgui.h:3592</c>)</summary>
+    /// <summary>Emits a quad outline as an anti-aliased stroke.</summary>
     /// <param name="p1">First vertex.</param>
     /// <param name="p2">Second vertex.</param>
     /// <param name="p3">Third vertex.</param>
@@ -2112,7 +2065,7 @@ public class ImDrawList
         PathFillConvex(col);
     }
 
-    /// <summary>Emits a triangle outline as an anti-aliased stroke. (<c>ThirdParty/imgui/imgui.h:3594</c>)</summary>
+    /// <summary>Emits a triangle outline as an anti-aliased stroke.</summary>
     /// <param name="p1">First vertex.</param>
     /// <param name="p2">Second vertex.</param>
     /// <param name="p3">Third vertex.</param>
@@ -2145,7 +2098,7 @@ public class ImDrawList
     }
 
     /// <summary>
-    /// Renders a crisp 3-point checkmark conforming to canonical Dear ImGui (imgui_draw.cpp:6080).
+    /// Renders a crisp 3-point checkmark conforming to canonical Dear ImGui.
     /// </summary>
     /// <param name="pos">Top-left position of the checkmark bounding box.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -2166,7 +2119,7 @@ public class ImDrawList
     }
 
     /// <summary>
-    /// Renders an arrow pointing at a specified direction conforming to canonical Dear ImGui (imgui_draw.cpp:6096).
+    /// Renders an arrow pointing at a specified direction conforming to canonical Dear ImGui.
     /// </summary>
     /// <param name="pos">Triangle tip position.</param>
     /// <param name="halfSz">Half-size of the triangle along each axis.</param>
@@ -2192,7 +2145,7 @@ public class ImDrawList
         }
     }
 
-    /// <summary>Emits a circle outline using the canonical automatic or explicit segment count. (<c>ThirdParty/imgui/imgui.h:3596</c>)</summary>
+    /// <summary>Emits a circle outline using the canonical automatic or explicit segment count.</summary>
     /// <param name="center">Circle center.</param>
     /// <param name="radius">Circle radius in pixels.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -2263,7 +2216,7 @@ public class ImDrawList
         if ((col & 0xFF000000) == 0 || radius < 0.5f)
             return;
 
-        // Ports ImDrawList::AddCircleFilled (imgui_draw.cpp:1634-1656). A filled circle uses the full
+        // Ports ImDrawList::AddCircleFilled. A filled circle uses the full
         // radius because no stroke inset applies.
         if (numSegments <= 0)
         {
@@ -2280,7 +2233,7 @@ public class ImDrawList
         PathFillConvex(col);
     }
 
-    /// <summary>Emits a regular polygon outline that honors the requested segment count. (<c>ThirdParty/imgui/imgui.h:3598</c>)</summary>
+    /// <summary>Emits a regular polygon outline that honors the requested segment count.</summary>
     /// <param name="center">Polygon center.</param>
     /// <param name="radius">Circumscribed radius in pixels.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -2343,7 +2296,7 @@ public class ImDrawList
         PathFillConvex(col);
     }
 
-    /// <summary>Emits an ellipse outline using the canonical automatic or explicit segment count. (<c>ThirdParty/imgui/imgui.h:3600</c>)</summary>
+    /// <summary>Emits an ellipse outline using the canonical automatic or explicit segment count.</summary>
     /// <param name="center">Ellipse center.</param>
     /// <param name="radius">Horizontal and vertical radii in pixels.</param>
     /// <param name="col">Packed color in canonical ABGR order.</param>
@@ -2379,7 +2332,7 @@ public class ImDrawList
         PathFillConvex(col);
     }
 
-    /// <summary>Emits an anti-aliased cubic Bezier curve. (<c>ThirdParty/imgui/imgui.h:3604</c>)</summary>
+    /// <summary>Emits an anti-aliased cubic Bezier curve.</summary>
     /// <param name="p1">Start point.</param>
     /// <param name="p2">First control point.</param>
     /// <param name="p3">Second control point.</param>
@@ -2397,7 +2350,7 @@ public class ImDrawList
         PathStroke(col, thickness, flags);
     }
 
-    /// <summary>Emits an anti-aliased quadratic Bezier curve. (<c>ThirdParty/imgui/imgui.h:3605</c>)</summary>
+    /// <summary>Emits an anti-aliased quadratic Bezier curve.</summary>
     /// <param name="p1">Start point.</param>
     /// <param name="p2">Control point.</param>
     /// <param name="p3">End point.</param>
@@ -2434,7 +2387,7 @@ public class ImDrawList
     {
         if ((col & 0xFF000000) == 0)
             return;
-        // Ports ImDrawList::AddImage (imgui_draw.cpp:1765-1779): the texture is only pushed when it
+        // Ports ImDrawList::AddImage.: the texture is only pushed when it
         // differs from the active one so adjacent images batch into a single command.
         bool pushTexture = !TexRefEquals(texRef, _cmdHeaderTexRef);
         if (pushTexture)
@@ -2500,7 +2453,7 @@ public class ImDrawList
         if ((flags & ImDrawFlags.RoundCornersMask_) == 0)
             flags |= ImDrawFlags.RoundCornersAll;
 
-        // Ports ImDrawList::AddImageRounded (imgui_draw.cpp:1797-1824). Rounded rectangles are produced
+        // Ports ImDrawList::AddImageRounded. Rounded rectangles are produced
         // by generating the rounded polygon and then projecting the image UVs across its bounds.
         if (rounding < 0.5f || (flags & ImDrawFlags.RoundCornersMask_) == ImDrawFlags.RoundCornersNone)
         {
@@ -2524,7 +2477,7 @@ public class ImDrawList
 
     /// <summary>
     /// Reprojects the UVs of a vertex range against a linear mapping between two rectangle corners.
-    /// Ports canonical <c>ImGui::ShadeVertsLinearUV</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2408-2430</c>).
+    /// Ports canonical <c>ImGui::ShadeVertsLinearUV</c>.
     /// </summary>
     /// <param name="vertStartIdx">First vertex index in the vertex buffer.</param>
     /// <param name="vertEndIdx">One past the last vertex index.</param>
@@ -2608,12 +2561,12 @@ public class ImDrawList
         _path.Add(pos);
     }
 
-    /// <summary>Fills the current path as a convex polygon and clears it. (<c>ThirdParty/imgui/imgui.h:3628</c>)</summary>
+    /// <summary>Fills the current path as a convex polygon and clears it.</summary>
     /// <param name="col">Packed color in canonical ABGR order.</param>
     /// <param name="flags">Draw flags for anti-aliasing.</param>
     public void PathFillConvex(uint col, ImDrawFlags flags = ImDrawFlags.None)
     {
-        // Ports the canonical inline PathFillConvex (imgui.h:3628).
+        // Ports the canonical inline PathFillConvex.
         AddConvexPolyFilled(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_path), col, flags);
         _path.Clear();
     }
@@ -2622,7 +2575,7 @@ public class ImDrawList
     /// <param name="col">Packed color in canonical ABGR order.</param>
     public void PathFillConcave(uint col)
     {
-        // Ports the canonical inline PathFillConcave (imgui.h:3546).
+        // Ports the canonical inline PathFillConcave.
         AddConcavePolyFilled(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_path), col);
         _path.Clear();
     }
@@ -2633,7 +2586,7 @@ public class ImDrawList
     /// <param name="flags">Path flags; <c>Closed</c> connects the last point to the first.</param>
     public void PathStroke(uint col, float thickness = 1.0f, ImDrawFlags flags = ImDrawFlags.None)
     {
-        // Ports the canonical inline PathStroke (imgui.h:3547): the path is routed through AddPolyline
+        // Ports the canonical inline PathStroke.: the path is routed through AddPolyline
         // so all strokes share the anti-aliasing and fringe behavior.
         AddPolyline(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_path), col, thickness, flags);
         _path.Clear();
@@ -2653,7 +2606,7 @@ public class ImDrawList
     /// <param name="numSegments">Number of straight segments; zero selects an automatic count.</param>
     public void PathArcTo(ImVec2 center, float radius, float aMin, float aMax, int numSegments = 0)
     {
-        // Ports ImDrawList::PathArcTo (imgui_draw.cpp:1289-1337). Small radii use the precomputed fast
+        // Ports ImDrawList::PathArcTo. Small radii use the precomputed fast
         // table; larger radii fall back to the explicit trigonometric loop.
         if (radius < 0.5f)
         {
@@ -2707,7 +2660,7 @@ public class ImDrawList
     /// <param name="numSegments">Number of straight segments; both end points are emitted.</param>
     public void PathArcToN(ImVec2 center, float radius, float aMin, float aMax, int numSegments)
     {
-        // Ports ImDrawList::_PathArcToN (imgui_draw.cpp:1260-1276).
+        // Ports ImDrawList::_PathArcToN.
         if (radius < 0.5f)
         {
             _path.Add(center);
@@ -2731,7 +2684,7 @@ public class ImDrawList
     /// <param name="aMaxOf12">End sample expressed in twelfths of a turn.</param>
     public void PathArcToFast(ImVec2 center, float radius, int aMinOf12, int aMaxOf12)
     {
-        // Ports ImDrawList::PathArcToFast (imgui_draw.cpp:1279-1287).
+        // Ports ImDrawList::PathArcToFast.
         if (radius < 0.5f)
         {
             _path.Add(center);
@@ -2742,7 +2695,7 @@ public class ImDrawList
 
     /// <summary>
     /// Appends an arc sampled from the precomputed table between two sample indices.
-    /// Ports canonical <c>ImDrawList::_PathArcToFastEx</c> (<c>ThirdParty/imgui/imgui_draw.cpp:1168-1258</c>).
+    /// Ports canonical <c>ImDrawList::_PathArcToFastEx</c>.
     /// </summary>
     /// <param name="center">Arc center.</param>
     /// <param name="radius">Arc radius in pixels.</param>
@@ -2826,7 +2779,7 @@ public class ImDrawList
     /// <param name="numSegments">Number of straight segments; zero selects an automatic count.</param>
     public void PathEllipticalArcTo(ImVec2 center, ImVec2 radius, float rot, float aMin, float aMax, int numSegments = 0)
     {
-        // Ports ImDrawList::PathEllipticalArcTo (imgui_draw.cpp:1339-1357).
+        // Ports ImDrawList::PathEllipticalArcTo.
         if (numSegments <= 0)
             numSegments = CalcCircleAutoSegmentCount(MathF.Max(radius.X, radius.Y));
 
@@ -2848,7 +2801,7 @@ public class ImDrawList
     /// <param name="numSegments">Segment count; zero auto-tessellates within the curve tolerance.</param>
     public void PathBezierCubicCurveTo(ImVec2 p2, ImVec2 p3, ImVec2 p4, int numSegments = 0)
     {
-        // Ports ImDrawList::PathBezierCubicCurveTo (imgui_draw.cpp:1422-1436).
+        // Ports ImDrawList::PathBezierCubicCurveTo.
         ImVec2 p1 = _path[^1];
         if (numSegments == 0)
         {
@@ -2868,7 +2821,7 @@ public class ImDrawList
     /// <param name="numSegments">Segment count; zero auto-tessellates within the curve tolerance.</param>
     public void PathBezierQuadraticCurveTo(ImVec2 p2, ImVec2 p3, int numSegments = 0)
     {
-        // Ports ImDrawList::PathBezierQuadraticCurveTo (imgui_draw.cpp:1438-1452).
+        // Ports ImDrawList::PathBezierQuadraticCurveTo.
         ImVec2 p1 = _path[^1];
         if (numSegments == 0)
         {
@@ -2882,7 +2835,7 @@ public class ImDrawList
         }
     }
 
-    /// <summary>Evaluates a cubic Bezier at a parameter (imgui_draw.cpp:1359-1367).</summary>
+    /// <summary>Evaluates a cubic Bezier at a parameter.</summary>
     /// <param name="p1">Start point.</param>
     /// <param name="p2">First control point.</param>
     /// <param name="p3">Second control point.</param>
@@ -2901,7 +2854,7 @@ public class ImDrawList
             (w1 * p1.Y) + (w2 * p2.Y) + (w3 * p3.Y) + (w4 * p4.Y));
     }
 
-    /// <summary>Evaluates a quadratic Bezier at a parameter (imgui_draw.cpp:1369-1376).</summary>
+    /// <summary>Evaluates a quadratic Bezier at a parameter.</summary>
     /// <param name="p1">Start point.</param>
     /// <param name="p2">Control point.</param>
     /// <param name="p3">End point.</param>
@@ -2920,7 +2873,7 @@ public class ImDrawList
 
     /// <summary>
     /// Recursively subdivides a cubic Bezier until the control polygon flattens within tolerance.
-    /// Ports <c>PathBezierCubicCurveToCasteljau</c> (<c>ThirdParty/imgui/imgui_draw.cpp:1379-1402</c>).
+    /// Ports <c>PathBezierCubicCurveToCasteljau</c>.
     /// </summary>
     /// <param name="x1">Start point X.</param>
     /// <param name="y1">Start point Y.</param>
@@ -2959,7 +2912,7 @@ public class ImDrawList
 
     /// <summary>
     /// Recursively subdivides a quadratic Bezier until the control polygon flattens within tolerance.
-    /// Ports <c>PathBezierQuadraticCurveToCasteljau</c> (<c>ThirdParty/imgui/imgui_draw.cpp:1404-1420</c>).
+    /// Ports <c>PathBezierQuadraticCurveToCasteljau</c>.
     /// </summary>
     /// <param name="x1">Start point X.</param>
     /// <param name="y1">Start point Y.</param>
@@ -2994,7 +2947,7 @@ public class ImDrawList
     /// <param name="flags">Corner selection flags.</param>
     public void PathRect(ImVec2 rectMin, ImVec2 rectMax, float rounding = 0.0f, ImDrawFlags flags = ImDrawFlags.None)
     {
-        // Ports ImDrawList::PathRect (imgui_draw.cpp:1454-1482). Rounding below half a pixel is
+        // Ports ImDrawList::PathRect. Rounding below half a pixel is
         // downgraded to sharp corners; otherwise the radius is clamped against the shorter span and
         // corners are emitted clockwise from the top-left arc.
         if (rounding >= 0.5f)
@@ -3036,7 +2989,7 @@ public class ImDrawList
 
     /// <summary>
     /// Registers a backend callback on a new command, replacing triangle submission for that command.
-    /// Ports canonical <c>ImDrawList::AddCallback</c> (<c>ThirdParty/imgui/imgui_draw.cpp:537-575</c>).
+    /// Ports canonical <c>ImDrawList::AddCallback</c>.
     /// When <paramref name="userdataSize"/> is zero the pointer is stored directly; otherwise the
     /// bytes are copied into a pinned buffer and exposed through <c>ImDrawCmd.UserCallbackData</c>.
     /// </summary>
@@ -3089,7 +3042,7 @@ public class ImDrawList
 
     /// <summary>
     /// Ear-clipping triangulator for simple concave polygons. Ports the canonical
-    /// <c>ImTriangulator</c> (<c>ThirdParty/imgui/imgui_draw.cpp:1829-2040</c>) using index-based
+    /// <c>ImTriangulator</c>. using index-based
     /// node links instead of pointers. Instances are reused per draw list so the node and stack
     /// arrays are only grown when a larger polygon appears.
     /// </summary>
@@ -3171,7 +3124,7 @@ public class ImDrawList
             BuildEars();
         }
 
-        /// <summary>Classifies nodes whose turn is not clockwise as reflex (imgui_draw.cpp:1916-1926).</summary>
+        /// <summary>Classifies nodes whose turn is not clockwise as reflex.</summary>
         private void BuildReflexes()
         {
             int n1 = _nodeHead;
@@ -3184,7 +3137,7 @@ public class ImDrawList
             }
         }
 
-        /// <summary>Classifies convex nodes that contain no reflex vertex as ears (imgui_draw.cpp:1928-1940).</summary>
+        /// <summary>Classifies convex nodes that contain no reflex vertex as ears.</summary>
         private void BuildEars()
         {
             int n1 = _nodeHead;
@@ -3201,7 +3154,7 @@ public class ImDrawList
             }
         }
 
-        /// <summary>Emits the next ear triangle as original polygon indices (imgui_draw.cpp:1942-1977).</summary>
+        /// <summary>Emits the next ear triangle as original polygon indices.</summary>
         /// <param name="outTriangle">Receives the three original polygon vertex indices.</param>
         internal void GetNextTriangle(Span<int> outTriangle)
         {
@@ -3240,7 +3193,7 @@ public class ImDrawList
             TrianglesLeft--;
         }
 
-        /// <summary>Reverses the circular node list so a stuck winding can be retried (imgui_draw.cpp:1979-1999).</summary>
+        /// <summary>Reverses the circular node list so a stuck winding can be retried.</summary>
         private void FlipNodeList()
         {
             int prev = _nodeHead;
@@ -3260,7 +3213,7 @@ public class ImDrawList
             _nodeHead = prev;
         }
 
-        /// <summary>Tests whether a triangle contains any reflex vertex (imgui_draw.cpp:2002-2013).</summary>
+        /// <summary>Tests whether a triangle contains any reflex vertex.</summary>
         /// <param name="i0">First vertex index.</param>
         /// <param name="i1">Second vertex index.</param>
         /// <param name="i2">Third vertex index.</param>
@@ -3282,7 +3235,7 @@ public class ImDrawList
             return true;
         }
 
-        /// <summary>Recomputes a node's classification after neighboring ears are removed (imgui_draw.cpp:2015-2040).</summary>
+        /// <summary>Recomputes a node's classification after neighboring ears are removed.</summary>
         /// <param name="n1">Node index to reclassify.</param>
         private void ReclassifyNode(int n1)
         {
@@ -3352,7 +3305,7 @@ public class ImDrawList
 /// <summary>
 /// Storage for one drawing channel of an <see cref="ImDrawListSplitter"/>: the command and index
 /// buffers swapped in and out of the draw list while a channel is current. Mirrors the canonical
-/// <c>ImDrawChannel</c> (<c>ThirdParty/imgui/imgui.h:3390-3394</c>). The vertex buffer is shared by
+/// <c>ImDrawChannel</c>. The vertex buffer is shared by
 /// every channel and is therefore not stored here.
 /// </summary>
 public sealed class ImDrawChannel
@@ -3369,8 +3322,8 @@ public sealed class ImDrawChannel
 /// <summary>
 /// Splits an <see cref="ImDrawList"/> into ordered channels so geometry from different logical
 /// layers can be recorded independently and merged back into one command list in channel order.
-/// Ports canonical <c>ImDrawListSplitter</c> (<c>ThirdParty/imgui/imgui.h:3398-3414</c>,
-/// implementation <c>ThirdParty/imgui/imgui_draw.cpp:2136-2281</c>). This is the mechanism behind the
+/// Ports canonical <c>ImDrawListSplitter</c> (,
+/// implementation ). This is the mechanism behind the
 /// canonical Columns and Tables APIs.
 /// </summary>
 /// <remarks>
@@ -3406,7 +3359,7 @@ public class ImDrawListSplitter
 
     /// <summary>
     /// Marks the splitter as unsplit while keeping channel storage allocated for reuse. Ports
-    /// canonical <c>ImDrawListSplitter::Clear</c> (<c>ThirdParty/imgui/imgui.h:3410</c>); channel
+    /// canonical <c>ImDrawListSplitter::Clear</c>.; channel
     /// buffers are deliberately not cleared.
     /// </summary>
     public void Clear()
@@ -3417,7 +3370,7 @@ public class ImDrawListSplitter
 
     /// <summary>
     /// Releases all channel storage. Ports canonical <c>ImDrawListSplitter::ClearFreeMemory</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2143-2155</c>). The current channel aliases the owning
+    ///. The current channel aliases the owning
     /// draw list's buffers, so its slot is dropped without clearing the aliased buffers.
     /// </summary>
     public void ClearFreeMemory()
@@ -3439,7 +3392,7 @@ public class ImDrawListSplitter
 
     /// <summary>
     /// Activates the requested number of channels. Ports canonical
-    /// <c>ImDrawListSplitter::Split</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2157-2185</c>). Channels
+    /// <c>ImDrawListSplitter::Split</c>. Channels
     /// other than the current one are emptied so stale geometry cannot leak between frames.
     /// </summary>
     /// <param name="drawList">Draw list being split; retained for canonical signature parity and not otherwise used.</param>
@@ -3478,7 +3431,7 @@ public class ImDrawListSplitter
     /// <summary>
     /// Merges all channels back into the draw list in channel order, repairing command index offsets
     /// and coalescing adjacent commands that share a header. Ports canonical
-    /// <c>ImDrawListSplitter::Merge</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2187-2256</c>). After the
+    /// <c>ImDrawListSplitter::Merge</c>. After the
     /// call the splitter reports a single channel, and the draw list ends with a non-callback command.
     /// </summary>
     /// <param name="drawList">Draw list receiving the merged command and index buffers.</param>
@@ -3576,7 +3529,7 @@ public class ImDrawListSplitter
     /// <summary>
     /// Makes the requested channel current by swapping its command and index buffers into the draw
     /// list. Ports canonical <c>ImDrawListSplitter::SetCurrentChannel</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2258-2280</c>). If the channel's trailing command uses a
+    ///. If the channel's trailing command uses a
     /// different header than the active one, a new command is started so geometry keeps the correct
     /// clip rectangle and texture.
     /// </summary>
@@ -3627,7 +3580,6 @@ public class ImDrawListSplitter
 /// <summary>
 /// The public accessor object returned by <c>GetDrawListSharedData()</c>: it carries the font atlas
 /// values and tessellation tolerances that a frame's draw lists share
-/// (<c>ThirdParty/imgui/imgui_internal.h:895-927</c>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -3647,50 +3599,45 @@ public sealed class ImDrawListSharedData
 {
     /// <summary>
     /// Gets or sets the UV coordinate of the opaque white texel in the atlas.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:898</c>)
     /// </summary>
     public ImVec2 TexUvWhitePixel { get; set; }
 
     /// <summary>
     /// Gets or sets the UV coordinates of the anti-aliased line geometry in the atlas, or
     /// <see langword="null"/> when no atlas is bound.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:899</c>)
     /// </summary>
     public ImVec4[]? TexUvLines { get; set; }
 
     /// <summary>
     /// Gets or sets the current font used by the simplified text overloads, or
-    /// <see langword="null"/>. (<c>ThirdParty/imgui/imgui_internal.h:901</c>)
+    /// <see langword="null"/>.
     /// </summary>
     public ImFont? Font { get; set; }
 
     /// <summary>
     /// Gets or sets the current font size used by the simplified text overloads.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:902</c>)
     /// </summary>
     public float FontSize { get; set; }
 
     /// <summary>
     /// Gets or sets the tessellation tolerance used by <c>PathBezierCurveTo()</c>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:905</c>)
     /// </summary>
     public float CurveTessellationTol { get; set; } = 1.25f;
 
     /// <summary>
     /// Gets or sets the maximum circle tessellation error, in pixels of radius, used by the circle
-    /// primitives. (<c>ThirdParty/imgui/imgui_internal.h:906</c>)
+    /// primitives.
     /// </summary>
     public float CircleTessellationMaxError { get; set; } = 0.30f;
 
     /// <summary>
     /// Gets or sets the fullscreen clip rectangle published through
-    /// <c>PushClipRectFullscreen()</c>. (<c>ThirdParty/imgui/imgui_internal.h:909</c>)
+    /// <c>PushClipRectFullscreen()</c>.
     /// </summary>
     public ImVec4 ClipRectFullscreen { get; set; }
 
     /// <summary>
     /// Gets or sets the draw-list flags applied at the beginning of the frame.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:969</c>)
     /// </summary>
     public ImDrawFlags InitialDrawFlags { get; set; } = ImDrawFlags.AAFill | ImDrawFlags.AALines;
 
@@ -3708,7 +3655,6 @@ public sealed class ImDrawListSharedData
 /// <summary>
 /// Temporary storage used while assembling an <see cref="ImDrawData"/> from the frame's draw lists:
 /// it points at the global layer vectors and owns one scratch layer
-/// (<c>ThirdParty/imgui/imgui_internal.h:928-934</c>).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -3727,13 +3673,12 @@ public sealed class ImDrawDataBuilder
 {
     /// <summary>
     /// Gets the two global layer pointers: index 0 is the regular layer and index 1 is the tooltip
-    /// layer. (<c>ThirdParty/imgui/imgui_internal.h:930</c>)
+    /// layer.
     /// </summary>
     public List<ImDrawList>?[] Layers { get; } = new List<ImDrawList>?[2];
 
     /// <summary>
     /// Gets the scratch layer used while building the final draw data.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:931</c>)
     /// </summary>
     public List<ImDrawList> LayerData1 { get; } = new();
 }
@@ -3751,7 +3696,6 @@ public static partial class ImGui
     /// <summary>
     /// Recolors a vertex range along a linear color gradient while preserving each vertex's alpha.
     /// Mirrors canonical <c>ImGui::ShadeVertsLinearColorGradientKeepAlpha</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2384-2406</c>).
     /// </summary>
     /// <param name="drawList">The draw list whose vertex buffer is modified in place.</param>
     /// <param name="vertStartIdx">First vertex index of the range.</param>

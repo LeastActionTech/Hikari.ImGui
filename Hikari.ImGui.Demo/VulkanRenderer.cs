@@ -1,3 +1,7 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -37,7 +41,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
     /// <summary>
     /// Number of frames that can be in flight at once. Matches <see cref="VulkanWindowContext.MaxFramesInFlight"/>.
     /// Each slot owns its own vertex and index memory so that a frame never writes memory that a previously
-    /// submitted frame may still be reading (imgui_impl_vulkan.cpp:603-626).
+    /// submitted frame may still be reading.
     /// </summary>
     public const int FrameSlotCount = 2;
 
@@ -620,7 +624,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 var cmd = cmdList.CmdBuffer[j];
 
                 // A user callback replaces the triangle submission for its command. Canonical checks the
-                // callback first (imgui_impl_vulkan.cpp:677-690).
+                // callback first.
                 if (cmd.UserCallback != null)
                 {
                     cmd.UserCallback(cmdList, cmd);

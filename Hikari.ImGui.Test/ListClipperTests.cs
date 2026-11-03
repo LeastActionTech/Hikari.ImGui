@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -7,8 +11,7 @@ namespace Hikari.ImGui.Test;
 /// <summary>
 /// Verifies the canonical <see cref="ImGuiListClipper"/> against fixed window geometry so that every
 /// displayed range is a concrete pair of item indices rather than a broad boolean. The expected
-/// ranges are derived from the rules in Dear ImGui <c>v1.92.9b-docking</c>
-/// <c>ThirdParty/imgui/imgui.cpp:3340-3660</c> and <c>ThirdParty/imgui/imgui_internal.h:1712-1734</c>.
+/// ranges are derived from canonical Dear ImGui rules.
 /// </summary>
 /// <remarks>
 /// Each test submits a decorated-nowhere window with zero padding and zero item spacing, so the
@@ -75,7 +78,7 @@ public class ListClipperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an auto-measured clipper first exposes one item for measurement, then exposes the
     /// visible range, and finally reports the full count once the loop ends. Canonical step semantics
-    /// are in <c>ThirdParty/imgui/imgui.cpp:3503-3646</c>.
+    /// are.
     /// </summary>
     [Test]
     public void Step_AutoMeasuredHeight_ExposesMeasureThenVisibleRange()
@@ -101,7 +104,7 @@ public class ListClipperTests : ImGuiTestFixture
             ImGui.Dummy(new ImVec2(0.0f, 10.0f));
 
             // Step 2 has inferred ItemsHeight = (10 - 0) / (1 - 0) = 10 and can now expose the visible
-            // range. The cursor sits at Y = 10, so the clip rectangle [0, 200] maps to items 1..20.
+            // range. The cursor sits at Y = 10, so the clip rectangle [0, 200] maps to items 1.20.
             secondStep[0] = clipper.Step();
             secondStart[0] = clipper.DisplayStart;
             secondEnd[0] = clipper.DisplayEnd;
@@ -124,7 +127,6 @@ public class ListClipperTests : ImGuiTestFixture
     /// Verifies that a clipper given an item height up front skips the measurement step and exposes the
     /// visible range immediately. Canonical computes positions with
     /// <c>(pos - cursorY - lossyness) / itemsHeight</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3610-3625</c>).
     /// </summary>
     [Test]
     public void Step_KnownHeight_ExposesVisibleRangeImmediately()
@@ -150,7 +152,7 @@ public class ListClipperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiListClipper.IncludeItemsByIndex"/> keeps an off-screen range in the
     /// display set and that the visible range is sorted before it. Canonical sorts and fuses ranges in
-    /// <c>ImGuiListClipper_SortAndFuseRanges</c> (<c>ThirdParty/imgui/imgui.cpp:3340-3355</c>).
+    /// <c>ImGuiListClipper_SortAndFuseRanges</c>.
     /// </summary>
     [Test]
     public void IncludeItemsByIndex_AddsUnclippedRange_AndSortsIt()
@@ -184,7 +186,6 @@ public class ListClipperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the double-precision seek arithmetic: the cursor lands at
     /// <c>StartPosY + StartSeekOffsetY + itemIndex * ItemsHeight</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3466-3473</c>).
     /// </summary>
     [Test]
     public void SeekCursorForItem_MovesCursorToExactPosition()
@@ -209,7 +210,6 @@ public class ListClipperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the indeterminate-count contract: <c>Begin(int.MaxValue)</c> never advances the cursor
     /// on its final step, and the caller seeks manually afterwards
-    /// (<c>ThirdParty/imgui/imgui.cpp:3640-3645</c>).
     /// </summary>
     [Test]
     public void SeekCursorForItem_IndeterminateCount_DoesNotAdvanceOnFinalStep()
@@ -238,7 +238,7 @@ public class ListClipperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiListClipper.End"/> restores the context's stacked clipper count and
     /// resets the visible range. Canonical releases the pooled temporary data in
-    /// <c>ImGuiListClipper::End</c> (<c>ThirdParty/imgui/imgui.cpp:3430-3453</c>).
+    /// <c>ImGuiListClipper::End</c>.
     /// </summary>
     [Test]
     public void End_ReleasesTemporaryDataAndResetsRange()
@@ -266,7 +266,7 @@ public class ListClipperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that calling <see cref="ImGuiListClipper.End"/> after the clipper has already finished stepping is
     /// a no-op. The demo closes its clippers in a <c>finally</c> block, so this second call must be safe
-    /// (<c>ThirdParty/imgui/imgui.cpp</c> <c>ImGuiListClipper::End</c>).
+    ///.
     /// </summary>
     [Test]
     public void End_AfterCompletedStepping_IsIdempotent()

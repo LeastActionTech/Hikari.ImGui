@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -9,9 +13,7 @@ namespace Hikari.ImGui.Test;
 /// submission and placement owned by <c>ImGuiWidgets.cs</c>.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui.cpp</c>; each test cites the canonical line
-/// range that defines the behavior it pins.
+/// Each test drives a real <see cref="ImGuiContext"/> against canonical Dear ImGui.
 /// </remarks>
 [TestFixture]
 public class PopupAndTooltipTests : ImGuiTestFixture
@@ -66,8 +68,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// Verifies the canonical popup lifecycle across frames: <see cref="ImGui.OpenPopup(string, ImGuiPopupFlags)"/>
     /// makes <see cref="ImGui.BeginPopup"/> report open on the current and the following frame, and
     /// <see cref="ImGui.CloseCurrentPopup"/> removes it from the open-popup stack so the next frame
-    /// reports closed (<c>ThirdParty/imgui/imgui.cpp:13114-13146</c>, <c>13279-13305</c>,
-    /// <c>13310-13420</c>).
+    /// reports closed.
     /// </summary>
     [Test]
     public void OpenPopup_BeginPopup_CloseCurrentPopup_Lifecycle()
@@ -102,7 +103,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that focusing a window closes an open popup that is not a descendant of that window
-    /// (<c>ThirdParty/imgui/imgui.cpp:13917-13925</c>). The popup opened from the first window is removed
+    ///. The popup opened from the first window is removed
     /// from the open-popup stack when the second window is focused.
     /// </summary>
     [Test]
@@ -110,7 +111,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     {
         ImVec2 size = new(300.0f, 200.0f);
         // The popup must be submitted so that its window exists; an entry with a null window is skipped by
-        // canonical ClosePopupsOverWindow (imgui.cpp:13191-13236).
+        // canonical ClosePopupsOverWindow.
         WindowFrame("A", size, () =>
         {
             ImGui.OpenPopup("P");
@@ -126,8 +127,8 @@ public class PopupAndTooltipTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a right click on empty space closes the open popup and restores focus to the window
-    /// under it, rather than leaving the popup focused (<c>ThirdParty/imgui/imgui.cpp:5630-5637</c>,
-    /// <c>ClosePopupToLevel(..., restoreFocusToWindowUnder: true)</c>).
+    /// under it, rather than leaving the popup focused (,
+    /// <c>ClosePopupToLevel(., restoreFocusToWindowUnder: true)</c>).
     /// </summary>
     [Test]
     public void RightClick_ClosesPopupWithoutChangingFocus()
@@ -155,7 +156,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     }
 
     /// <summary>
-    /// Verifies that Escape closes the top non-modal popup (<c>ThirdParty/imgui/imgui.cpp:15200-15204</c>).
+    /// Verifies that Escape closes the top non-modal popup.
     /// </summary>
     [Test]
     public void Escape_ClosesTopNonModalPopup()
@@ -181,7 +182,6 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// Verifies that an open modal blocks interaction with the window underneath: with the mouse over
     /// a button in the lower window, its item and window hover queries report false while the modal is
     /// open, but true while no modal is open
-    /// (<c>ThirdParty/imgui/imgui.cpp:13377-13420</c>).
     /// </summary>
     [Test]
     public void BeginPopupModal_BlocksWindowBelow()
@@ -242,7 +242,6 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// Verifies the canonical <c>AnyPopupId</c>/<c>AnyPopupLevel</c> queries of
     /// <see cref="ImGui.IsPopupOpen(uint, ImGuiPopupFlags)"/>: no popup reports false, and an open
     /// popup reports true for every any-popup combination
-    /// (<c>ThirdParty/imgui/imgui.cpp:13015-13044</c>).
     /// </summary>
     [Test]
     public void IsPopupOpen_AnyPopupFlags()
@@ -268,7 +267,6 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiPopupFlags.NoOpenOverExistingPopup"/> refuses to open a second
     /// popup while one is already open at the current level
-    /// (<c>ThirdParty/imgui/imgui.cpp:13133-13180</c>).
     /// </summary>
     [Test]
     public void OpenPopup_NoOpenOverExistingPopup_RefusesWhileOpen()
@@ -288,7 +286,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiPopupFlags.NoReopen"/> does not duplicate an already-open popup
-    /// on the open-popup stack (<c>ThirdParty/imgui/imgui.cpp:13133-13180</c>).
+    /// on the open-popup stack.
     /// </summary>
     [Test]
     public void OpenPopup_NoReopen_DoesNotDuplicate()
@@ -310,7 +308,6 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.BeginPopupContextItem(string, ImGuiPopupFlags)"/> opens on a
     /// right-button release over the last item and returns true for the popup content
-    /// (<c>ThirdParty/imgui/imgui.cpp:13445-13511</c>).
     /// </summary>
     [Test]
     public void BeginPopupContextItem_OpensOnRightClickRelease()
@@ -361,7 +358,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiPopupFlags.NoOpenOverItems"/> suppresses the window context menu
-    /// while an item is hovered (<c>ThirdParty/imgui/imgui.cpp:13456-13523</c>).
+    /// while an item is hovered.
     /// </summary>
     [Test]
     public void BeginPopupContextWindow_NoOpenOverItems()
@@ -403,7 +400,6 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.BeginPopupContextVoid(string, ImGuiPopupFlags)"/> opens on a
     /// right-button release while no window is hovered
-    /// (<c>ThirdParty/imgui/imgui.cpp:13525-13537</c>).
     /// </summary>
     [Test]
     public void BeginPopupContextVoid_OpensOnEmptyArea()
@@ -443,7 +439,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.BeginTooltip"/> / <see cref="ImGui.EndTooltip"/> and
     /// <see cref="ImGui.SetTooltip(string, object?[])"/> create a tooltip window carrying the canonical
     /// flag set (<c>Tooltip | NoInputs | NoTitleBar | NoMove | NoResize | NoSavedSettings |
-    /// AlwaysAutoResize | NoDocking</c>) (<c>ThirdParty/imgui/imgui.cpp:12923-12990</c>).
+    /// AlwaysAutoResize | NoDocking</c>).
     /// </summary>
     [Test]
     public void SetTooltip_CreatesTooltipWindowWithCanonicalFlags()
@@ -486,8 +482,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// Verifies the canonical tooltip placement math: <see cref="ImGui.FindBestWindowPosForPopup"/>
     /// resolves the mouse-anchored reference position plus <c>TOOLTIP_DEFAULT_OFFSET_MOUSE</c> and then
     /// clamps it against the mouse avoidance rectangle, whose right edge is
-    /// <c>ref.x + 24 * scale</c> for the preferred right direction
-    /// (<c>ThirdParty/imgui/imgui.cpp:1379-1381</c>, <c>13640-13700</c>).
+    /// <c>ref.x + 24 * scale</c> for the preferred right direction.
     /// </summary>
     [Test]
     public void TooltipPlacement_FindBestWindowPosMatchesCanonicalOffset()
@@ -512,7 +507,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
 
         // The reference offset is (16, 10); the preferred right direction pins X to the avoidance
         // rectangle's right edge (24 px) and keeps the reference Y. The reference X carries the
-        // canonical one-pixel offset from NavCalcPreferredRefPos (imgui.cpp:14607-14643).
+        // canonical one-pixel offset from NavCalcPreferredRefPos.
         float expectedX = mouse.X + 1.0f + 24.0f * scale;
         float expectedY = mouse.Y + TooltipDefaultOffsetMouse.Y * scale;
         Assert.That(placed.X, Is.EqualTo(expectedX).Within(1e-3f));
@@ -522,7 +517,7 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an automatically placed tooltip window follows the mouse using the canonical
     /// default offset. Canonical assigns <c>window-&gt;Pos = FindBestWindowPosForPopup(window)</c> while
-    /// beginning a tooltip window (<c>ThirdParty/imgui/imgui.cpp:8335-8341</c>, <c>13640-13700</c>).
+    /// beginning a tooltip window.
     /// </summary>
     /// <remarks>
     /// Ignored because the port's <c>Begin</c> leaves all three automatic popup/child-menu/tooltip
@@ -556,7 +551,6 @@ public class PopupAndTooltipTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetItemTooltip(string, object?[])"/> submits a tooltip only while
     /// the last item is hovered with the canonical tooltip hover flags
-    /// (<c>ThirdParty/imgui/imgui.cpp:12994-13007</c>).
     /// </summary>
     [Test]
     public void SetItemTooltip_OnlyWhenHovered()

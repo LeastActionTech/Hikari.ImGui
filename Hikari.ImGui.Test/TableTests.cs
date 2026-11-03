@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -11,11 +15,8 @@ namespace Hikari.ImGui.Test;
 /// that bind tables to the window system.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui_tables.cpp</c> with the table structures in
-/// <c>ThirdParty/imgui/imgui_internal.h</c>; every test cites the canonical line range that defines
-/// the behavior it pins. Geometry expectations are derived from the canonical layout arithmetic
-/// (<c>imgui_tables.cpp:849-1459</c>) using the port's default <c>Style.CellPadding</c> of
+/// Each test drives a real <see cref="ImGuiContext"/>. Geometry expectations are derived from the canonical layout arithmetic
+///. using the port's default <c>Style.CellPadding</c> of
 /// <c>(4, 2)</c> and <c>Style.ItemSpacing</c> of <c>(8, 4)</c>.
 /// </remarks>
 [TestFixture]
@@ -76,7 +77,6 @@ public class TableTests : ImGuiTestFixture
     /// The hover frame is required because table headers use the
     /// <see cref="ImGuiButtonFlags.AllowOverlap"/> path, whose hover test only succeeds once the item
     /// was already the hovered identifier on the previous frame
-    /// (<c>ThirdParty/imgui/imgui.cpp:5180-5186</c>).
     /// </remarks>
     private void ClickAt(ImVec2 point, Action body)
     {
@@ -91,7 +91,6 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Holds Shift and performs a <see cref="ClickAt"/>, which is the canonical request to append a
     /// second sort specification rather than replace the current one.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:4436-4440</c>)
     /// </summary>
     /// <param name="point">Screen-space click position.</param>
     /// <param name="body">Table submission run on both frames.</param>
@@ -110,7 +109,7 @@ public class TableTests : ImGuiTestFixture
     /// <returns>The header cell rectangle in screen coordinates.</returns>
     /// <remarks>
     /// The port stores the layout cursor and therefore the table rectangle and column bounds in
-    /// absolute screen coordinates (<c>imgui_tables.cpp:1117-1173</c>), so no window origin is added.
+    /// absolute screen coordinates., so no window origin is added.
     /// </remarks>
     private static ImRect HeaderCellScreenRect(ImGuiTable table, int columnN)
     {
@@ -139,7 +138,7 @@ public class TableTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a tree node submitted inside a table records the current table column for its hierarchy
-    /// lines, so that the line is drawn in that column's channel (<c>ThirdParty/imgui/imgui_widgets.cpp:6912</c>).
+    /// lines, so that the line is drawn in that column's channel.
     /// </summary>
     [Test]
     public void TreeNode_DrawLinesRecordsCurrentTableColumn()
@@ -160,7 +159,6 @@ public class TableTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that outside a table the tree node records no table column, as canonical
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6912</c>).
     /// </summary>
     [Test]
     public void TreeNode_DrawLinesOutsideTableUsesNoColumn()
@@ -180,8 +178,6 @@ public class TableTests : ImGuiTestFixture
     /// column count, starts with no current row, and that <see cref="ImGui.EndTable"/> clears the
     /// ambient table and advances the outer window cursor to the table's outer-rectangle bottom plus
     /// the canonical item spacing.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:315-319</c>, <c>526-527</c>, <c>1460-1500</c>,
-    /// <c>1616-1642</c>)
     /// </summary>
     [Test]
     public void Lifecycle_BeginTableAndEndTable_RestoreAmbientStateAndCursor()
@@ -215,7 +211,6 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.BeginTable"/> returns false and begins nothing when the host
     /// window skips items, which is the canonical early-out for a clipped or collapsed host.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:322-328</c>)
     /// </summary>
     [Test]
     public void Lifecycle_BeginTableInSkippedWindow_ReturnsFalse()
@@ -239,7 +234,6 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a table nested inside a cell of another table stacks its temporary data and
     /// that ending the inner table restores the outer table as the ambient table.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:560-570</c>, <c>1705-1725</c>)
     /// </summary>
     [Test]
     public void Lifecycle_NestedTables_RestoreParentAsAmbientTable()
@@ -277,7 +271,6 @@ public class TableTests : ImGuiTestFixture
     /// <see cref="ImGuiTableColumnFlags.WidthStretch"/> column resolve to the canonical
     /// <see cref="ImGuiTableColumn.WidthGiven"/> values, that the columns tile the outer rectangle
     /// without gaps, and that the widths plus the inter-column spacing fill the 400-pixel outer size.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:908-1080</c>, <c>1117-1245</c>)
     /// </summary>
     [Test]
     public void Columns_FixedAndStretchWidths_ResolveAndFillOuterWidth()
@@ -328,7 +321,6 @@ public class TableTests : ImGuiTestFixture
     /// Verifies that two stretch columns divide the available width by their
     /// <c>initWidthOrWeight</c> weights: weights 1 and 3 split 392 pixels into 98 and 294, and the
     /// weights plus spacing fill the 400-pixel outer size.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1025-1070</c>)
     /// </summary>
     [Test]
     public void Columns_StretchWeights_DistributeAvailableWidth()
@@ -359,7 +351,6 @@ public class TableTests : ImGuiTestFixture
     /// the next layout: the column stays in the declared count but is disabled, collapses to zero
     /// width, and stops requesting output. A column marked
     /// <see cref="ImGuiTableColumnFlags.Disabled"/> is disabled unconditionally.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:913-921</c>, <c>1146-1164</c>, <c>1921-1932</c>)
     /// </summary>
     [Test]
     public void Columns_HiddenOrDisabledColumn_IsExcludedFromLayout()
@@ -431,7 +422,6 @@ public class TableTests : ImGuiTestFixture
     /// negative one, <see cref="ImGui.TableNextRow"/> advances the row index, and
     /// <see cref="ImGui.TableNextColumn"/> walks columns zero through two before wrapping to the
     /// next row's first column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:2062-2085</c>, <c>2312-2334</c>)
     /// </summary>
     [Test]
     public void Rows_NextRowAndNextColumn_AdvanceIndicesAndWrap()
@@ -472,7 +462,6 @@ public class TableTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TableSetColumnIndex"/> sets the current column and that
     /// <see cref="ImGui.TableGetColumnName(int)"/> returns the label supplied to
     /// <see cref="ImGui.TableSetupColumn"/> both before layout and for the current column.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:1894-1913</c>, <c>2291-2310</c>)
     /// </summary>
     [Test]
     public void Rows_SetColumnIndex_SelectsColumnAndExposesName()
@@ -502,7 +491,7 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.TableSetBgColor"/> records row-layer and per-cell background
     /// requests on the table instead of drawing immediately, because the row height is unknown until
-    /// the row ends. (<c>ThirdParty/imgui/imgui_tables.cpp:1999-2040</c>)
+    /// the row ends.
     /// </summary>
     [Test]
     public void Rows_SetBgColor_RecordsRowAndCellRequests()
@@ -539,7 +528,6 @@ public class TableTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TableHeadersRow"/> opens a header row whose height is the
     /// larger of the font size and every displayed header label plus twice the vertical cell padding,
     /// and that every enabled column receives a header whose used width extends past its work origin.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3249-3263</c>, <c>3284-3320</c>, <c>3325-3465</c>)
     /// </summary>
     [Test]
     public void Headers_HeadersRow_EmitsOneHeaderPerColumnAtCanonicalRowHeight()
@@ -572,7 +560,6 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that clicking a sortable column header cycles its sort direction: the automatic
     /// default sort is ascending, and one click moves the single specification to descending.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3093-3103</c>, <c>4436-4440</c>)
     /// </summary>
     [Test]
     public void Headers_SortableHeaderClick_TogglesSortDirection()
@@ -606,7 +593,6 @@ public class TableTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TableAngledHeadersRow"/> consumes the columns marked
     /// <see cref="ImGuiTableColumnFlags.AngledHeader"/>, reports their count, and derives a positive
     /// angled-header band height without asserting.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3469-3501</c>, <c>3525-3540</c>)
     /// </summary>
     [Test]
     public void Headers_AngledRow_HandlesAngledColumns()
@@ -638,7 +624,6 @@ public class TableTests : ImGuiTestFixture
     /// a non-null specification record for a sortable table, that an unsorted sortable table defaults
     /// to the first enabled column ascending, and that the caller clearing
     /// <see cref="ImGuiTableSortSpecs.SpecsDirty"/> keeps it clear until the sort changes.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3059-3072</c>, <c>3189-3204</c>, <c:3206-3236</c>)
     /// </summary>
     [Test]
     public void Sorting_SortableTable_DefaultsToFirstColumnAndClearsSpecsDirty()
@@ -673,7 +658,6 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that hiding the default-sorted column moves the automatic default sort to the first
     /// remaining enabled column and that the exposed specification follows it.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3189-3204</c>)
     /// </summary>
     [Test]
     public void Sorting_HiddenDefaultColumn_MovesDefaultSortToNextEnabledColumn()
@@ -716,7 +700,6 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that with <see cref="ImGuiTableFlags.SortMulti"/> a Shift-click on a second header
     /// appends a second specification with a dense sort order instead of replacing the first.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3107-3138</c>, <c>3945-3946</c>)
     /// </summary>
     [Test]
     public void Sorting_MultiSort_ShiftClickAppendsSecondSpecification()
@@ -746,7 +729,7 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a sortable table with <see cref="ImGuiTableFlags.SortTristate"/> publishes a
     /// non-null specification record with zero specifications, because tristate sorting suppresses
-    /// the automatic default sort. (<c>ThirdParty/imgui/imgui_tables.cpp:3189-3204</c>)
+    /// the automatic default sort.
     /// </summary>
     [Test]
     public void Sorting_SortTristate_ReportsZeroSpecifications()
@@ -769,8 +752,8 @@ public class TableTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TableSetupScrollFreeze"/> records the frozen-column and
     /// frozen-row requests, promotes them to active counts once the scrolling table has a non-zero
     /// scroll offset, bounds the frozen column's maximum width, and advances the following column's
-    /// clip rectangle past the frozen column. (<c>ThirdParty/imgui/imgui_tables.cpp:1856-1870</c>,
-    /// <c>1131-1144</c>, <c>1241-1242</c>, <c>2434-2463</c>)
+    /// clip rectangle past the frozen column. (,
+    /// canonical layout arithmetic)
     /// </summary>
     [Test]
     public void ScrollFreeze_FreezesFirstColumnAndRow()
@@ -812,7 +795,6 @@ public class TableTests : ImGuiTestFixture
     /// <see cref="ImGui.TableBeginContextMenuPopup"/> opens the table's default context-menu popup
     /// for the interacted instance and that <see cref="ImGui.TableDrawDefaultContextMenu"/> submits
     /// its sections without error.
-    /// (<c>ThirdParty/imgui/imgui_tables.cpp:3647-3675</c>, <c>3715-3829</c>)
     /// </summary>
     [Test]
     public void ContextMenu_OpenAndDrawDefaultPopup()
@@ -846,7 +828,7 @@ public class TableTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that with two windows present a table submitted by the second window still lays out
     /// and resolves its columns, which pins the <c>SetCurrentWindow</c> ambient-table resolution that
-    /// <see cref="ImGuiTables"/> depends on. (<c>ThirdParty/imgui/imgui.cpp:4802-4821</c>)
+    /// <see cref="ImGuiTables"/> depends on.
     /// </summary>
     [Test]
     public void Regression_TwoWindows_TableLaysOutAndColumnsResolve()
@@ -885,7 +867,6 @@ public class TableTests : ImGuiTestFixture
     /// host window and clears it when switching to a window without a table, and that
     /// <see cref="ImGui.GetContentRegionAvail"/> inside a table cell reports the column's width
     /// rather than the host window's content region.
-    /// (<c>ThirdParty/imgui/imgui.cpp:4802-4821</c>, <c>12536-12543</c>)
     /// </summary>
     [Test]
     public void Regression_AmbientTableResolutionAndCellContentRegion()
@@ -924,7 +905,7 @@ public class TableTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that table collections and ambient pointers are cleared on context shutdown.
-    /// Canonical: <c>imgui.cpp:4680-4685</c> (Bug 5-B1).
+    /// (Bug 5-B1).
     /// </summary>
     [Test]
     public void TableShutdown_CleansUpTableCollectionsAndAmbientPointer()
@@ -947,14 +928,14 @@ public class TableTests : ImGuiTestFixture
 
         // Recreate _ctx so TearDown completes cleanly.
         _ctx = ImGui.CreateContext();
-        _ctx.IO.IniFilename = null; // Tests must never read or write the developer's .ini file.
+        _ctx.IO.IniFilename = null; // Tests must never read or write the developer's.ini file.
         _ctx.IO.DisplaySize = new ImVec2(1024.0f, 768.0f);
         _ctx.IO.DeltaTime = 1.0f / 60.0f;
     }
 
     /// <summary>
     /// Verifies that clipped table header label calculation properly extracts the visible label prefix.
-    /// Canonical: <c>imgui_tables.cpp:3455-3457</c> (Bug 5-B2).
+    /// (Bug 5-B2).
     /// </summary>
     [Test]
     public void TableHeader_ClippedTextTooltip_UsesVisiblePrefix()
@@ -970,7 +951,7 @@ public class TableTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that sort specs sanitization on tables with >64 columns does not wrap or alias bitmasks.
-    /// Canonical: <c>imgui_tables.cpp:3133-3150</c> (Bug 5-B3).
+    /// (Bug 5-B3).
     /// </summary>
     [Test]
     public void TableSortSpecsSanitize_Over64Columns_DoesNotWrapBitmask()
@@ -996,7 +977,7 @@ public class TableTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that navigation horizontal push scrolling is disabled while inside a table.
-    /// Canonical: <c>imgui.cpp:14261-14266</c> (Bug 5-B4).
+    /// (Bug 5-B4).
     /// </summary>
     [Test]
     public void NavUpdateCurrentWindowIsScrollPushableX_InsideTable_SetsFalse()
@@ -1019,7 +1000,7 @@ public class TableTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that calling TableNextRow outside of BeginTable scope reports user error and returns early.
-    /// Canonical: <c>imgui_tables.cpp:1860, 2065</c> (Bug 5-B5).
+    /// (Bug 5-B5).
     /// </summary>
     [Test]
     public void TableNextRow_OutsideTable_ReportsUserErrorAndDoesNotCrash()

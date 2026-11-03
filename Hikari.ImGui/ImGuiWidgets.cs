@@ -1,64 +1,24 @@
-// ROLE IN ENGINE
-// ==============
-// The immediate-mode widget surface: text and render helpers, basic widgets, trees, menus, popups and
-// tooltips, drag and slider widgets, text and scalar input widgets, color widgets, plots, typing
-// select, and the data-type and color-conversion helpers they share. This file is the C# counterpart
-// of canonical Dear ImGui `imgui_widgets.cpp`, plus the popup and tooltip sections that canonical
-// keeps in `imgui.cpp`. It completes the partial `ImGui` class declared by `ImGui.cs`.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-// =================================
-//   caller code
-//       |
-//       v
-//   ImGui.Text/Button/Slider/InputText/...  -->  ItemSize/ItemAdd (ImGui.cs)  -->  layout cursor
-//       |                                              |
-//       |                                              v
-//       |                                     ImGui.LastItemData (bounds, id, flags, status)
-//       |                                              |
-//       +--> ButtonBehavior/SetActiveID (ImGui.cs) <---+
-//       |
-//       +--> RenderTextClipped/RenderFrame/RenderArrow (this file) --> ImDrawList --> ImDrawData
-//
-//   Input text widgets additionally drive the STB editor state machine in `ImStbTextedit.cs`,
-//   which mutates the UTF-8 buffer held by `ImGuiInputTextState`.
-//
-// STYLIZED USAGE EXAMPLE
-// ======================
-//   ImGui.NewFrame();
-//   if (ImGui.Begin("Game"))
-//   {
-//       if (ImGui.Button("Save"))
-//           Save();
-//       ImGui.SliderFloat("Volume", ref volume, 0.0f, 1.0f);
-//       ImGui.InputText("Name", ref playerName);
-//       ImGui.End();
-//   }
-//   ImGui.Render();
-//
-// THREADING & LIFECYCLE NOTES
-// ===========================
-// The widget surface is owned by the current context and must be called between `ImGui.NewFrame` and
-// `ImGui.EndFrame` on that context's thread. Widget functions are not reentrant and allocate no
-// per-frame heap memory on their hot paths. `ImStbTextedit` state lives in `ImGuiInputTextState`,
-// which is owned by the context.
-//
-// Canonical reference: ThirdParty/imgui/imgui_widgets.cpp and imgui.cpp (v1.92.9b-docking, commit b48d1af).
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
 
 namespace Hikari.ImGui;
 
+/// <summary>
+/// Provides immediate-mode GUI operations, context and frame lifecycle management, windowing,
+/// layout, input routing, styling, widgets, tables, and docking facilities.
+/// </summary>
 public static partial class ImGui
 {
 
-    #region SECTION: TEXT AND RENDER HELPERS (imgui_widgets.cpp, imgui.cpp, imgui_draw.cpp)
+    #region SECTION: TEXT AND RENDER HELPERS
 
-    #region Widgets: Text, etc. (imgui_widgets.cpp:139-457)
+    #region Widgets: Text, etc.
 
     /// <summary>
     /// Submits a text run, word-wrapping it when a wrap position is pushed and falling back to manual
     /// vertical coarse clipping for very long unwrapped runs. Canvases canonical
-    /// <c>ImGui::TextEx</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:161-267</c>), declared in
-    /// <c>imgui_internal.h:4037</c>.
+    /// <c>ImGui::TextEx</c>., declared in
     /// </summary>
     /// <param name="text">The text run. Canonical may pass a non-terminated buffer; this port passes a
     /// managed string.</param>
@@ -70,28 +30,28 @@ public static partial class ImGui
     /// <param name="flags">
     /// Canonical <see cref="ImGuiTextFlags"/>. Only <see cref="ImGuiTextFlags.NoWidthForLargeClippedText"/>
     /// is interpreted, and only by the long-text branch, where it suppresses width accumulation for lines
-    /// that are skipped or left unrendered (<c>imgui_widgets.cpp:218-219</c>, <c>254-255</c>).
+    /// that are skipped or left unrendered.
     /// </param>
     /// <remarks>
     /// <para>
     /// Step order follows canonical: skip check, range resolution, wrap decision, the common or
-    /// wrapped path (<c>imgui_widgets.cpp:180-193</c>), then the long-text path with line skipping, line
-    /// rendering, and remaining-line width accumulation (<c>194-266</c>).
+    /// wrapped path., then the long-text path with line skipping, line
+    /// rendering, and remaining-line width accumulation.
     /// </para>
     /// <para>
-    /// Canonical's null-range coercion compares the two end pointers (<c>imgui_widgets.cpp:168-170</c>); an
+    /// Canonical's null-range coercion compares the two end pointers.; an
     /// empty range is represented here by an empty end string and needs no coercion, while an end string
     /// whose content equals the whole text legitimately means the full range.
     /// </para>
     /// <para>
     /// Canonical measures the length guard in buffer bytes (<c>text_end - text &lt;= 2000</c>); this port
     /// measures UTF-16 characters. Canonical obtains the line height from <c>GetTextLineHeight()</c>
-    /// (<c>imgui.cpp:12517-12520</c>) and searches lines with <c>ImMemchr</c>; the port's public line-height
+    ///. and searches lines with <c>ImMemchr</c>; the port's public line-height
     /// accessor is not yet ported, so this method reads <c>g.FontSize</c> directly, which is exactly its
     /// canonical value, and searches with <see cref="string.IndexOf(char, int)"/>.
     /// </para>
     /// <para>
-    /// This end-user function deliberately does not hide text after <c>##</c> (<c>imgui_widgets.cpp:191</c>).
+    /// This end-user function deliberately does not hide text after <c>##</c>.
     /// </para>
     /// </remarks>
     internal static void TextEx(string text, string? textEnd = null, ImGuiTextFlags flags = 0)
@@ -101,7 +61,7 @@ public static partial class ImGui
             return;
         ImGuiContext g = GetCurrentContext()!;
 
-        // Canonical coerces a null range by comparing the two end pointers (imgui_widgets.cpp:168-170).
+        // Canonical coerces a null range by comparing the two end pointers.
         // Under the port's content convention an empty range is an empty end string, which already measures
         // as (0, line height) and draws nothing, so no pointer-equality coercion is required.
         string textRange = ResolveTextRange(text, textEnd);
@@ -110,7 +70,7 @@ public static partial class ImGui
         bool wrapEnabled = wrapPosX >= 0.0f;
         if (textRange.Length <= 2000 || wrapEnabled)
         {
-            // Common case (imgui_widgets.cpp:180-193).
+            // Common case.
             float wrapWidth = wrapEnabled ? CalcWrapWidthForPos(window.DC.CursorPos, wrapPosX) : 0.0f;
             ImVec2 textSize = CalcTextSize(textRange, false, wrapWidth);
 
@@ -124,8 +84,7 @@ public static partial class ImGui
         else
         {
             // Long text: manual coarse clipping so only visible lines are measured
-            // (imgui_widgets.cpp:194-266).
-            float lineHeight = g.FontSize; // Canonical GetTextLineHeight() (imgui.cpp:12517-12520).
+            float lineHeight = g.FontSize; // Canonical GetTextLineHeight().
             ImVec2 textSize = ImVec2.Zero;
             ImVec2 pos = textPos;
             int lineStart = 0;
@@ -149,7 +108,7 @@ public static partial class ImGui
                 }
             }
 
-            // Lines to render (imgui_widgets.cpp:227-245). The line rectangle starts at the first
+            // Lines to render. The line rectangle starts at the first
             // visible line and advances with the cursor so IsClippedEx() can stop the loop.
             if (lineStart < textRange.Length)
             {
@@ -169,7 +128,6 @@ public static partial class ImGui
                 }
 
                 // Count remaining lines and accumulate their width unless suppressed
-                // (imgui_widgets.cpp:247-259).
                 int linesSkipped = 0;
                 while (lineStart < textRange.Length)
                 {
@@ -185,7 +143,7 @@ public static partial class ImGui
 
             ImRect bb = new(textPos, textPos + textSize);
             ItemSize(textSize, 0.0f);
-            ItemAdd(bb, 0); // Canonical ignores the return value in this branch (imgui_widgets.cpp:265).
+            ItemAdd(bb, 0); // Canonical ignores the return value in this branch.
         }
     }
 
@@ -216,7 +174,7 @@ public static partial class ImGui
     /// <returns>The exclusive line end index.</returns>
     /// <remarks>
     /// Substitutes canonical <c>ImMemchr(line, '\n', text_end - line)</c>, which returns a null pointer
-    /// when no newline is found and is then replaced by <c>text_end</c> (<c>imgui_widgets.cpp:211-213</c>).
+    /// when no newline is found and is then replaced by <c>text_end</c>.
     /// </remarks>
     private static int FindLineEnd(string text, int lineStart)
     {
@@ -226,8 +184,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits raw text without formatting. Canvases canonical
-    /// <c>ImGui::TextUnformatted</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:271-274</c>), declared in
-    /// <c>imgui.h:625</c>.
+    /// <c>ImGui::TextUnformatted</c>., declared in
     /// </summary>
     /// <param name="text">The raw text run, which may contain <c>##</c> (the marker is rendered here).</param>
     /// <param name="textEnd">The canonical exclusive end expressed as the resolved range content, or
@@ -244,7 +201,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text. Canvases canonical <c>ImGui::Text</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:276-282</c>), declared in <c>imgui.h:626</c>.
+    ///.
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -257,7 +214,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text from a pre-built argument array. Canvases canonical <c>ImGui::TextV</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:284-293</c>), declared in <c>imgui.h:627</c>.
+    ///.
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -266,7 +223,6 @@ public static partial class ImGui
     /// temporary-buffer <c>(text, text_end)</c> pair is represented by that string alone and
     /// <see cref="TextEx"/> receives a null end. Passes
     /// <see cref="ImGuiTextFlags.NoWidthForLargeClippedText"/>, exactly as canonical
-    /// (<c>imgui_widgets.cpp:292</c>).
     /// </remarks>
     public static void TextV(string fmt, object?[] args)
     {
@@ -280,7 +236,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text in a temporary text color. Canvases canonical <c>ImGui::TextColored</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:295-301</c>), declared in <c>imgui.h:628</c>.
+    ///.
     /// </summary>
     /// <param name="col">Text color pushed for the duration of the call.</param>
     /// <param name="fmt">Canonical printf-style format string.</param>
@@ -292,8 +248,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text in a temporary text color from a pre-built argument array. Canvases canonical
-    /// <c>ImGui::TextColoredV</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:303-308</c>), declared in
-    /// <c>imgui.h:629</c>.
+    /// <c>ImGui::TextColoredV</c>., declared in
     /// </summary>
     /// <param name="col">Text color pushed for the duration of the call.</param>
     /// <param name="fmt">Canonical printf-style format string.</param>
@@ -308,7 +263,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text in the disabled text color. Canvases canonical <c>ImGui::TextDisabled</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:310-316</c>), declared in <c>imgui.h:630</c>.
+    ///.
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -319,8 +274,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text in the disabled text color from a pre-built argument array. Canvases canonical
-    /// <c>ImGui::TextDisabledV</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:318-324</c>), declared in
-    /// <c>imgui.h:631</c>.
+    /// <c>ImGui::TextDisabledV</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -334,8 +288,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text with word-wrapping enabled at the end of the available width. Canvases
-    /// canonical <c>ImGui::TextWrapped</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:326-332</c>), declared in
-    /// <c>imgui.h:632</c>.
+    /// canonical <c>ImGui::TextWrapped</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -346,14 +299,13 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted wrapped text from a pre-built argument array. Canvases canonical
-    /// <c>ImGui::TextWrappedV</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:334-343</c>), declared in
-    /// <c>imgui.h:633</c>.
+    /// <c>ImGui::TextWrappedV</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
     /// <remarks>
     /// A wrap position is pushed only when the current one is negative, so an explicitly pushed wrap
-    /// position is preserved (<c>imgui_widgets.cpp:336-337</c>).
+    /// position is preserved.
     /// </remarks>
     public static void TextWrappedV(string fmt, object?[] args)
     {
@@ -368,8 +320,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits formatted text aligned horizontally inside a given width. Canvases canonical
-    /// <c>ImGui::TextAligned</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:345-351</c>), declared in
-    /// <c>imgui_internal.h:4038</c> and therefore internal.
+    /// <c>ImGui::TextAligned</c>., declared in
+    ///  and therefore internal.
     /// </summary>
     /// <param name="alignX">Horizontal alignment: <c>0.0</c> left, <c>0.5</c> centered, <c>1.0</c> right.</param>
     /// <param name="sizeX">Layout width, or <c>0.0</c> for the available content width.</param>
@@ -383,8 +335,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits horizontally aligned formatted text from a pre-built argument array. Canvases canonical
-    /// <c>ImGui::TextAlignedV</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:356-383</c>), declared in
-    /// <c>imgui_internal.h:4039</c> and therefore internal.
+    /// <c>ImGui::TextAlignedV</c>., declared in
+    ///  and therefore internal.
     /// </summary>
     /// <param name="alignX">Horizontal alignment: <c>0.0</c> left, <c>0.5</c> centered, <c>1.0</c> right.</param>
     /// <param name="sizeX">Layout width, or <c>0.0</c> for the available content width.</param>
@@ -395,7 +347,7 @@ public static partial class ImGui
     /// Step order follows canonical: measure the text, resolve the width with <see cref="CalcItemSize"/>,
     /// extend content extents manually, offset for alignment, render through <see cref="RenderTextEllipsis"/>,
     /// submit the item, then restore the horizontal content maximum so right-aligned text does not inflate
-    /// the content width (<c>imgui_widgets.cpp:370-379</c>).
+    /// the content width.
     /// </para>
     /// <para>
     /// The content-extent fields are properties, so each is read into a local, modified, and written back;
@@ -441,8 +393,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a label followed by a formatted value, aligned like the label+value part of a framed widget.
-    /// Canvases canonical <c>ImGui::LabelText</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:385-391</c>),
-    /// declared in <c>imgui.h:634</c>.
+    /// Canvases canonical <c>ImGui::LabelText</c>.,
+    ///.
     /// </summary>
     /// <param name="label">Label text; anything after the first <c>##</c> is hidden.</param>
     /// <param name="fmt">Canonical printf-style format string for the value.</param>
@@ -454,15 +406,14 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a label followed by a formatted value from a pre-built argument array. Canvases canonical
-    /// <c>ImGui::LabelTextV</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:394-421</c>), declared in
-    /// <c>imgui.h:635</c>.
+    /// <c>ImGui::LabelTextV</c>., declared in
     /// </summary>
     /// <param name="label">Label text; anything after the first <c>##</c> is hidden.</param>
     /// <param name="fmt">Canonical printf-style format string for the value.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
     /// <remarks>
     /// The value is measured with <see cref="CalcTextSize(string, bool, float)"/> and the label with
-    /// <c>FindRenderedTextEnd</c>, mirroring canonical's two-pointer forms (<c>imgui_widgets.cpp:404-408</c>).
+    /// <c>FindRenderedTextEnd</c>, mirroring canonical's two-pointer forms.
     /// The label is rendered with <c>hide_text_after_hash = false</c> because it is already truncated.
     /// </remarks>
     public static void LabelTextV(string label, string fmt, object?[] args)
@@ -496,8 +447,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a bullet followed by formatted text, aligned to the typical tree node. Canvases canonical
-    /// <c>ImGui::BulletText</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:423-429</c>), declared in
-    /// <c>imgui.h:636</c>.
+    /// <c>ImGui::BulletText</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -508,12 +458,11 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a bullet followed by formatted text from a pre-built argument array. Canvases canonical
-    /// <c>ImGui::BulletTextV</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:432-456</c>), declared in
-    /// <c>imgui.h:637</c>.
+    /// <c>ImGui::BulletTextV</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
-    /// <remarks>Empty text contributes no label padding (<c>imgui_widgets.cpp:444</c>).</remarks>
+    /// <remarks>Empty text contributes no label padding.</remarks>
     public static void BulletTextV(string fmt, object?[] args)
     {
         ImGuiWindow window = GetCurrentWindow();
@@ -540,12 +489,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region Widgets: Main — TextLink (imgui_widgets.cpp:1527-1595)
+    #region Widgets: Main — TextLink
 
     /// <summary>
     /// Submits a hyperlink-style text button and reports whether it was clicked. Canvases canonical
-    /// <c>ImGui::TextLink</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:1527-1577</c>), declared in
-    /// <c>imgui.h:654</c>.
+    /// <c>ImGui::TextLink</c>., declared in
     /// </summary>
     /// <param name="label">Label text; anything after the first <c>##</c> is hidden and still contributes
     /// to the identifier.</param>
@@ -611,8 +559,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a hyperlink-style text button that opens a file or URL when clicked. Canvases canonical
-    /// <c>ImGui::TextLinkOpenURL</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:1579-1595</c>), declared in
-    /// <c>imgui.h:655</c>.
+    /// <c>ImGui::TextLinkOpenURL</c>., declared in
     /// </summary>
     /// <param name="label">Label text; also the URL when <paramref name="url"/> is
     /// <see langword="null"/>.</param>
@@ -646,12 +593,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region RENDER HELPERS (imgui.cpp:3953-4215)
+    #region RENDER HELPERS
 
     /// <summary>
     /// Draws a text run on the current window's draw list, optionally hiding everything after the first
     /// <c>##</c>. Canvases canonical <c>ImGui::RenderText</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3966-3990</c>), declared in <c>imgui_internal.h:4010</c>.
+    ///.
     /// </summary>
     /// <param name="pos">Top-left text position in screen space.</param>
     /// <param name="text">The text run.</param>
@@ -662,10 +609,10 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Canonical selects <c>FindRenderedTextEnd</c> when hiding and the raw range otherwise
-    /// (<c>imgui.cpp:3972-3982</c>), then draws only when the range is non-empty.
+    ///., then draws only when the range is non-empty.
     /// </para>
     /// <para>
-    /// Canonical's logging side effect (<c>LogRenderedText</c>, <c>imgui.cpp:3987-3988</c>) is reproduced
+    /// Canonical's logging side effect (<c>LogRenderedText</c>, ) is reproduced
     /// when logging is active.
     /// </para>
     /// </remarks>
@@ -688,8 +635,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a text run wrapped at a caller-supplied width on the current window's draw list. Canvases
-    /// canonical <c>ImGui::RenderTextWrapped</c> (<c>ThirdParty/imgui/imgui.cpp:3992-4006</c>), declared in
-    /// <c>imgui_internal.h:4011</c>.
+    /// canonical <c>ImGui::RenderTextWrapped</c>., declared in
     /// </summary>
     /// <param name="pos">Top-left text position in screen space.</param>
     /// <param name="text">The text run.</param>
@@ -698,7 +644,7 @@ public static partial class ImGui
     /// <param name="wrapWidth">Wrap width in pixels; zero disables wrapping.</param>
     /// <remarks>
     /// No <c>##</c> hiding is performed: the range is rendered raw, as canonical documents
-    /// (<c>imgui.cpp:4000-4002</c>). The logging side effect is reproduced when logging is active.
+    ///. The logging side effect is reproduced when logging is active.
     /// </remarks>
     internal static void RenderTextWrapped(ImVec2 pos, string text, string? textEnd, float wrapWidth)
     {
@@ -711,7 +657,7 @@ public static partial class ImGui
             window.DrawList.AddText(g.Font!, g.FontSize, pos, GetColorU32(ImGuiCol.Text), displayText.AsSpan(), wrapWidth);
             if (g.LogEnabled)
                 // The caller's end marker is forwarded so a run whose range was already resolved is
-                // captured verbatim, matching canonical (ThirdParty/imgui/imgui.cpp:4003-4004).
+                // captured verbatim, matching canonical.
                 LogRenderedText(pos, displayText, textEnd);
         }
     }
@@ -719,7 +665,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws a clipped text run on an explicit draw list, performing CPU-side fine clipping instead of
     /// pushing a scissor rectangle. Canvases canonical <c>ImGui::RenderTextClippedEx</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:4013-4039</c>), declared in <c>imgui_internal.h:4013</c>.
+    ///.
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="posMin">Layout minimum; also the default clip minimum.</param>
@@ -735,14 +681,13 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// The alignment expressions are guarded with <c>ImMax</c> in canonical, so the run never moves left or
-    /// up of <paramref name="posMin"/> (<c>imgui.cpp:4026-4027</c>).
+    /// up of <paramref name="posMin"/>.
     /// </para>
     /// <para>
     /// Canonical passes a null font and zero font size to <c>ImDrawList::AddText</c>, which then uses the
     /// draw list's shared font and font size. The port's draw list does not publish its shared data, so the
     /// equivalent non-null values are supplied from the context: <c>g.Font</c> and <c>g.FontSize</c> are
-    /// exactly what canonical publishes into <c>ImDrawListSharedData</c> (<c>imgui.cpp:9814</c>,
-    /// <c>9859</c>).
+    /// exactly what canonical publishes into <c>ImDrawListSharedData</c>.
     /// </para>
     /// </remarks>
     internal static void RenderTextClippedEx(ImDrawList drawList, ImVec2 posMin, ImVec2 posMax, string text, string? textEnd, ImVec2? textSizeIfKnown, ImVec2 align = default, ImRect? clipRect = null)
@@ -777,7 +722,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws a clipped text run on the current window's draw list, always hiding everything after the first
     /// <c>##</c>. Canvases canonical <c>ImGui::RenderTextClipped</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:4041-4054</c>), declared in <c>imgui_internal.h:4012</c>.
+    ///.
     /// </summary>
     /// <param name="posMin">Layout minimum; also the default clip minimum.</param>
     /// <param name="posMax">Layout maximum; also the default clip maximum.</param>
@@ -791,7 +736,7 @@ public static partial class ImGui
     /// <param name="clipRect">Explicit clip rectangle forwarded to <see cref="RenderTextClippedEx"/>.</param>
     /// <remarks>
     /// Unlike <see cref="RenderText"/>, this helper always truncates at <c>##</c>
-    /// (<c>imgui.cpp:4044</c>) and returns without drawing an empty display run. The logging side effect is
+    ///. and returns without drawing an empty display run. The logging side effect is
     /// reproduced when logging is active.
     /// </remarks>
     internal static void RenderTextClipped(ImVec2 posMin, ImVec2 posMax, string text, string? textEnd, ImVec2? textSizeIfKnown, ImVec2 align = default, ImRect? clipRect = null)
@@ -809,8 +754,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a text run with a trailing ellipsis when it overflows its layout rectangle. Canvases canonical
-    /// <c>ImGui::RenderTextEllipsis</c> (<c>ThirdParty/imgui/imgui.cpp:4060-4102</c>), declared in
-    /// <c>imgui_internal.h:4014</c>.
+    /// <c>ImGui::RenderTextEllipsis</c>., declared in
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="posMin">Layout minimum.</param>
@@ -828,7 +772,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// The ellipsis width uses the baked glyph advance scaled by <c>g.FontBakedScale</c>, which canonical
-    /// publishes as <c>ImDrawListSharedData::FontScale</c> (<c>imgui.cpp:9875</c>). The truncated run length
+    /// publishes as <c>ImDrawListSharedData::FontScale</c>. The truncated run length
     /// comes from the port's <c>ImFontCalcTextSizeEx</c> "remaining characters" output, the managed
     /// equivalent of canonical's <c>out_remaining</c> pointer. The logging side effect is reproduced when
     /// logging is active.
@@ -869,8 +813,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a filled rectangle with optional border and drop shadow on the current window's draw list.
-    /// Canvases canonical <c>ImGui::RenderFrame</c> (<c>ThirdParty/imgui/imgui.cpp:4105-4116</c>), declared
-    /// in <c>imgui_internal.h:4015</c>.
+    /// Canvases canonical <c>ImGui::RenderFrame</c>., declared
+    ///.
     /// </summary>
     /// <param name="pMin">Rectangle minimum.</param>
     /// <param name="pMax">Rectangle maximum.</param>
@@ -879,7 +823,7 @@ public static partial class ImGui
     /// <param name="rounding">Corner rounding in pixels.</param>
     /// <remarks>
     /// The border is a pair of one-pixel offset rectangles: the shadow color at <c>(pMin + (1,1))</c> and the
-    /// border color at <paramref name="pMin"/> (<c>imgui.cpp:4110-4115</c>).
+    /// border color at <paramref name="pMin"/>.
     /// </remarks>
     internal static void RenderFrame(ImVec2 pMin, ImVec2 pMax, uint fillCol, bool borders = true, float rounding = 0.0f)
     {
@@ -896,8 +840,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws only the drop-shadow and border pair of a framed rectangle on the current window's draw list.
-    /// Canvases canonical <c>ImGui::RenderFrameBorder</c> (<c>ThirdParty/imgui/imgui.cpp:4118-4128</c>),
-    /// declared in <c>imgui_internal.h:4016</c>.
+    /// Canvases canonical <c>ImGui::RenderFrameBorder</c>.,
+    ///.
     /// </summary>
     /// <param name="pMin">Rectangle minimum.</param>
     /// <param name="pMax">Rectangle maximum.</param>
@@ -917,14 +861,14 @@ public static partial class ImGui
     /// <summary>
     /// Draws the component marker used by color drag/slider widgets on the current window's draw list.
     /// Canvases canonical <c>ImGui::RenderColorComponentMarker</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:4130-4137</c>), declared in <c>imgui_internal.h:4017</c>.
+    ///.
     /// </summary>
     /// <param name="bb">Widget bounds; a degenerate width of one pixel or less draws nothing.</param>
     /// <param name="col">Packed marker color in canonical ABGR order.</param>
     /// <param name="rounding">Corner rounding in pixels.</param>
     /// <remarks>
     /// CONTRACT §4 binds an <c>ImGuiColorEditFlags</c> parameter here, but canonical takes a rounding amount
-    /// and both call sites pass <c>style.FrameRounding</c> (<c>imgui_widgets.cpp:2794</c>, <c>3387</c>); the
+    /// and both call sites pass <c>style.FrameRounding</c>; the
     /// canonical parameter is restored.
     /// </remarks>
     internal static void RenderColorComponentMarker(ImRect bb, uint col, float rounding)
@@ -938,7 +882,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the navigation cursor around an item. Canvases canonical <c>ImGui::RenderNavCursor</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:4139-4181</c>), declared in <c>imgui_internal.h:4019</c>.
+    ///.
     /// </summary>
     /// <param name="bb">Item bounds.</param>
     /// <param name="id">Item identifier; the cursor is drawn only for the focused navigation identifier.</param>
@@ -952,11 +896,11 @@ public static partial class ImGui
     /// <c>DC.NavHideHighlightOneFrame</c>.
     /// </para>
     /// <para>
-    /// Canonical reads the main scale through <c>GetScale()</c> (<c>imgui_internal.h:3583</c>), which is an
+    /// Canonical reads the main scale through <c>GetScale()</c>., which is an
     /// inline returning <c>g.Style._MainScale</c>; that accessor is not ported, so the field is read directly.
     /// </para>
     /// <para>
-    /// The obsolete <c>NoRounding</c> compatibility branch (<c>imgui.cpp:4155-4158</c>) is inert: the port's
+    /// The obsolete <c>NoRounding</c> compatibility branch. is inert: the port's
     /// <see cref="ImGuiNavRenderCursorFlags"/> omits <c>NoRounding</c> (canonical value <c>1 &lt;&lt; 3</c>)
     /// and its obsolete alias carries the wrong value, so no caller can currently request it. The branch is
     /// restored when the enum value is added.
@@ -983,7 +927,7 @@ public static partial class ImGui
 
         ImRect displayRect = bb;
         displayRect.ClipWith(window.ClipRect);
-        float scaleFactor = g.Style._MainScale; // Canonical GetScale() (imgui_internal.h:3583).
+        float scaleFactor = g.Style._MainScale; // Canonical GetScale().
         float thickness = TruncateToInt(MathF.Max(2.0f, 1.5f * scaleFactor));
         if ((flags & ImGuiNavRenderCursorFlags.Compact) != 0)
         {
@@ -1004,7 +948,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the software mouse cursor for every viewport. Canvases canonical <c>ImGui::RenderMouseCursor</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:4183-4215</c>), declared in <c>imgui_internal.h:4024</c>.
+    ///.
     /// </summary>
     /// <param name="pos">Cursor position in screen space.</param>
     /// <param name="scale">Cursor scale multiplier before the per-viewport DPI scale is applied.</param>
@@ -1015,11 +959,10 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Only the out-of-range coercion is active; canonical intentionally accepts out-of-bound values
-    /// (<c>imgui.cpp:4185-4187</c>).
     /// </para>
     /// <para>
     /// The cursor geometry is deliberately inert. Canonical retrieves the shape offset, size, and UV
-    /// rectangles through <c>ImFontAtlasGetMouseCursorTexData(g.DrawListSharedData.FontAtlas, ...)</c>,
+    /// rectangles through <c>ImFontAtlasGetMouseCursorTexData(g.DrawListSharedData.FontAtlas,.)</c>,
     /// pushes <c>font_atlas-&gt;TexRef</c> on <c>GetForegroundDrawList(viewport)</c>, draws four shadow,
     /// border, and fill images, and animates the Wait/Progress arc from <c>g.Time</c>. The port's
     /// <see cref="ImDrawListSharedData"/> publishes neither an atlas reference nor cursor texture data, and
@@ -1035,17 +978,17 @@ public static partial class ImGui
 
     #endregion
 
-    #region Drag-drop target rendering (imgui.cpp:16080-16100)
+    #region Drag-drop target rendering
 
     /// <summary>
     /// Draws the highlight rectangle for an item that is a drag-and-drop target, expanding the clipped item
     /// rectangle by the style padding. Canvases canonical <c>ImGui::RenderDragDropTargetRectForItem</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:16080-16093</c>), declared in <c>imgui_internal.h:3958</c>.
+    ///.
     /// </summary>
     /// <param name="bb">Item bounds in screen space.</param>
     /// <remarks>
     /// Canonical clips before expanding so a partially visible target remains visible
-    /// (<c>imgui.cpp:16085</c>); the drawing side reads <c>g.DragDropTargetClipRect</c>,
+    ///.; the drawing side reads <c>g.DragDropTargetClipRect</c>,
     /// <c>style.DragDropTargetPadding</c>, and <c>style.DragDropTargetRounding</c>. The drag-and-drop
     /// state machine that populates the clip rectangle is implemented by
     /// <c>BeginDragDropTarget()</c> and <c>AcceptDragDropPayload()</c> in <c>ImGuiDocking.cs</c>.
@@ -1067,8 +1010,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a drag-and-drop target rectangle on an explicit draw list. Canvases canonical
-    /// <c>ImGui::RenderDragDropTargetRectEx</c> (<c>ThirdParty/imgui/imgui.cpp:16095-16100</c>), declared in
-    /// <c>imgui_internal.h:3959</c>.
+    /// <c>ImGui::RenderDragDropTargetRectEx</c>., declared in
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="bb">Rectangle to draw.</param>
@@ -1077,7 +1019,6 @@ public static partial class ImGui
     /// <remarks>
     /// The fill uses <see cref="ImGuiCol.DragDropTargetBg"/> with no corner flags and the outline uses
     /// <see cref="ImGuiCol.DragDropTarget"/> with <c>style.DragDropTargetBorderSize</c>
-    /// (<c>imgui.cpp:16098-16099</c>).
     /// </remarks>
     internal static void RenderDragDropTargetRectEx(ImDrawList drawList, ImRect bb, float rounding = 0.0f)
     {
@@ -1088,12 +1029,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region ImGui Internal Render Helpers (imgui_draw.cpp:6042-6251)
+    #region ImGui Internal Render Helpers
 
     /// <summary>
     /// Draws an arrow aligned with text, used for example to denote expanded/collapsed state. Canvases
-    /// canonical <c>ImGui::RenderArrow</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6042-6071</c>), declared in
-    /// <c>imgui_internal.h:4027</c>.
+    /// canonical <c>ImGui::RenderArrow</c>., declared in
     /// </summary>
     /// <param name="drawList">Target draw list. Canonical parameter; CONTRACT §4 omitted it and it is
     /// restored because every canonical call site passes <c>window-&gt;DrawList</c>.</param>
@@ -1104,7 +1044,7 @@ public static partial class ImGui
     /// <remarks>
     /// Canonical derives the size from <c>draw_list-&gt;_Data-&gt;FontSize</c>; the port's draw list does not
     /// publish its shared data, so <c>g.FontSize</c> is used, which is exactly the value canonical publishes
-    /// there (<c>imgui.cpp:9859</c>). Canonical asserts on <see cref="ImGuiDir.None"/> and
+    /// there. Canonical asserts on <see cref="ImGuiDir.None"/> and
     /// <see cref="ImGuiDir.COUNT"/> and then draws with uninitialized vertices in release builds; the port
     /// asserts and substitutes a zero triangle so the result is deterministic.
     /// </remarks>
@@ -1146,8 +1086,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the small filled circle used by <c>Bullet</c> and <c>BulletText</c>. Canvases canonical
-    /// <c>ImGui::RenderBullet</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6073-6078</c>), declared in
-    /// <c>imgui_internal.h:4028</c>.
+    /// <c>ImGui::RenderBullet</c>., declared in
     /// </summary>
     /// <param name="drawList">Target draw list. Canonical parameter; CONTRACT §4 omitted it and it is
     /// restored because every canonical call site passes <c>window-&gt;DrawList</c>.</param>
@@ -1155,7 +1094,7 @@ public static partial class ImGui
     /// <param name="col">Packed color in canonical ABGR order.</param>
     /// <remarks>
     /// The radius is one fifth of the font size and the tessellation is a hardcoded three-step threshold,
-    /// where zero selects the automatic segment count (<c>imgui_draw.cpp:6077</c>). The font size comes from
+    /// where zero selects the automatic segment count. The font size comes from
     /// <c>g.FontSize</c> for the same reason as <see cref="RenderArrow"/>.
     /// </remarks>
     internal static void RenderBullet(ImDrawList drawList, ImVec2 pos, uint col)
@@ -1166,7 +1105,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a crisp three-point checkmark. Canvases canonical <c>ImGui::RenderCheckMark</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6080-6093</c>), declared in <c>imgui_internal.h:4029</c>.
+    ///.
     /// </summary>
     /// <param name="drawList">Target draw list. Canonical parameter; CONTRACT §4 omitted it and it is
     /// restored because every canonical call site passes <c>window-&gt;DrawList</c>.</param>
@@ -1184,8 +1123,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws an arrow whose tip is at a given position. Canvases canonical
-    /// <c>ImGui::RenderArrowPointingAt</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6096-6106</c>), declared in
-    /// <c>imgui_internal.h:4030</c>.
+    /// <c>ImGui::RenderArrowPointingAt</c>., declared in
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="pos">Arrow tip.</param>
@@ -1194,7 +1132,7 @@ public static partial class ImGui
     /// <param name="col">Packed color in canonical ABGR order.</param>
     /// <remarks>
     /// Unlike <see cref="RenderArrow"/>, an invalid direction silently draws nothing and does not assert
-    /// (<c>imgui_draw.cpp:6104</c>). This method is implemented here rather than delegating to
+    ///. This method is implemented here rather than delegating to
     /// <see cref="ImDrawList.RenderArrowPointingAt"/> because the port's draw-list convenience method draws a
     /// downward triangle for <see cref="ImGuiDir.None"/> and <see cref="ImGuiDir.COUNT"/> through its
     /// <c>default</c> case, which canonical does not.
@@ -1224,8 +1162,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a rounded rectangle filled only between two absolute horizontal coordinates. Canvases canonical
-    /// <c>ImGui::RenderRectFilledInRangeH</c> (<c>ThirdParty/imgui/imgui_draw.cpp:6127-6183</c>), declared in
-    /// <c>imgui_internal.h:4032</c>.
+    /// <c>ImGui::RenderRectFilledInRangeH</c>., declared in
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="rect">Full rectangle whose vertical extent is always used.</param>
@@ -1237,7 +1174,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Renamed from canonical <c>RenderRectFilledRangeH</c> on 2025/12/04 to make the coordinates absolute
-    /// rather than normalized (<c>imgui_draw.cpp:6124-6126</c>). A zero rounding takes the plain
+    /// rather than normalized. A zero rounding takes the plain
     /// <c>AddRectFilled</c> early-out; otherwise the two vertical edges are emitted from arc samples and
     /// closed with <c>PathFillConvex</c>.
     /// </para>
@@ -1260,7 +1197,7 @@ public static partial class ImGui
             return;
         }
 
-        // Canonical ImClamp(min(...) - 1.0f, 0.0f, rounding), written with canonical's comparison order so a
+        // Canonical ImClamp(min(.) - 1.0f, 0.0f, rounding), written with canonical's comparison order so a
         // negative rounding cannot raise an exception the way Math.Clamp would.
         float clampedRounding = MathF.Min((rect.Max.X - rect.Min.X) * 0.5f, (rect.Max.Y - rect.Min.Y) * 0.5f) - 1.0f;
         rounding = clampedRounding < 0.0f ? 0.0f : (clampedRounding > rounding ? rounding : clampedRounding);
@@ -1311,7 +1248,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws the four edge bands and four corner squares that fill a rectangle except for an inner hole.
     /// Canvases canonical <c>ImGui::RenderRectFilledWithHole</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6185-6199</c>), declared in <c>imgui_internal.h:4033</c>.
+    ///.
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="outer">Outer rectangle.</param>
@@ -1354,7 +1291,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws a color rectangle over an alpha checkerboard when its alpha is not opaque. Canvases canonical
     /// <c>ImGui::RenderColorRectWithAlphaCheckerboard</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6216-6251</c>), declared in <c>imgui_internal.h:4018</c>.
+    ///.
     /// </summary>
     /// <param name="drawList">Target draw list.</param>
     /// <param name="pMin">Rectangle minimum.</param>
@@ -1368,13 +1305,13 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// The checker pattern alternates by row parity and advances two grid steps per cell within a row
-    /// (<c>imgui_draw.cpp:6232</c>). Canonical documents this helper as brittle when rounding overlaps more
+    ///. Canonical documents this helper as brittle when rounding overlaps more
     /// than one cell. <paramref name="pMin"/> must not exceed <paramref name="pMax"/> on either axis, which
     /// canonical also assumes.
     /// </para>
     /// <para>
-    /// Canonical derives the two background grays with <c>ImAlphaBlendColors</c> (<c>imgui.cpp:2926</c>,
-    /// declared in <c>imgui_internal.h:395</c>); that helper belongs to the Chunk 9 Helpers category and is
+    /// Canonical derives the two background grays with <c>ImAlphaBlendColors</c> (,
+    ///.); that helper belongs to the Chunk 9 Helpers category and is
     /// not yet ported, so <see cref="BlendAlphaOverOpaque"/> realizes the same arithmetic locally.
     /// </para>
     /// </remarks>
@@ -1438,7 +1375,7 @@ public static partial class ImGui
     /// <returns>The clamped arccosine in radians.</returns>
     /// <remarks>
     /// Ports the canonical static helper <c>ImAcos01</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6116-6122</c>): values at or below zero return a quarter turn and
+    ///.: values at or below zero return a quarter turn and
     /// values at or above one return zero, so callers may compare the result for exact equality. The helper
     /// is file-local in canonical and is therefore realized privately here rather than as a shared member.
     /// </remarks>
@@ -1459,8 +1396,8 @@ public static partial class ImGui
     /// <param name="colB">Foreground color whose alpha channel is the blend factor.</param>
     /// <returns>The opaque blended color.</returns>
     /// <remarks>
-    /// Realizes canonical <c>ImAlphaBlendColors</c> (<c>ThirdParty/imgui/imgui.cpp:2926-2934</c>, declared in
-    /// <c>imgui_internal.h:395</c>) with the canonical integer lerp and truncation, so the checkout pattern
+    /// Realizes canonical <c>ImAlphaBlendColors</c> (, declared in
+    /// ) with the canonical integer lerp and truncation, so the checkout pattern
     /// matches pixel for pixel. The canonical helper belongs to the Chunk 9 Helpers category and is not yet
     /// ported; this private realization is replaced by a call to it once that category lands.
     /// </remarks>
@@ -1479,7 +1416,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Blends an opaque background color with a foreground color whose alpha selects the blend factor.
-    /// Ports canonical <c>ImAlphaBlendColors</c> (<c>ThirdParty/imgui/imgui.cpp:2984-2991</c>, declared in <c>imgui_internal.h:397</c>).
+    /// Ports canonical <c>ImAlphaBlendColors</c> (.).
     /// </summary>
     public static uint ImAlphaBlendColors(uint colA, uint colB) => BlendAlphaOverOpaque(colA, colB);
 
@@ -1488,13 +1425,12 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: BASIC WIDGETS (imgui_widgets.cpp)
+    #region SECTION: BASIC WIDGETS
 
-    #region [SECTION] Layout accessors (imgui.cpp:12512-12531)
+    #region [SECTION] Layout accessors
 
     /// <summary>
     /// Returns the height of one text line. Mirrors canonical <c>ImGui::GetTextLineHeight</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12512-12516</c>).
     /// </summary>
     /// <returns><c>g.FontSize</c>, the current scaled font size in pixels.</returns>
     /// <remarks>
@@ -1508,13 +1444,12 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the height of one text line plus the vertical item spacing, the distance between two
-    /// consecutive text rows. (<c>ThirdParty/imgui/imgui.cpp:12518-12523</c>, declared in
-    /// <c>imgui.h:598</c>)
+    /// consecutive text rows. (, declared in
     /// </summary>
     /// <returns><c>g.FontSize + g.Style.ItemSpacing.y</c>.</returns>
     /// <remarks>
     /// Several list and combo widgets size themselves from this accessor. Canonical declares it in
-    /// <c>imgui.h:598</c> alongside <see cref="GetTextLineHeight"/>; the port exposes it publicly for
+    ///  alongside <see cref="GetTextLineHeight"/>; the port exposes it publicly for
     /// the same reason, so callers such as the demo do not have to re-derive the formula.
     /// </remarks>
     public static float GetTextLineHeightWithSpacing()
@@ -1525,11 +1460,11 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the height of a framed widget: one text line plus the vertical frame padding on both
-    /// sides. (<c>ThirdParty/imgui/imgui.cpp:12525-12529</c>, declared in <c>imgui.h:599</c>)
+    /// sides. (.)
     /// </summary>
     /// <returns><c>g.FontSize + g.Style.FramePadding.y * 2.0f</c>.</returns>
     /// <remarks>
-    /// Canonical declares this accessor in <c>imgui.h:599</c>; buttons, checkboxes, radio buttons,
+    /// Canonical declares this accessor.; buttons, checkboxes, radio buttons,
     /// arrow buttons, and combo headers size themselves from it, and the demo needs the same formula,
     /// so the port exposes it publicly rather than having callers re-derive it.
     /// </remarks>
@@ -1541,7 +1476,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the height of a framed widget plus the vertical item spacing. Mirrors canonical
-    /// <c>ImGui::GetFrameHeightWithSpacing</c> (<c>ThirdParty/imgui/imgui.cpp:12530-12535</c>).
+    /// <c>ImGui::GetFrameHeightWithSpacing</c>.
     /// </summary>
     /// <returns><c>g.FontSize + g.Style.FramePadding.y * 2.0f + g.Style.ItemSpacing.y</c>.</returns>
     /// <remarks>
@@ -1560,7 +1495,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a labeled button with explicit flags and size.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:786-826</c>, declared in <c>imgui_internal.h:4042</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label; its ID seeds from the current window's ID stack.</param>
     /// <param name="sizeArg">The requested size; zero components fall back to the label size plus frame
@@ -1579,7 +1514,7 @@ public static partial class ImGui
     /// <see cref="ImGuiButtonFlagsPrivate"/> and the caller casts the folded value.
     /// </para>
     /// <para>
-    /// The canonical popup auto-close block is commented out at <c>imgui_widgets.cpp:820-822</c> and is
+    /// The canonical popup auto-close block is commented out. and is
     /// therefore not ported, matching canonical behavior. The test-engine instrumentation
     /// (<c>IMGUI_TEST_ENGINE_ITEM_INFO</c>) is compiled out of the default build and is not ported; the
     /// logging decoration (<c>LogSetNextTextDecoration</c>) is applied when logging is active.
@@ -1622,8 +1557,7 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Submits a labeled button. (<c>ThirdParty/imgui/imgui_widgets.cpp:828-831</c>, declared in
-    /// <c>imgui.h:643</c>)
+    /// Submits a labeled button. (, declared in
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="size">The requested size; the default <c>(0, 0)</c> fits the label plus frame padding.</param>
@@ -1634,7 +1568,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a button that fits within a text line by temporarily zeroing the vertical frame padding.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:833-842</c>, declared in <c>imgui.h:644</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <returns>True on the frame the button is pressed.</returns>
@@ -1654,7 +1588,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits an invisible, interactive item sized from the cursor position.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:846-868</c>, declared in <c>imgui.h:645</c>)
+    /// (.)
     /// </summary>
     /// <param name="strId">The identifier string hashed under the window's ID stack.</param>
     /// <param name="size">The requested size; a zero component is replaced by <c>-FLT_MIN</c> so
@@ -1691,7 +1625,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits an arrow button with an explicit size and flags.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:870-896</c>; the canonical definition has no header
+    /// (; the canonical definition has no header
     /// declaration, so the port marks it <c>internal</c> for reuse by the tab scrolling buttons)
     /// </summary>
     /// <param name="strId">The identifier string hashed under the window's ID stack.</param>
@@ -1733,7 +1667,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a square arrow button sized to one frame height.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:898-902</c>, declared in <c>imgui.h:646</c>)
+    /// (.)
     /// </summary>
     /// <param name="strId">The identifier string hashed under the window's ID stack.</param>
     /// <param name="dir">The arrow direction.</param>
@@ -1745,8 +1679,8 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Submits the small window close button. (<c>ThirdParty/imgui/imgui_widgets.cpp:905-940</c>,
-    /// declared in <c>imgui_internal.h:4051</c>)
+    /// Submits the small window close button. (,
+    ///.)
     /// </summary>
     /// <param name="id">The item identifier.</param>
     /// <param name="pos">The top-left corner of the square button, which is one font size wide and tall.</param>
@@ -1765,7 +1699,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// Callers include the tab bar and the docking node layer. The
-    /// <c>CollapsingHeader(label, ref bool pVisible, ...)</c> close button and the window title-bar close
+    /// <c>CollapsingHeader(label, ref bool pVisible,.)</c> close button and the window title-bar close
     /// button are the immediate in-chunk consumers.
     /// </para>
     /// </remarks>
@@ -1816,7 +1750,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a non-interactive image with an optional background and tint.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1141-1164</c>, declared in <c>imgui.h:664</c>)
+    /// (.)
     /// </summary>
     /// <param name="texRef">The texture to draw.</param>
     /// <param name="imageSize">The image size; the border padding is added around it.</param>
@@ -1870,7 +1804,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a non-interactive image with canonical default background and tint.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1166-1169</c>, declared in <c>imgui.h:663</c>)
+    /// (.)
     /// </summary>
     /// <param name="texRef">The texture to draw.</param>
     /// <param name="imageSize">The image size.</param>
@@ -1882,7 +1816,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a non-interactive image using the obsolete tint and border color parameters.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1172-1182</c>, declared in <c>imgui.h:4411</c> under
+    /// (. under
     /// <c>IMGUI_DISABLE_OBSOLETE_FUNCTIONS</c>)
     /// </summary>
     /// <param name="texRef">The texture to draw.</param>
@@ -1895,7 +1829,7 @@ public static partial class ImGui
     /// <remarks>
     /// This overload is the contract's bound <c>Image</c> signature and remains live in canonical while
     /// obsolete functions are enabled; it is kept for canonical parity. The simple form carries no tint
-    /// or border color since 1.91.9.
+    /// or border color.
     /// </remarks>
     public static void Image(ImTextureRef texRef, ImVec2 imageSize, ImVec2 uv0, ImVec2 uv1, ImVec4 tintCol, ImVec4 borderCol)
     {
@@ -1909,7 +1843,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits an image button with an explicit identifier and flags.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1184-1213</c>, declared in <c>imgui_internal.h:4044</c>)
+    /// (.)
     /// </summary>
     /// <param name="id">The item identifier.</param>
     /// <param name="texRef">The texture to draw.</param>
@@ -1962,8 +1896,8 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Submits an image button identified by a string. (<c>ThirdParty/imgui/imgui_widgets.cpp:1217-1225</c>,
-    /// declared in <c>imgui.h:665</c>)
+    /// Submits an image button identified by a string. (,
+    ///.)
     /// </summary>
     /// <param name="strId">The identifier string hashed under the window's ID stack.</param>
     /// <param name="texRef">The texture to draw.</param>
@@ -1975,7 +1909,7 @@ public static partial class ImGui
     /// <returns>True on the frame the button is pressed.</returns>
     /// <remarks>
     /// The item is never identified by the texture, unlike the legacy overload that canonical keeps
-    /// commented out (<c>imgui_widgets.cpp:1233-1246</c>) and that must not be ported. Nullable optional
+    /// commented out. and that must not be ported. Nullable optional
     /// parameters reproduce the canonical default arguments.
     /// </remarks>
     public static bool ImageButton(
@@ -2001,7 +1935,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a checkbox bound to a caller-owned boolean.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1249-1324</c>, declared in <c>imgui.h:647</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label; its ID seeds from the current window's ID stack.</param>
     /// <param name="v">The value to display and toggle in place.</param>
@@ -2046,7 +1980,7 @@ public static partial class ImGui
         if (!isVisible)
         {
             // An unclipped checkbox still participates in box-selection when the box-select unclip
-            // rectangle overlaps it (imgui_widgets.cpp:1268-1274).
+            // rectangle overlaps it.
             if (!isMultiSelect || !g.BoxSelectState.UnclipMode || !g.BoxSelectState.UnclipRect.Overlaps(totalBb))
                 return false;
         }
@@ -2110,7 +2044,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Implements the templated checkbox-for-flags behavior shared by the four public overloads.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1326-1351</c>)
     /// </summary>
     /// <typeparam name="T">The integer flags type; canonical instantiated only <c>int</c>,
     /// <c>unsigned int</c>, <c>ImS64</c>, and <c>ImU64</c>.</typeparam>
@@ -2151,7 +2084,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a checkbox that toggles a signed 32-bit flag group.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1353-1356</c>, declared in <c>imgui.h:648</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="flags">The flag word updated in place.</param>
@@ -2162,7 +2095,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a checkbox that toggles an unsigned 32-bit flag group.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1358-1361</c>, declared in <c>imgui.h:649</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="flags">The flag word updated in place.</param>
@@ -2173,7 +2106,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a checkbox that toggles a signed 64-bit flag group.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1363-1366</c>, declared in <c>imgui_internal.h:4047</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="flags">The flag word updated in place.</param>
@@ -2184,7 +2117,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a checkbox that toggles an unsigned 64-bit flag group.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1368-1371</c>, declared in <c>imgui_internal.h:4048</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="flags">The flag word updated in place.</param>
@@ -2195,7 +2128,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a radio button whose state is supplied directly by the caller.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1373-1426</c>, declared in <c>imgui.h:650</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label; its ID seeds from the current window's ID stack.</param>
     /// <param name="active">Whether the radio button is selected.</param>
@@ -2267,7 +2200,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a radio button bound to an integer value, selecting <paramref name="vButton"/> on press.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1429-1435</c>, declared in <c>imgui.h:651</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="v">The integer value updated to <paramref name="vButton"/> when pressed.</param>
@@ -2283,7 +2216,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a progress bar, optionally animated as indeterminate and optionally overlaid with text.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1438-1498</c>, declared in <c>imgui.h:652</c>)
+    /// (.)
     /// </summary>
     /// <param name="fraction">The progress in <c>[0, 1]</c>; a negative value selects the indeterminate
     /// animation, which canonical expects to be time-driven.</param>
@@ -2363,7 +2296,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a bullet marker and keeps the cursor on the same line.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1500-1521</c>, declared in <c>imgui.h:653</c>)
+    /// (.)
     /// </summary>
     /// <remarks>
     /// The item has no identifier. The line height is clamped between the current line height and one
@@ -2398,7 +2331,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a horizontal or vertical separating line with an explicit thickness.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1660-1726</c>, declared in <c>imgui_internal.h:4045</c>)
+    /// (.)
     /// </summary>
     /// <param name="flags">Exactly one of the horizontal or vertical orientation bits, optionally with
     /// <c>SpanAllColumns</c>.</param>
@@ -2445,7 +2378,6 @@ public static partial class ImGui
             float x2 = window.WorkRect.Max.X;
 
             // Legacy Columns() only; tables have their own border features and are excluded
-            // (imgui_widgets.cpp:1692-1693).
             ImGuiOldColumns? columns = (flags & ImGuiSeparatorFlags.SpanAllColumns) != 0 ? window.DC.CurrentColumns : null;
             if (columns != null)
             {
@@ -2455,7 +2387,6 @@ public static partial class ImGui
             }
 
             // The width is intentionally not fed to the layout; see the canonical FIXME at
-            // imgui_widgets.cpp:1702-1703.
             float thicknessForLayout = g.Style.SeparatorSize <= 0.0f ? 0.0f : thickness;
             ImRect bb = new(new ImVec2(x1, window.DC.CursorPos.Y), new ImVec2(x2, window.DC.CursorPos.Y + thickness));
             ItemSize(new ImVec2(0.0f, thicknessForLayout));
@@ -2476,7 +2407,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a separator whose orientation follows the current layout type.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1728-1743</c>, declared in <c>imgui.h:587</c>)
+    /// (.)
     /// </summary>
     /// <remarks>
     /// Horizontal layout produces a vertical separator. The legacy columns span bit is applied only when
@@ -2501,7 +2432,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a titled separator with an explicit identifier, label range, and reserved extra width.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1745-1793</c>, declared in <c>imgui_internal.h:4046</c>)
+    /// (.)
     /// </summary>
     /// <param name="id">The item identifier; callers that do not need one pass zero.</param>
     /// <param name="label">The full label buffer.</param>
@@ -2575,14 +2506,12 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Submits a titled separator. (<c>ThirdParty/imgui/imgui_widgets.cpp:1795-1808</c>, declared in
-    /// <c>imgui.h:638</c>)
+    /// Submits a titled separator. (, declared in
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <remarks>
     /// The item identifier is intentionally zero rather than a hash of the label, so the separator is not
     /// a navigation or interaction target; the canonical rationale is documented at
-    /// <c>imgui_widgets.cpp:1801-1806</c>.
     /// </remarks>
     public static void SeparatorText(string label)
     {
@@ -2595,11 +2524,10 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Layout: ShrinkWidths (imgui_widgets.cpp:1880-1923)
+    #region [SECTION] Layout: ShrinkWidths
 
     /// <summary>
     /// Progressively shrinks item widths when elements do not fit within an allocated parent span.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1880-1923</c>).
     /// </summary>
     /// <param name="items">List of items being sized.</param>
     /// <param name="offset">Starting element offset within <paramref name="items"/>.</param>
@@ -2666,7 +2594,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Progressively shrinks item widths from index 0 when elements do not fit within an allocated parent span.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1880-1923</c>).
     /// </summary>
     /// <param name="items">List of items being sized.</param>
     /// <param name="count">Count of items to process.</param>
@@ -2683,7 +2610,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the maximum popup height for a given number of items.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1937-1943</c>)
     /// </summary>
     /// <param name="itemsCount">The number of items; non-positive values disable the constraint.</param>
     /// <returns>The height covering every item plus the window padding, or <see cref="float.MaxValue"/>
@@ -2702,7 +2628,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a combo header and opens the combo popup when clicked.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1945-2022</c>, declared in <c>imgui.h:670</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The label drawn after the frame; its ID seeds the item and popup IDs.</param>
     /// <param name="previewValue">The current value drawn inside the frame, or <see langword="null"/> when
@@ -2833,7 +2759,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins the window of an already-open combo popup.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2024-2088</c>, declared in <c>imgui_internal.h:3770</c>)
+    /// (.)
     /// </summary>
     /// <param name="popupId">The popup identifier produced by <see cref="BeginCombo"/>.</param>
     /// <param name="bb">The combo frame rectangle, used for width and placement.</param>
@@ -2931,7 +2857,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends the combo popup opened by <see cref="BeginCombo"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2090-2099</c>, declared in <c>imgui.h:671</c>)
+    /// (.)
     /// </summary>
     /// <remarks>
     /// The nesting depth is decremented before the recycled window name is recomputed; a mismatch reports
@@ -2953,7 +2879,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a custom combo preview immediately after a <c>BeginCombo</c>/<c>EndCombo</c> block.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2103-2128</c>, declared in <c>imgui_internal.h:3771</c>)
+    /// (.)
     /// </summary>
     /// <returns>True when the preview cursor is redirected into the preview rectangle.</returns>
     /// <remarks>
@@ -2990,7 +2916,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends the custom combo preview begun by <see cref="BeginComboPreview"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2130-2152</c>, declared in <c>imgui_internal.h:3772</c>)
+    /// (.)
     /// </summary>
     /// <remarks>
     /// Canonical additionally rewrites the trailing draw command's clip rectangle and merges commands
@@ -3018,8 +2944,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits an array-backed combo box and returns the item selection.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2178-2223</c> getter core, <c>2226-2230</c> array overload;
-    /// declared in <c>imgui.h:672</c>)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="currentItem">The selected index, updated in place.</param>
@@ -3087,7 +3011,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a combo box whose items are zero-terminated entries inside one string.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2233-2244</c>, declared in <c>imgui.h:673</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="currentItem">The selected index, updated in place.</param>
@@ -3126,7 +3050,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a combo box whose items are produced on demand by a getter function.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2178-2223</c>, declared in <c>imgui.h:674</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="currentItem">The selected index, updated in place.</param>
@@ -3161,7 +3085,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a selectable row carrying its selection state read-only.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7403-7593</c>, declared in <c>imgui.h:774</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label; its ID seeds from the current window's ID stack.</param>
     /// <param name="selected">The current selection state read by the widget.</param>
@@ -3205,7 +3129,7 @@ public static partial class ImGui
         pos.Y += window.DC.CurrLineTextBaseOffset;
         ItemSize(itemSize, 0.0f);
 
-        // Horizontal span and half-spacing expansion (imgui_widgets.cpp:7423-7442).
+        // Horizontal span and half-spacing expansion.
         bool spanAllColumns = (flags & ImGuiSelectableFlags.SpanAllColumns) != 0;
         float minX = spanAllColumns ? window.ParentWorkRect.Min.X : pos.X;
         float maxX = spanAllColumns ? window.ParentWorkRect.Max.X : window.WorkRect.Max.X;
@@ -3249,7 +3173,7 @@ public static partial class ImGui
         {
             // An unclipped multi-select item still participates in box-selection when the box-select
             // unclip rectangle overlaps it. This extra layer avoids paying for a no-logic-clip test in
-            // ItemAdd itself (imgui_widgets.cpp:7466-7468).
+            // ItemAdd itself.
             if (!isMultiSelect || !g.BoxSelectState.UnclipMode || !g.BoxSelectState.UnclipRect.Overlaps(bb))
                 return false;
         }
@@ -3267,7 +3191,7 @@ public static partial class ImGui
             g.LastItemData.ClipRect = window.ClipRect;
         }
 
-        // Translate selectable flags into the button flag bits (imgui_widgets.cpp:7486-7492).
+        // Translate selectable flags into the button flag bits.
         int buttonFlags = 0;
         if ((flags & (ImGuiSelectableFlags)(int)ImGuiSelectableFlagsPrivate.ImGuiSelectableFlags_NoHoldingActiveID) != 0)
             buttonFlags |= (int)ImGuiButtonFlagsPrivate.ImGuiButtonFlags_NoHoldingActiveId;
@@ -3300,7 +3224,7 @@ public static partial class ImGui
             && g.NavJustMovedToFocusScopeId == g.CurrentFocusScopeId)
         {
             // Auto-select when navigation moves into the item. The multi-select scope replaces this
-            // legacy path (imgui_widgets.cpp:7511-7522).
+            // legacy path.
             if (g.NavJustMovedToId == id && (g.NavJustMovedToKeyMods & ImGuiKey.ImGuiMod_Ctrl) == 0)
                 selected = pressed = autoSelected = true;
         }
@@ -3378,7 +3302,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a selectable row bound to a caller-owned boolean that is toggled on press.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7595-7603</c>, declared in <c>imgui.h:775</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="pSelected">The selection state read and toggled in place.</param>
@@ -3401,7 +3325,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a framed child window that hosts a list of selectable rows.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8838-8878</c>, declared in <c>imgui.h:796</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The label drawn above the frame; its ID seeds the item and child window IDs.</param>
     /// <param name="size">The frame size; zero components resolve to the item width and roughly 7.25
@@ -3463,7 +3387,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends the list box begun by <see cref="BeginListBox"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8880-8889</c>, declared in <c>imgui.h:797</c>)
+    /// (.)
     /// </summary>
     /// <remarks>
     /// A non-child current window reports a mismatched-call assertion, matching canonical. Branches
@@ -3482,8 +3406,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits an array-backed list box and returns the row selection.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8891-8895</c> array overload, <c>8899-8942</c> getter core;
-    /// declared in <c>imgui.h:798</c>)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="currentItem">The selected index, updated in place.</param>
@@ -3538,7 +3460,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a list box whose rows are produced on demand by a getter function.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8899-8942</c>, declared in <c>imgui.h:799</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">The display label.</param>
     /// <param name="currentItem">The selected index, updated in place.</param>
@@ -3574,7 +3496,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a <c>prefix: true/false</c> text line.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9118-9121</c>, declared in <c>imgui.h:810</c>)
+    /// (.)
     /// </summary>
     /// <param name="prefix">The label preceding the value.</param>
     /// <param name="v">The boolean value to display.</param>
@@ -3584,7 +3506,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a <c>prefix: value</c> text line for a signed integer.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9123-9126</c>, declared in <c>imgui.h:811</c>)
+    /// (.)
     /// </summary>
     /// <param name="prefix">The label preceding the value.</param>
     /// <param name="v">The value to display.</param>
@@ -3593,7 +3515,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a <c>prefix: value</c> text line for an unsigned integer.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9128-9131</c>, declared in <c>imgui.h:812</c>)
+    /// (.)
     /// </summary>
     /// <param name="prefix">The label preceding the value.</param>
     /// <param name="v">The value to display.</param>
@@ -3606,7 +3528,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a <c>prefix: value</c> text line for a float, optionally with a caller-supplied format.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9133-9145</c>, declared in <c>imgui.h:813</c>)
+    /// (.)
     /// </summary>
     /// <param name="prefix">The label preceding the value.</param>
     /// <param name="v">The value to display.</param>
@@ -3633,14 +3555,14 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: TREES (imgui_widgets.cpp)
+    #region SECTION: TREES
 
-    #region Widgets: TreeNode, CollapsingHeader, etc. (imgui_widgets.cpp:6729-7394)
+    #region Widgets: TreeNode, CollapsingHeader, etc.
 
     /// <summary>
     /// Submits a tree node whose displayed text is also its identifier seed and returns whether the node
     /// is open. Canvases canonical <c>ImGui::TreeNode(const char*)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6762-6769</c>), declared in <c>imgui.h:751</c>.
+    ///.
     /// </summary>
     /// <param name="label">The display label, which may carry a <c>##</c> suffix that only participates in
     /// the identifier. The rendered range is resolved by <see cref="TreeNodeBehavior"/>.</param>
@@ -3652,7 +3574,6 @@ public static partial class ImGui
     /// The identifier is <c>GetID(label)</c> against the current window's ID stack. The canonical
     /// <c>label_end == NULL</c> argument is preserved by passing <see langword="null"/>, which makes
     /// <see cref="TreeNodeBehavior"/> call <see cref="FindRenderedTextEnd"/> itself
-    /// (<c>imgui_widgets.cpp:6767-6768</c>).
     /// </remarks>
     public static bool TreeNode(string label)
     {
@@ -3666,8 +3587,8 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tree node whose identifier seed and displayed text are supplied separately; the
     /// displayed text is produced by formatting <paramref name="fmt"/> with <paramref name="args"/>.
-    /// Canvases canonical <c>ImGui::TreeNode(const char*, const char*, ...)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6744-6751</c>), declared in <c>imgui.h:752</c>.
+    /// Canvases canonical <c>ImGui::TreeNode(const char*, const char*,.)</c>
+    ///.
     /// </summary>
     /// <param name="strId">The identifier seed; it is hashed independently of the displayed text.</param>
     /// <param name="fmt">The display format string.</param>
@@ -3675,7 +3596,7 @@ public static partial class ImGui
     /// <returns><see langword="true"/> while the node is open; see <see cref="TreeNode(string)"/> for the
     /// caller's <see cref="TreePop"/> obligation.</returns>
     /// <remarks>
-    /// Canonical forwards to <c>TreeNodeExV(str_id, 0, fmt, args)</c> (<c>imgui_widgets.cpp:6748</c>), so
+    /// Canonical forwards to <c>TreeNodeExV(str_id, 0, fmt, args)</c>., so
     /// the identifier is hashed from <paramref name="strId"/> alone and the formatted text is submitted
     /// through the shared tree-node path.
     /// </remarks>
@@ -3685,8 +3606,8 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tree node whose identifier seed is an opaque object reference and whose displayed text
     /// is produced by formatting <paramref name="fmt"/> with <paramref name="args"/>. Canvases canonical
-    /// <c>ImGui::TreeNode(const void*, const char*, ...)</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:6753-6760</c>),
-    /// declared in <c>imgui.h:753</c>.
+    /// <c>ImGui::TreeNode(const void*, const char*,.)</c>.,
+    ///.
     /// </summary>
     /// <param name="ptrId">The pointer-derived identifier seed; the port hashes the reference identity
     /// (see <see cref="GetID(object?)"/>).</param>
@@ -3695,7 +3616,7 @@ public static partial class ImGui
     /// <returns><see langword="true"/> while the node is open; see <see cref="TreeNode(string)"/> for the
     /// caller's <see cref="TreePop"/> obligation.</returns>
     /// <remarks>
-    /// Canonical forwards to <c>TreeNodeExV(ptr_id, 0, fmt, args)</c> (<c>imgui_widgets.cpp:6757</c>). The
+    /// Canonical forwards to <c>TreeNodeExV(ptr_id, 0, fmt, args)</c>. The
     /// overload exists so a caller can decorrelate the identifier from any displayed string.
     /// </remarks>
     public static bool TreeNode(object? ptrId, string fmt, params object?[] args)
@@ -3704,7 +3625,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tree node whose identifier seed and displayed text are supplied separately from an
     /// already-collected argument array. Canvases canonical <c>ImGui::TreeNodeV(const char*, const char*, va_list)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6771-6774</c>), declared in <c>imgui.h:754</c>.
+    ///.
     /// </summary>
     /// <param name="strId">The identifier seed.</param>
     /// <param name="fmt">The display format string.</param>
@@ -3712,7 +3633,7 @@ public static partial class ImGui
     /// <returns><see langword="true"/> while the node is open; see <see cref="TreeNode(string)"/> for the
     /// caller's <see cref="TreePop"/> obligation.</returns>
     /// <remarks>
-    /// Canonical is a pure forwarder to <c>TreeNodeExV(str_id, 0, fmt, args)</c> (<c>imgui_widgets.cpp:6773</c>)
+    /// Canonical is a pure forwarder to <c>TreeNodeExV(str_id, 0, fmt, args)</c>.
     /// and performs no skip check of its own; the check happens inside <c>TreeNodeExV</c>.
     /// </remarks>
     public static bool TreeNodeV(string strId, string fmt, object?[] args)
@@ -3721,7 +3642,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tree node from an opaque object identifier seed and an already-collected argument array.
     /// Canvases canonical <c>ImGui::TreeNodeV(const void*, const char*, va_list)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6776-6779</c>), declared in <c>imgui.h:755</c>.
+    ///.
     /// </summary>
     /// <param name="ptrId">The pointer-derived identifier seed.</param>
     /// <param name="fmt">The display format string.</param>
@@ -3729,7 +3650,7 @@ public static partial class ImGui
     /// <returns><see langword="true"/> while the node is open; see <see cref="TreeNode(string)"/> for the
     /// caller's <see cref="TreePop"/> obligation.</returns>
     /// <remarks>
-    /// Canonical is a pure forwarder to <c>TreeNodeExV(ptr_id, 0, fmt, args)</c> (<c>imgui_widgets.cpp:6778</c>).
+    /// Canonical is a pure forwarder to <c>TreeNodeExV(ptr_id, 0, fmt, args)</c>.
     /// </remarks>
     public static bool TreeNodeV(object? ptrId, string fmt, object?[] args)
         => TreeNodeExV(ptrId, ImGuiTreeNodeFlags.None, fmt, args);
@@ -3737,7 +3658,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tree node with explicit behavior flags and a label that also serves as its identifier
     /// seed. Canvases canonical <c>ImGui::TreeNodeEx(const char*, ImGuiTreeNodeFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6781-6788</c>), declared in <c>imgui.h:756</c>.
+    ///.
     /// </summary>
     /// <param name="label">The display label, which may carry a <c>##</c> suffix that only participates in
     /// the identifier.</param>
@@ -3747,7 +3668,7 @@ public static partial class ImGui
     /// <remarks>
     /// The identifier is <c>GetID(label)</c> against the current window's ID stack and
     /// <c>label_end</c> is <see langword="null"/>, so the rendered range is resolved inside
-    /// <see cref="TreeNodeBehavior"/> exactly as canonical (<c>imgui_widgets.cpp:6786-6787</c>).
+    /// <see cref="TreeNodeBehavior"/> exactly as canonical.
     /// </remarks>
     public static bool TreeNodeEx(string label, ImGuiTreeNodeFlags flags = 0)
     {
@@ -3761,8 +3682,8 @@ public static partial class ImGui
     /// <summary>
     /// Submits a flagged tree node whose identifier seed and displayed text are supplied separately, the
     /// text being produced by formatting <paramref name="fmt"/> with <paramref name="args"/>. Canvases
-    /// canonical <c>ImGui::TreeNodeEx(const char*, ImGuiTreeNodeFlags, const char*, ...)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6790-6797</c>), declared in <c>imgui.h:757</c>.
+    /// canonical <c>ImGui::TreeNodeEx(const char*, ImGuiTreeNodeFlags, const char*,.)</c>
+    ///.
     /// </summary>
     /// <param name="strId">The identifier seed.</param>
     /// <param name="flags">Behavior flags composed from <see cref="ImGuiTreeNodeFlags"/>.</param>
@@ -3771,7 +3692,7 @@ public static partial class ImGui
     /// <returns><see langword="true"/> while the node is open; see <see cref="TreeNode(string)"/> for the
     /// caller's <see cref="TreePop"/> obligation.</returns>
     /// <remarks>
-    /// Canonical forwards to <c>TreeNodeExV(str_id, flags, fmt, args)</c> (<c>imgui_widgets.cpp:6794</c>).
+    /// Canonical forwards to <c>TreeNodeExV(str_id, flags, fmt, args)</c>.
     /// </remarks>
     public static bool TreeNodeEx(string strId, ImGuiTreeNodeFlags flags, string fmt, params object?[] args)
         => TreeNodeExV(strId, flags, fmt, args);
@@ -3779,8 +3700,8 @@ public static partial class ImGui
     /// <summary>
     /// Submits a flagged tree node whose identifier seed is an opaque object reference and whose displayed
     /// text is produced by formatting <paramref name="fmt"/> with <paramref name="args"/>. Canvases
-    /// canonical <c>ImGui::TreeNodeEx(const void*, ImGuiTreeNodeFlags, const char*, ...)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6799-6806</c>), declared in <c>imgui.h:758</c>.
+    /// canonical <c>ImGui::TreeNodeEx(const void*, ImGuiTreeNodeFlags, const char*,.)</c>
+    ///.
     /// </summary>
     /// <param name="ptrId">The pointer-derived identifier seed.</param>
     /// <param name="flags">Behavior flags composed from <see cref="ImGuiTreeNodeFlags"/>.</param>
@@ -3789,7 +3710,7 @@ public static partial class ImGui
     /// <returns><see langword="true"/> while the node is open; see <see cref="TreeNode(string)"/> for the
     /// caller's <see cref="TreePop"/> obligation.</returns>
     /// <remarks>
-    /// Canonical forwards to <c>TreeNodeExV(ptr_id, flags, fmt, args)</c> (<c>imgui_widgets.cpp:6803</c>).
+    /// Canonical forwards to <c>TreeNodeExV(ptr_id, flags, fmt, args)</c>.
     /// </remarks>
     public static bool TreeNodeEx(object? ptrId, ImGuiTreeNodeFlags flags, string fmt, params object?[] args)
         => TreeNodeExV(ptrId, flags, fmt, args);
@@ -3797,7 +3718,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a flagged tree node from an identifier seed and an already-collected argument array.
     /// Canvases canonical <c>ImGui::TreeNodeExV(const char*, ImGuiTreeNodeFlags, const char*, va_list)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6808-6818</c>), declared in <c>imgui.h:759</c>.
+    ///.
     /// </summary>
     /// <param name="strId">The identifier seed.</param>
     /// <param name="flags">Behavior flags composed from <see cref="ImGuiTreeNodeFlags"/>.</param>
@@ -3809,7 +3730,7 @@ public static partial class ImGui
     /// <para>
     /// The canonical sequence is the window skip check, <c>window->GetID(str_id)</c>, then
     /// <c>ImFormatStringToTempBufferV</c> to resolve the label and its rendered end, then
-    /// <c>TreeNodeBehavior</c> (<c>imgui_widgets.cpp:6810-6817</c>).
+    /// <c>TreeNodeBehavior</c>.
     /// </para>
     /// <para>
     /// The port's <see cref="ImFormatStringToTempBuffer(out string, out string, string, object?[])"/>
@@ -3833,7 +3754,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a flagged tree node from an opaque object identifier seed and an already-collected argument
     /// array. Canvases canonical <c>ImGui::TreeNodeExV(const void*, ImGuiTreeNodeFlags, const char*, va_list)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6820-6830</c>), declared in <c>imgui.h:760</c>.
+    ///.
     /// </summary>
     /// <param name="ptrId">The pointer-derived identifier seed.</param>
     /// <param name="flags">Behavior flags composed from <see cref="ImGuiTreeNodeFlags"/>.</param>
@@ -3843,7 +3764,7 @@ public static partial class ImGui
     /// window is skipped.</returns>
     /// <remarks>
     /// Identical to <see cref="TreeNodeExV(string, ImGuiTreeNodeFlags, string, object?[])"/> except that
-    /// the identifier comes from <c>GetID(ptr_id)</c> (<c>imgui_widgets.cpp:6826</c>).
+    /// the identifier comes from <c>GetID(ptr_id)</c>.
     /// </remarks>
     public static bool TreeNodeExV(object? ptrId, ImGuiTreeNodeFlags flags, string fmt, object?[] args)
     {
@@ -3859,8 +3780,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Reads the persistent open state a tree node stored under an explicit storage identifier. Canvases
-    /// canonical <c>ImGui::TreeNodeGetOpen(ImGuiID)</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:6834-6839</c>),
-    /// declared in <c>imgui.h:769</c>.
+    /// canonical <c>ImGui::TreeNodeGetOpen(ImGuiID)</c>.,
+    ///.
     /// </summary>
     /// <param name="storageId">The storage key, which is the item identifier unless
     /// <see cref="SetNextItemStorageID"/> overrode it.</param>
@@ -3869,7 +3790,7 @@ public static partial class ImGui
     /// <remarks>
     /// The read targets the current window's per-window state storage through
     /// <c>window->DC.StateStorage</c>, with a canonical default of zero for nodes that were never
-    /// toggled (<c>imgui_widgets.cpp:6837-6838</c>).
+    /// toggled.
     /// </remarks>
     public static bool TreeNodeGetOpen(uint storageId)
     {
@@ -3880,8 +3801,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Writes the persistent open state of a tree node under an explicit storage identifier. Canvases
-    /// canonical <c>ImGui::TreeNodeSetOpen(ImGuiID, bool)</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:6841-6846</c>),
-    /// declared in <c>imgui_internal.h:4072</c>.
+    /// canonical <c>ImGui::TreeNodeSetOpen(ImGuiID, bool)</c>.,
+    ///.
     /// </summary>
     /// <param name="storageId">The storage key.</param>
     /// <param name="isOpen">The open state to store; it is written as the canonical integer one or zero.
@@ -3889,11 +3810,11 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// The write targets the current window's per-window state storage through
-    /// <c>window->DC.StateStorage</c> (<c>imgui_widgets.cpp:6844-6845</c>).
+    /// <c>window->DC.StateStorage</c>.
     /// </para>
     /// <para>
-    /// Canonical declares this function in <c>imgui_internal.h:4072</c> and forward declares it in
-    /// <c>imgui_demo.cpp:309-310</c> specifically so the demo can close a node programmatically; the
+    /// Canonical declares this function. and forward declares it in
+    ///  specifically so the demo can close a node programmatically; the
     /// port exposes it publicly for the same reason, matching how
     /// <see cref="ShowFontAtlas"/> is exposed for the demo's font section.
     /// </para>
@@ -3910,14 +3831,14 @@ public static partial class ImGui
     /// <see cref="SetNextItemOpen"/> and applying the persistent value, the
     /// <see cref="ImGuiTreeNodeFlags.DefaultOpen"/> default, and the logging auto-open rule. Canvases
     /// canonical <c>ImGui::TreeNodeUpdateNextOpen(ImGuiID, ImGuiTreeNodeFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6848-6893</c>), declared in <c>imgui_internal.h:4073</c>.
+    ///.
     /// </summary>
     /// <param name="storageId">The storage key for the persistent open state.</param>
     /// <param name="flags">The node's behavior flags.</param>
     /// <returns>The open state the node must report for this frame.</returns>
     /// <remarks>
     /// <para>
-    /// Canonical step order (<c>imgui_widgets.cpp:6851-6892</c>): a
+    /// Canonical step order.: a
     /// <see cref="ImGuiTreeNodeFlags.Leaf"/> returns <see langword="true"/> immediately so its scope
     /// always exists; a queued open value with <see cref="ImGuiCond.Always"/> overwrites the stored value;
     /// a queued value with any other condition is used only while the stored value is the canonical
@@ -3928,12 +3849,12 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// <see cref="ImGuiCond.Once"/> and <see cref="ImGuiCond.FirstUseEver"/> are treated identically,
-    /// because tree state is not persisted to disk (<c>imgui_widgets.cpp:6869</c>).
+    /// because tree state is not persisted to disk.
     /// </para>
     /// </remarks>
     internal static bool TreeNodeUpdateNextOpen(uint storageId, ImGuiTreeNodeFlags flags)
     {
-        // Leaf nodes always open a new tree/ID scope. (imgui_widgets.cpp:6851-6852)
+        // Leaf nodes always open a new tree/ID scope.
         if ((flags & ImGuiTreeNodeFlags.Leaf) != 0)
             return true;
 
@@ -3969,7 +3890,7 @@ public static partial class ImGui
         }
 
         // Logging auto-opens nodes below the configured expansion depth; CollapsingHeader is normally
-        // exempt because it carries NoAutoOpenOnLog. (imgui_widgets.cpp:6887-6890)
+        // exempt because it carries NoAutoOpenOnLog.
         if (g.LogEnabled && (flags & ImGuiTreeNodeFlags.NoAutoOpenOnLog) == 0
             && (window.DC.TreeDepth - g.LogDepthRef) < g.LogDepthToExpand)
         {
@@ -3983,22 +3904,21 @@ public static partial class ImGui
     /// Appends an <see cref="ImGuiTreeNodeStackData"/> entry describing just-submitted node so that
     /// hierarchy lines and the "left arrow jumps to parent" navigation can be resolved by
     /// <see cref="TreePop"/>. Canvases canonical static <c>TreeNodeStoreStackData</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6895-6917</c>).
     /// </summary>
     /// <param name="flags">The node's behavior flags after the style default has been folded in.</param>
     /// <param name="x1">The arrow-column left edge, that is <c>text_pos.x - text_offset_x</c>.</param>
     /// <remarks>
     /// <para>
     /// The entry records the last item's identifier, flags, item flags, and navigation rectangle, then
-    /// the line-drawing state (<c>imgui_widgets.cpp:6904-6913</c>). <c>DrawLinesX1</c> holds
+    /// the line-drawing state. <c>DrawLinesX1</c> holds
     /// <c>+FLT_MAX</c> when no line is drawn, which <see cref="TreePop"/> tests as the "no lines"
     /// sentinel. Depth bookkeeping sets the bit for the current depth in
     /// <c>TreeHasStackDataDepthMask</c>, and additionally in <c>TreeRecordsClippedNodesY2Mask</c> for
-    /// <see cref="ImGuiTreeNodeFlags.DrawLinesToNodes"/> (<c>6914-6916</c>).
+    /// <see cref="ImGuiTreeNodeFlags.DrawLinesToNodes"/>.
     /// </para>
     /// <para>
     /// Canonical also records the active table column so the vertical line can be drawn into that
-    /// column's channel (<c>imgui_widgets.cpp:6912</c>). Tables are owned by Chunk 5
+    /// column's channel. Tables are owned by Chunk 5
     /// (<c>g.CurrentTable</c> is not declared in the port), so <c>DrawLinesTableColumn</c> is always
     /// stored as <c>-1</c>, which is the canonical no-table value.
     /// </para>
@@ -4008,7 +3928,7 @@ public static partial class ImGui
         ImGuiContext g = GetCurrentContext()!;
         ImGuiWindow window = g.CurrentWindow!;
 
-        // Canonical resizes the stack and fills the new tail in place (imgui_widgets.cpp:6902-6903).
+        // Canonical resizes the stack and fills the new tail in place.
         ImGuiTreeNodeStackData treeNodeData = new();
         g.TreeNodeStack.Add(treeNodeData);
         treeNodeData.ID = g.LastItemData.ID;
@@ -4018,7 +3938,7 @@ public static partial class ImGui
 
         bool drawLines = (flags & (ImGuiTreeNodeFlags.DrawLinesFull | ImGuiTreeNodeFlags.DrawLinesToNodes)) != 0;
         treeNodeData.DrawLinesX1 = drawLines ? x1 + g.FontSize * 0.5f + g.Style.FramePadding.X : float.MaxValue;
-        // Hierarchy lines are drawn in the column that holds the node's arrow (imgui_widgets.cpp:6912).
+        // Hierarchy lines are drawn in the column that holds the node's arrow.
         treeNodeData.DrawLinesTableColumn = drawLines && g.CurrentTable != null
             ? (short)g.CurrentTable.CurrentColumn
             : (short)-1;
@@ -4032,14 +3952,14 @@ public static partial class ImGui
     /// Submits the tree-node item itself: layout, identifier and storage resolution, interaction,
     /// open-state toggling, hierarchy lines, arrow/bullet rendering, label rendering, and the child ID
     /// scope push. Canvases canonical <c>ImGui::TreeNodeBehavior</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6919-7200</c>), declared in <c>imgui_internal.h:4068</c>.
+    ///.
     /// </summary>
     /// <param name="id">The pre-computed item identifier.</param>
     /// <param name="flags">Behavior flags composed from <see cref="ImGuiTreeNodeFlags"/>.</param>
     /// <param name="label">The display label.</param>
     /// <param name="labelEnd">
     /// The canonical rendered end expressed as the resolved range content, or <see langword="null"/> to
-    /// scan the label for the first <c>##</c> (<c>imgui_widgets.cpp:6933-6934</c>).
+    /// scan the label for the first <c>##</c>.
     /// </param>
     /// <returns>
     /// The node's open state after this frame's interaction, not whether it was clicked. When it is
@@ -4048,7 +3968,7 @@ public static partial class ImGui
     /// </returns>
     /// <remarks>
     /// <para>
-    /// Canonical step order (<c>imgui_widgets.cpp:6921-7199</c>): skip check; layout metrics; frame,
+    /// Canonical step order.: skip check; layout metrics; frame,
     /// interaction, and text rectangles; <c>ItemSize</c>; storage-identifier and open-state resolution
     /// before <c>ItemAdd</c> because that call clears the next-item data; <c>ItemAdd</c> with the display
     /// rectangle recorded; hierarchy-line bookkeeping; the invisible fast path that still pushes the
@@ -4065,7 +3985,7 @@ public static partial class ImGui
     /// omitted because the port does not enable the test engine. A node inside a multi-selection scope
     /// is fully supported: the open behavior is promoted from the
     /// <c>ImGuiItemFlags_IsMultiSelect</c> item flag, and the multi-select header and footer run around
-    /// <c>ButtonBehavior</c> (<c>imgui_widgets.cpp:7040-7043, 7067-7077, 7124-7131</c>).
+    /// <c>ButtonBehavior</c> (<c>, 7067-7077, 7124-7131</c>).
     /// </para>
     /// </remarks>
     internal static bool TreeNodeBehavior(uint id, ImGuiTreeNodeFlags flags, string label, string? labelEnd = null)
@@ -4078,7 +3998,6 @@ public static partial class ImGui
         ImGuiStyle style = g.Style;
 
         // When unframed, the node grows vertically up to the typical framed widget height.
-        // (imgui_widgets.cpp:6929-6931)
         bool displayFrame = (flags & ImGuiTreeNodeFlags.Framed) != 0;
         bool useFramePadding = displayFrame || (flags & ImGuiTreeNodeFlags.FramePadding) != 0;
         ImVec2 padding = useFramePadding
@@ -4089,7 +4008,7 @@ public static partial class ImGui
         ImVec2 labelSize = CalcTextSize(labelEnd, false);
 
         float textOffsetX = g.FontSize + (displayFrame ? padding.X * 3.0f : padding.X * 2.0f);
-        // Latched before ItemSize changes the current line baseline offset. (imgui_widgets.cpp:6938)
+        // Latched before ItemSize changes the current line baseline offset.
         float textOffsetY = useFramePadding
             ? MathF.Max(style.FramePadding.Y, window.DC.CurrLineTextBaseOffset)
             : window.DC.CurrLineTextBaseOffset;
@@ -4097,7 +4016,7 @@ public static partial class ImGui
         float frameHeight = labelSize.Y + padding.Y * 2.0f;
 
         // SpanAllColumns and LabelSpanAllColumns take effect only inside a table; outside one they are
-        // no-ops (imgui_widgets.cpp:6942-6943).
+        // no-ops.
         bool spanAllColumns = (flags & ImGuiTreeNodeFlags.SpanAllColumns) != 0 && g.CurrentTable != null;
         bool spanAllColumnsLabel = (flags & ImGuiTreeNodeFlags.LabelSpanAllColumns) != 0 && g.CurrentTable != null;
 
@@ -4112,7 +4031,7 @@ public static partial class ImGui
         frameBb.Max.Y = window.DC.CursorPos.Y + (textOffsetY - padding.Y) + frameHeight;
         if (displayFrame)
         {
-            // A framed header expands a little outside the current limits. (imgui_widgets.cpp:6951-6954)
+            // A framed header expands a little outside the current limits.
             float outerExtend = TruncateToInt(window.WindowPadding.X * 0.5f);
             frameBb.Min.X -= outerExtend;
             frameBb.Max.X += outerExtend;
@@ -4122,7 +4041,6 @@ public static partial class ImGui
         ItemSize(new ImVec2(textWidth, frameHeight), padding.Y);
 
         // Regular tree nodes arbitrarily allow clicking past two worth of ItemSpacing.
-        // (imgui_widgets.cpp:6960-6962)
         ImRect interactBb = frameBb;
         if ((flags & (ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.SpanFullWidth
                 | ImGuiTreeNodeFlags.SpanLabelWidth | ImGuiTreeNodeFlags.SpanAllColumns)) == 0)
@@ -4131,12 +4049,11 @@ public static partial class ImGui
         }
 
         // Open and multi-select state must be resolved before ItemAdd, which clears the next-item data.
-        // (imgui_widgets.cpp:6964-6966)
         uint storageId = (g.NextItemData.HasFlags & ImGuiNextItemDataFlags.HasStorageID) != 0 ? g.NextItemData.StorageId : id;
         bool isOpen = TreeNodeUpdateNextOpen(storageId, flags);
 
         // Span-all-columns nodes widen the clip rect to ParentWorkRect around ItemAdd, then restore it,
-        // so the item is tested against the full table row (imgui_widgets.cpp:6968-6982).
+        // so the item is tested against the full table row.
         bool isVisible;
         if (spanAllColumns || spanAllColumnsLabel)
         {
@@ -4155,7 +4072,7 @@ public static partial class ImGui
         g.LastItemData.DisplayRect = frameBb;
 
         // Store stack data for the current depth so ImGuiTreeNodeFlags.NavLeftJumpsToParent can return
-        // to this node from any child item. (imgui_widgets.cpp:6987-7001)
+        // to this node from any child item.
         bool storeTreeNodeStackData = false;
         if ((flags & (ImGuiTreeNodeFlags)ImGuiTreeNodeFlagsPrivate.ImGuiTreeNodeFlags_DrawLinesMask_) == 0)
             flags |= g.Style.TreeLinesFlags;
@@ -4174,7 +4091,7 @@ public static partial class ImGui
         if (!isVisible)
         {
             // Invisible nodes still feed the clipped-node Y2 of their parent, then push their scope when
-            // open so layout inside them can continue. (imgui_widgets.cpp:7004-7018)
+            // open so layout inside them can continue.
             if ((flags & ImGuiTreeNodeFlags.DrawLinesToNodes) != 0
                 && (window.DC.TreeRecordsClippedNodesY2Mask & (uint)(1 << (window.DC.TreeDepth - 1))) != 0)
             {
@@ -4192,7 +4109,7 @@ public static partial class ImGui
         }
 
         // Span-all-columns nodes draw their background in the table background channel, and record the
-        // clip rect so that later hit-testing matches the drawn extent (imgui_widgets.cpp:7021-7025).
+        // clip rect so that later hit-testing matches the drawn extent.
         if (spanAllColumns || spanAllColumnsLabel)
         {
             TablePushBackgroundChannel();
@@ -4210,7 +4127,7 @@ public static partial class ImGui
             buttonFlags |= (ImGuiButtonFlags)ImGuiButtonFlagsPrivate.ImGuiButtonFlags_PressedOnDragDropHold;
 
         // Clicking the arrow section may carry keyboard modifiers, so a tree can be browsed while a
-        // selection is preserved; clicking the rest of the node never does. (imgui_widgets.cpp:7034-7039)
+        // selection is preserved; clicking the rest of the node never does.
         float arrowHitX1 = (textPos.X - textOffsetX) - style.TouchExtraPadding.X;
         float arrowHitX2 = (textPos.X - textOffsetX) + (g.FontSize + padding.X * 2.0f) + style.TouchExtraPadding.X;
         bool isMouseXOverArrow = g.IO.MousePos.X >= arrowHitX1 && g.IO.MousePos.X < arrowHitX2;
@@ -4218,7 +4135,6 @@ public static partial class ImGui
         // A node submitted inside a multi-selection scope must keep opening and selecting apart, so when
         // the caller leaves both open-behavior flags unset the arrow and double-click behaviors are
         // adopted by default; an explicitly requested open behavior is only extended with the arrow.
-        // (imgui_widgets.cpp:7040-7043)
         bool isMultiSelect = (g.LastItemData.ItemFlags & (ImGuiItemFlags)(int)ImGuiItemFlagsPrivate.ImGuiItemFlags_IsMultiSelect) != 0;
         if (isMultiSelect)
         {
@@ -4229,7 +4145,7 @@ public static partial class ImGui
 
         // Open behaviors can be altered with OpenOnArrow and OpenOnDoubleClick. Arrow clicks react on
         // MouseDown rather than MouseUp, and the double-click policy still presses on release so drag and
-        // drop can start on the initial press. (imgui_widgets.cpp:7045-7059)
+        // drop can start on the initial press.
         if (isMouseXOverArrow)
             buttonFlags |= (ImGuiButtonFlags)ImGuiButtonFlagsPrivate.ImGuiButtonFlags_PressedOnClick;
         else if ((flags & ImGuiTreeNodeFlags.OpenOnDoubleClick) != 0)
@@ -4246,7 +4162,7 @@ public static partial class ImGui
         // Multi-selection support (header): resolve the visible selection for the pending clear or
         // select-all operation and the keyboard range, then adjust the button flags. Because the header
         // already establishes the press timing for a multi-select item, keyboard modifiers are not
-        // suppressed; only the non-multi-select path adds NoKeyModsAllowed. (imgui_widgets.cpp:7067-7077)
+        // suppressed; only the non-multi-select path adds NoKeyModsAllowed.
         if (isMultiSelect)
         {
             // The multi-select helper operates on the reconstructed integer button-flag word; the value is
@@ -4275,7 +4191,7 @@ public static partial class ImGui
             if (pressed && g.DragDropHoldJustPressedId != id)
             {
                 // Single click, unless an open-on-arrow/double-click policy is in effect; navigation
-                // activation always toggles. (imgui_widgets.cpp:7087-7092)
+                // activation always toggles.
                 if ((flags & (ImGuiTreeNodeFlags)ImGuiTreeNodeFlagsPrivate.ImGuiTreeNodeFlags_OpenOnMask_) == 0
                     || (g.NavActivateId == id && !isMultiSelect))
                 {
@@ -4289,7 +4205,6 @@ public static partial class ImGui
             else if (pressed && g.DragDropHoldJustPressedId == id)
             {
                 // Hold-to-open: open once and keep the node highlighted, but never close it again.
-                // (imgui_widgets.cpp:7094-7100)
                 ImAssert.Check(
                     (buttonFlags & (ImGuiButtonFlags)ImGuiButtonFlagsPrivate.ImGuiButtonFlags_PressedOnDragDropHold) != 0);
                 if (!isOpen)
@@ -4298,7 +4213,7 @@ public static partial class ImGui
                     pressed = false; // Cancel the press so it does not trigger selection.
             }
 
-            // Left closes, right opens, both consuming the navigation request. (imgui_widgets.cpp:7103-7114)
+            // Left closes, right opens, both consuming the navigation request.
             if (g.NavId == id && g.NavMoveDir == ImGuiDir.Left && isOpen)
             {
                 toggled = true;
@@ -4323,7 +4238,6 @@ public static partial class ImGui
         // Multi-selection support (footer): emit the selection requests for this node and update the
         // range and navigation tracking. A press that also toggled the node's open state must not be
         // reported to the footer as a selection press, but it still re-anchors navigation on the node.
-        // (imgui_widgets.cpp:7124-7131)
         if (isMultiSelect)
         {
             bool pressedForFooter = pressed && !toggled;
@@ -4335,7 +4249,7 @@ public static partial class ImGui
         if (selected != wasSelected)
             g.LastItemData.StatusFlags |= ImGuiItemStatusFlags.ToggledSelection;
 
-        // Render. (imgui_widgets.cpp:7136-7191)
+        // Render.
         {
             uint textCol = GetColorU32(ImGuiCol.Text);
             ImGuiNavRenderCursorFlags navRenderCursorFlags = ImGuiNavRenderCursorFlags.Compact;
@@ -4344,7 +4258,7 @@ public static partial class ImGui
 
             if (displayFrame)
             {
-                // Framed type. (imgui_widgets.cpp:7142-7160)
+                // Framed type.
                 uint bgCol = GetColorU32((held && hovered) ? ImGuiCol.HeaderActive : hovered ? ImGuiCol.HeaderHovered : ImGuiCol.Header);
                 RenderFrame(frameBb.Min, frameBb.Max, bgCol, true, style.FrameRounding);
                 RenderNavCursor(frameBb, id, navRenderCursorFlags);
@@ -4364,18 +4278,18 @@ public static partial class ImGui
                 }
                 else
                 {
-                    // Leaf without a bullet uses left-adjusted text. (imgui_widgets.cpp:7154-7155)
+                    // Leaf without a bullet uses left-adjusted text.
                     textPos.X -= textOffsetX - padding.X;
                 }
                 if ((flags & (ImGuiTreeNodeFlags)ImGuiTreeNodeFlagsPrivate.ImGuiTreeNodeFlags_ClipLabelForTrailingButton) != 0)
                     frameBb.Max.X -= g.FontSize + style.FramePadding.X;
                 // Canonical latches the frame decoration while logging is active.
                 if (g.LogEnabled)
-                    LogSetNextTextDecoration("###", "###"); // (imgui_widgets.cpp:7158-7159)
+                    LogSetNextTextDecoration("###", "###"); //.
             }
             else
             {
-                // Unframed type for plain tree nodes. (imgui_widgets.cpp:7161-7177)
+                // Unframed type for plain tree nodes.
                 if (hovered || selected)
                 {
                     uint bgCol = GetColorU32((held && hovered) ? ImGuiCol.HeaderActive : hovered ? ImGuiCol.HeaderHovered : ImGuiCol.Header);
@@ -4399,14 +4313,14 @@ public static partial class ImGui
                 }
                 // Canonical latches the collapsed-marker decoration while logging is active.
                 if (g.LogEnabled)
-                    LogSetNextTextDecoration(">", null); // (imgui_widgets.cpp:7176-7177)
+                    LogSetNextTextDecoration(">", null); //.
             }
 
-            // Horizontal line from the parent node into this visible child. (imgui_widgets.cpp:7180-7181)
+            // Horizontal line from the parent node into this visible child.
             if (drawTreeLines)
                 TreeNodeDrawLineToChildNode(new ImVec2(textPos.X - textOffsetX + padding.X, textPos.Y + g.FontSize * 0.5f));
 
-            // Label. (imgui_widgets.cpp:7183-7187)
+            // Label.
             if (displayFrame)
                 RenderTextClipped(textPos, frameBb.Max, label, labelEnd, labelSize);
             else
@@ -4417,7 +4331,6 @@ public static partial class ImGui
         }
 
         // Push the child scope after rendering so hierarchy lines were drawn above it.
-        // (imgui_widgets.cpp:7193-7196)
         if (isOpen && storeTreeNodeStackData)
             TreeNodeStoreStackData(flags, textPos.X - textOffsetX);
         if (isOpen && (flags & ImGuiTreeNodeFlags.NoTreePushOnOpen) == 0)
@@ -4430,16 +4343,15 @@ public static partial class ImGui
     /// <summary>
     /// Draws the horizontal hierarchy line from the parent node's arrow column into a visible child node
     /// and records the child's Y coordinate on the parent's stack entry. Canvases canonical
-    /// <c>ImGui::TreeNodeDrawLineToChildNode</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:7204-7231</c>),
-    /// declared in <c>imgui_internal.h:4069</c>.
+    /// <c>ImGui::TreeNodeDrawLineToChildNode</c>.,
+    ///.
     /// </summary>
     /// <param name="targetPos">The child position the line points at, normally the arrow center.</param>
     /// <remarks>
     /// The function returns early when there is no parent depth or the parent's
-    /// <c>TreeHasStackDataDepthMask</c> bit is clear (<c>imgui_widgets.cpp:7208-7209</c>). All
+    /// <c>TreeHasStackDataDepthMask</c> bit is clear. All
     /// coordinates are truncated toward zero; when rounding is enabled the line ends in a quarter arc on
     /// the parent's vertical line, otherwise it is a plain horizontal segment
-    /// (<c>imgui_widgets.cpp:7215-7230</c>).
     /// </remarks>
     internal static void TreeNodeDrawLineToChildNode(ImVec2 targetPos)
     {
@@ -4463,7 +4375,7 @@ public static partial class ImGui
         if (rounding > 0.0f)
         {
             // The arc is centered one rounding radius above the line end; PathArcToFast covers the
-            // quarter turn from the 6 o'clock to the 3 o'clock clock position. (imgui_widgets.cpp:7219-7226)
+            // quarter turn from the 6 o'clock to the 3 o'clock clock position.
             x1 += 0.5f + rounding;
             window.DrawList.PathArcToFast(new ImVec2(x1, y - rounding), rounding, 6, 3);
             if (x1 < x2)
@@ -4479,22 +4391,21 @@ public static partial class ImGui
     /// <summary>
     /// Draws the vertical hierarchy line belonging to one tree node, from its navigation rectangle down
     /// to the cursor position or to the bottom-most recorded child. Canvases canonical
-    /// <c>ImGui::TreeNodeDrawLineToTreePop</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:7234-7258</c>),
-    /// declared in <c>imgui_internal.h:4070</c>.
+    /// <c>ImGui::TreeNodeDrawLineToTreePop</c>.,
+    ///.
     /// </summary>
     /// <param name="data">The stack entry of the node being closed, carrying its line geometry.</param>
     /// <remarks>
     /// <para>
     /// The top of the line is clamped to the visible clip region, and the bottom is first narrowed by
     /// <c>DrawLinesFull</c> toward the current cursor, then clamped to the clip rectangle; the function
-    /// returns without drawing when the range is empty (<c>imgui_widgets.cpp:7238-7251</c>).
+    /// returns without drawing when the range is empty.
     /// </para>
     /// <para>
     /// Two canonical branches are guarded inert because tables are owned by Chunk 5: the
     /// <c>g.CurrentTable</c> extension of the full-line bottom to <c>RowPosY2</c>
-    /// (<c>imgui_widgets.cpp:7243-7244</c>), and the
-    /// <c>TablePushColumnChannel</c>/<c>TablePopColumnChannel</c> wrapper around the draw call
-    /// (<c>7253-7257</c>). The stored <c>DrawLinesTableColumn</c> is always <c>-1</c>, which is the
+    ///., and the
+    /// <c>TablePushColumnChannel</c>/<c>TablePopColumnChannel</c> wrapper around the draw call. The stored <c>DrawLinesTableColumn</c> is always <c>-1</c>, which is the
     /// canonical no-table value, so both branches are unreachable in canonical as well.
     /// </para>
     /// </remarks>
@@ -4507,7 +4418,7 @@ public static partial class ImGui
         if ((data.TreeFlags & ImGuiTreeNodeFlags.DrawLinesFull) != 0)
         {
             float y2Full = window.DC.CursorPos.Y;
-            // Inside a table the full line extends to the bottom of the current row (imgui_widgets.cpp:7242-7244).
+            // Inside a table the full line extends to the bottom of the current row.
             if (g.CurrentTable != null)
                 y2Full = MathF.Max(g.CurrentTable.RowPosY2, y2Full);
             y2Full = TruncateToInt(y2Full - g.Style.ItemSpacing.Y - g.FontSize * 0.5f);
@@ -4519,7 +4430,6 @@ public static partial class ImGui
             return;
 
         // The line is drawn in the column that owns the arrow, so table clipping applies to it
-        // (imgui_widgets.cpp:7253-7257).
         float x = TruncateToInt(data.DrawLinesX1);
         if (data.DrawLinesTableColumn != -1)
             TablePushColumnChannel(data.DrawLinesTableColumn);
@@ -4531,13 +4441,13 @@ public static partial class ImGui
     /// <summary>
     /// Opens a child scope addressed by a string identifier: indents the layout cursor, increases the tree
     /// depth, and pushes the identifier. Canvases canonical <c>ImGui::TreePush(const char*)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7260-7266</c>), declared in <c>imgui.h:761</c>.
+    ///.
     /// </summary>
     /// <param name="strId">The identifier seed pushed onto the ID stack.</param>
     /// <remarks>
     /// <see cref="TreeNode(string)"/> already performs this push when it returns true; the explicit form
     /// exists for callers that want to open a scope without a visible node. The matching call is
-    /// <see cref="TreePop"/> (<c>imgui_widgets.cpp:7263-7265</c>).
+    /// <see cref="TreePop"/>.
     /// </remarks>
     public static void TreePush(string strId)
     {
@@ -4550,12 +4460,12 @@ public static partial class ImGui
     /// <summary>
     /// Opens a child scope addressed by an opaque object reference: indents the layout cursor, increases
     /// the tree depth, and pushes the pointer-derived identifier. Canvases canonical
-    /// <c>ImGui::TreePush(const void*)</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:7268-7274</c>),
-    /// declared in <c>imgui.h:762</c>.
+    /// <c>ImGui::TreePush(const void*)</c>.,
+    ///.
     /// </summary>
     /// <param name="ptrId">The reference whose identity seeds the pushed identifier.</param>
     /// <remarks>
-    /// The matching call is <see cref="TreePop"/> (<c>imgui_widgets.cpp:7271-7273</c>).
+    /// The matching call is <see cref="TreePop"/>.
     /// </remarks>
     public static void TreePush(object? ptrId)
     {
@@ -4568,12 +4478,12 @@ public static partial class ImGui
     /// <summary>
     /// Opens a child scope from an already-computed identifier, avoiding a second identifier hash for a
     /// node whose identifier is known. Canvases canonical <c>ImGui::TreePushOverrideID</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7276-7283</c>), declared in <c>imgui_internal.h:4071</c>.
+    ///.
     /// </summary>
     /// <param name="id">The exact identifier to push onto the ID stack.</param>
     /// <remarks>
     /// <see cref="TreeNodeBehavior"/> uses this form because it already computed the item identifier
-    /// (<c>imgui_widgets.cpp:7196</c>). The matching call is <see cref="TreePop"/>.
+    ///. The matching call is <see cref="TreePop"/>.
     /// </remarks>
     internal static void TreePushOverrideID(uint id)
     {
@@ -4587,8 +4497,8 @@ public static partial class ImGui
     /// <summary>
     /// Closes the innermost child scope opened by a tree node or <c>TreePush</c>: unindents, decreases the
     /// tree depth, resolves the saved navigation and hierarchy-line state, then pops the identifier.
-    /// Canvases canonical <c>ImGui::TreePop</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:7285-7315</c>),
-    /// declared in <c>imgui.h:763</c>.
+    /// Canvases canonical <c>ImGui::TreePop</c>.,
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -4597,11 +4507,11 @@ public static partial class ImGui
     /// navigation request against the saved node for
     /// <see cref="ImGuiTreeNodeFlags.NavLeftJumpsToParent"/>, draws the vertical hierarchy line when the
     /// node stored one and the cursor is below the clip top, then removes the entry and clears both depth
-    /// masks (<c>imgui_widgets.cpp:7294-7310</c>).
+    /// masks.
     /// </para>
     /// <para>
     /// The final assertion documents that a window always keeps one base identifier on its ID stack, so
-    /// the identifier pop is always balanced (<c>imgui_widgets.cpp:7313-7314</c>).
+    /// the identifier pop is always balanced.
     /// </para>
     /// </remarks>
     public static void TreePop()
@@ -4618,12 +4528,12 @@ public static partial class ImGui
             ImGuiTreeNodeStackData data = g.TreeNodeStack[^1];
             ImAssert.Check(data.ID == window.IDStack[^1]);
 
-            // Left arrow moves to the parent tree node when the flag is enabled. (imgui_widgets.cpp:7298-7302)
+            // Left arrow moves to the parent tree node when the flag is enabled.
             if ((data.TreeFlags & ImGuiTreeNodeFlags.NavLeftJumpsToParent) != 0)
                 if (g.NavIdIsAlive && g.NavMoveDir == ImGuiDir.Left && g.NavWindow == window && NavMoveRequestButNoResultYet())
                     NavMoveRequestResolveWithPastTreeNode(g.NavMoveResultLocal, data);
 
-            // Draw hierarchy lines. (imgui_widgets.cpp:7304-7306)
+            // Draw hierarchy lines.
             if (data.DrawLinesX1 != float.MaxValue && window.DC.CursorPos.Y >= window.ClipRect.Min.Y)
                 TreeNodeDrawLineToTreePop(data);
 
@@ -4639,12 +4549,12 @@ public static partial class ImGui
     /// <summary>
     /// Returns the horizontal distance preceding a label in a regular unframed tree node, which is also
     /// the advance performed by <see cref="Bullet"/>. Canvases canonical
-    /// <c>ImGui::GetTreeNodeToLabelSpacing</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:7318-7322</c>),
-    /// declared in <c>imgui.h:764</c>.
+    /// <c>ImGui::GetTreeNodeToLabelSpacing</c>.,
+    ///.
     /// </summary>
     /// <returns>The font size plus twice the horizontal frame padding.</returns>
     /// <remarks>
-    /// The value is exactly <c>g.FontSize + style.FramePadding.x * 2</c> (<c>imgui_widgets.cpp:7321</c>).
+    /// The value is exactly <c>g.FontSize + style.FramePadding.x * 2</c>.
     /// </remarks>
     public static float GetTreeNodeToLabelSpacing()
     {
@@ -4655,7 +4565,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a collapsing header, which is a framed tree node that neither indents nor pushes an
     /// identifier scope. Canvases canonical <c>ImGui::CollapsingHeader(const char*, ImGuiTreeNodeFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7347-7354</c>), declared in <c>imgui.h:765</c>.
+    ///.
     /// </summary>
     /// <param name="label">The display label, which also seeds the identifier.</param>
     /// <param name="flags">Behavior flags composed from <see cref="ImGuiTreeNodeFlags"/>.</param>
@@ -4664,7 +4574,7 @@ public static partial class ImGui
     /// <see cref="ImGuiTreeNodeFlags.NoTreePushOnOpen"/>.</returns>
     /// <remarks>
     /// The flag composition <c>Framed | NoTreePushOnOpen | NoAutoOpenOnLog</c> is folded in before the
-    /// <see cref="TreeNodeBehavior"/> call (<c>imgui_widgets.cpp:7352-7353</c>).
+    /// <see cref="TreeNodeBehavior"/> call.
     /// </remarks>
     public static bool CollapsingHeader(string label, ImGuiTreeNodeFlags flags = 0)
     {
@@ -4679,7 +4589,7 @@ public static partial class ImGui
     /// Submits a collapsing header with a visibility toggle: the header is drawn only while
     /// <paramref name="pVisible"/> is true, and the canonical trailing close button clears it. Canvases
     /// canonical <c>ImGui::CollapsingHeader(const char*, bool*, ImGuiTreeNodeFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7360-7391</c>), declared in <c>imgui.h:766</c>.
+    ///.
     /// </summary>
     /// <param name="label">The display label, which also seeds the identifier.</param>
     /// <param name="pVisible">The visibility state. The canonical null-pointer case is represented by the
@@ -4690,17 +4600,17 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// The identifier is the header label; the close button uses
-    /// <c>GetIDWithSeed("#CLOSE", NULL, id)</c> (<c>imgui_widgets.cpp:7384</c>).
+    /// <c>GetIDWithSeed("#CLOSE", NULL, id)</c>.
     /// </para>
     /// <para>
     /// After the header is submitted, canonical snapshots <c>g.LastItemData</c>, places the small close
     /// button at the header's trailing edge, consumes the click by clearing
     /// <paramref name="pVisible"/>, and restores the snapshot so the header remains the item reported to
-    /// the caller (<c>imgui_widgets.cpp:7374-7388</c>). The port's <see cref="ImGuiLastItemData"/> is a
+    /// the caller. The port's <see cref="ImGuiLastItemData"/> is a
     /// reference type, so the snapshot and the restore both go through
     /// <see cref="ImGuiLastItemData.CopyFrom(ImGuiLastItemData)"/>; a plain assignment would alias the
     /// live record. The helper is part 02's <c>CloseButton</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:905-940</c>, declared in <c>imgui_internal.h:4051</c>).
+    /// (.).
     /// </para>
     /// </remarks>
     public static bool CollapsingHeader(string label, ref bool pVisible, ImGuiTreeNodeFlags flags = 0)
@@ -4714,7 +4624,7 @@ public static partial class ImGui
 
         uint id = GetID(label);
         flags |= ImGuiTreeNodeFlags.CollapsingHeader;
-        // Canonical reserves trailing space for the close button it submits below. (imgui_widgets.cpp:7371-7372)
+        // Canonical reserves trailing space for the close button it submits below.
         flags |= ImGuiTreeNodeFlags.AllowOverlap
             | (ImGuiTreeNodeFlags)ImGuiTreeNodeFlagsPrivate.ImGuiTreeNodeFlags_ClipLabelForTrailingButton;
         bool isOpen = TreeNodeBehavior(id, flags, label);
@@ -4722,7 +4632,6 @@ public static partial class ImGui
         // Create the small overlapping close button that clears the caller's visibility flag. The
         // canonical local `ImGuiLastItemData last_item_backup = g.LastItemData` is a value copy; the port
         // record is a reference type, so it is snapshotted field-by-field and restored the same way.
-        // (imgui_widgets.cpp:7374-7388)
         ImGuiContext g = GetCurrentContext()!;
         ImGuiLastItemData lastItemBackup = new();
         lastItemBackup.CopyFrom(g.LastItemData);
@@ -4743,14 +4652,14 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: MENUS (imgui_widgets.cpp)
+    #region SECTION: MENUS
 
-    #region Menu columns (imgui_widgets.cpp:9160-9202)
+    #region Menu columns
 
     /// <summary>
     /// Commits the column widths measured during the previous frame and resets the per-frame width
     /// accumulators. Canvases canonical <c>ImGuiMenuColumns::Update</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9162-9171</c>), declared in <c>imgui_internal.h:1243</c>.
+    ///.
     /// </summary>
     /// <param name="menuColumns">The menu-column state owned by the current window's temporary data.</param>
     /// <param name="spacing">Horizontal spacing inserted between non-empty columns, in pixels.</param>
@@ -4770,7 +4679,7 @@ public static partial class ImGui
     /// <para>
     /// Step order follows canonical: clear on reappearance, latch <c>Spacing</c>, lock the offsets from the
     /// previous frame's widths through <see cref="CalcNextTotalWidth"/>, clear the accumulators, publish
-    /// <c>TotalWidth</c>, and reset <c>NextTotalWidth</c> (<c>imgui_widgets.cpp:9164-9170</c>).
+    /// <c>TotalWidth</c>, and reset <c>NextTotalWidth</c>.
     /// </para>
     /// <para>
     /// Canonical casts the floating-point spacing with <c>(ImU16)</c> and clears the width array with
@@ -4792,7 +4701,7 @@ public static partial class ImGui
     /// <summary>
     /// Measures the total width of the four menu columns from the accumulated widths, optionally latching
     /// the label, shortcut, and mark offsets. Canvases canonical <c>ImGuiMenuColumns::CalcNextTotalWidth</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9173-9192</c>), declared in <c>imgui_internal.h:1245</c>.
+    ///.
     /// </summary>
     /// <param name="menuColumns">The menu-column state to measure.</param>
     /// <param name="updateOffsets">
@@ -4804,7 +4713,7 @@ public static partial class ImGui
     /// The canonical method is an instance member of <c>ImGuiMenuColumns</c>; see <see cref="Update"/> for
     /// why this port declares it as an extension method. The horizontal spacing is inserted before every
     /// non-empty column except the first, and <c>OffsetIcon</c> intentionally stays zero because the icon
-    /// column is always the leftmost one (<c>imgui_widgets.cpp:9179-9189</c>).
+    /// column is always the leftmost one.
     /// </remarks>
     internal static void CalcNextTotalWidth(this ImGuiMenuColumns menuColumns, bool updateOffsets)
     {
@@ -4833,7 +4742,7 @@ public static partial class ImGui
     /// <summary>
     /// Declares this frame's icon, label, shortcut, and mark column widths and returns the width the calling
     /// menu entry must reserve. Canvases canonical <c>ImGuiMenuColumns::DeclColumns</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9194-9202</c>), declared in <c>imgui_internal.h:1244</c>.
+    ///.
     /// </summary>
     /// <param name="menuColumns">The menu-column state to grow.</param>
     /// <param name="wIcon">Measured icon column width, or zero when the entry has no icon.</param>
@@ -4847,7 +4756,7 @@ public static partial class ImGui
     /// The canonical method is an instance member of <c>ImGuiMenuColumns</c>; see <see cref="Update"/> for
     /// why this port declares it as an extension method. Each column keeps a per-frame maximum and the new
     /// maximum is folded through <see cref="CalcNextTotalWidth"/> without locking offsets, so entries
-    /// submitted later in the same frame still see the growing width (<c>imgui_widgets.cpp:9196-9201</c>).
+    /// submitted later in the same frame still see the growing width.
     /// </remarks>
     internal static float DeclColumns(this ImGuiMenuColumns menuColumns, float wIcon, float wLabel, float wShortcut, float wMark)
     {
@@ -4861,26 +4770,25 @@ public static partial class ImGui
 
     #endregion
 
-    #region Menu bar (imgui_widgets.cpp:9204-9379)
+    #region Menu bar
 
     /// <summary>
     /// Begins appending entries to the current window's menu bar. Canvases canonical
-    /// <c>ImGui::BeginMenuBar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9208-9237</c>), declared in
-    /// <c>imgui.h:820</c>.
+    /// <c>ImGui::BeginMenuBar</c>., declared in
     /// </summary>
     /// <returns>True when the menu bar is being appended and <see cref="EndMenuBar"/> must be called.</returns>
     /// <remarks>
     /// <para>
     /// The window must carry <see cref="ImGuiWindowFlags.MenuBar"/>; otherwise the call reports false and no
-    /// state is changed (<c>imgui_widgets.cpp:9213-9214</c>). The horizontal menu geometry itself is
+    /// state is changed. The horizontal menu geometry itself is
     /// established during <c>Begin()</c> through <c>window.DC.MenuBarOffset</c> and
-    /// <c>window.MenuBarHeight</c> (<c>imgui.cpp:8219-8222</c>, port <c>ImGui.cs:7764-7767</c>), so this
+    /// <c>window.MenuBarHeight</c> (, port <c>ImGui.cs:7764-7767</c>), so this
     /// function only claims the clip rectangle, switches the layout to horizontal, and selects the menu
     /// navigation layer.
     /// </para>
     /// <para>
     /// The clip rectangle removes half the border and the window rounding so long menus do not paint over the
-    /// lower-right rounded corner (<c>imgui_widgets.cpp:9222-9227</c>). Canonical rounds with
+    /// lower-right rounded corner. Canonical rounds with
     /// <c>IM_ROUND</c> and floors with <c>ImFloor</c>; both are expressed here with the equivalent
     /// <c>(float)(int)(value + 0.5f)</c> and <see cref="System.MathF.Floor(float)"/> forms.
     /// </para>
@@ -4900,7 +4808,7 @@ public static partial class ImGui
         if ((window.Flags & ImGuiWindowFlags.MenuBar) == 0)
             return false;
 
-        ImAssert.Check(!window.DC.MenuBarAppending, "BeginMenuBar() called while a menu bar is already being appended."); // Canonical IM_ASSERT (imgui_widgets.cpp:9216).
+        ImAssert.Check(!window.DC.MenuBarAppending, "BeginMenuBar() called while a menu bar is already being appended."); // Canonical IM_ASSERT.
         BeginGroup(); // Chunk 10 owns BeginGroup/EndGroup; canonical uses the group to restore layer-0 position.
         PushID("##MenuBar");
 
@@ -4930,7 +4838,7 @@ public static partial class ImGui
     /// <summary>
     /// Ends appending entries to the current window's menu bar and restores the vertical layout and main
     /// navigation layer. Canvases canonical <c>ImGui::EndMenuBar</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9239-9296</c>), declared in <c>imgui.h:821</c>.
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -4938,18 +4846,17 @@ public static partial class ImGui
     /// result and the navigation window is a child menu, the bar claims focus back, restores its menu-layer
     /// navigation identifier, hides the navigation cursor for the transition frame, and forwards the move
     /// request so the sibling menu is scored as if it were a direct navigation move
-    /// (<c>imgui_widgets.cpp:9250-9272</c>). Otherwise the request is offered to horizontal wrapping
-    /// (<c>9277</c>).
+    ///. Otherwise the request is offered to horizontal wrapping.
     /// </para>
     /// <para>
     /// The group reconciliation then converts the bar's horizontal extents into the parent's ideal maximum
     /// width, ends the group, and restores the vertical layout and main navigation layer
-    /// (<c>imgui_widgets.cpp:9283-9295</c>). The two <c>IM_ASSERT</c> preconditions and the
+    ///. The two <c>IM_ASSERT</c> preconditions and the
     /// menu-layer-mask sanity assertion are debug assertions.
     /// </para>
     /// <para>
     /// The group stack is inspected directly because canonical disables item emission for the bar's group
-    /// before ending it (<c>imgui_widgets.cpp:9286-9287</c>); <c>EndGroup()</c> itself belongs to Chunk 10.
+    /// before ending it.; <c>EndGroup()</c> itself belongs to Chunk 10.
     /// </para>
     /// </remarks>
     public static void EndMenuBar()
@@ -4959,8 +4866,8 @@ public static partial class ImGui
             return;
         ImGuiContext g = GetCurrentContext()!;
 
-        ImAssert.Check((window.Flags & ImGuiWindowFlags.MenuBar) != 0, "EndMenuBar() called on a window without ImGuiWindowFlags_MenuBar."); // Canonical IM_ASSERT (imgui_widgets.cpp:9247).
-        ImAssert.Check(window.DC.MenuBarAppending, "EndMenuBar() called without a matching BeginMenuBar()."); // Canonical IM_ASSERT (imgui_widgets.cpp:9248).
+        ImAssert.Check((window.Flags & ImGuiWindowFlags.MenuBar) != 0, "EndMenuBar() called on a window without ImGuiWindowFlags_MenuBar."); // Canonical IM_ASSERT.
+        ImAssert.Check(window.DC.MenuBarAppending, "EndMenuBar() called without a matching BeginMenuBar()."); // Canonical IM_ASSERT.
 
         ImGuiWindow? navWindow = g.NavWindow;
         if (NavMoveRequestButNoResultYet() && (g.NavMoveDir == ImGuiDir.Left || g.NavMoveDir == ImGuiDir.Right)
@@ -4974,7 +4881,7 @@ public static partial class ImGui
                 && (g.NavMoveFlags & ImGuiNavMoveFlags.Forwarded) == 0)
             {
                 const ImGuiNavLayer layer = ImGuiNavLayer.Menu;
-                ImAssert.Check((window.DC.NavLayersActiveMaskNext & (1 << (int)layer)) != 0, "The menu navigation layer must be active for the bar."); // Canonical IM_ASSERT (imgui_widgets.cpp:9262).
+                ImAssert.Check((window.DC.NavLayersActiveMaskNext & (1 << (int)layer)) != 0, "The menu navigation layer must be active for the bar."); // Canonical IM_ASSERT.
                 FocusWindow(window);
                 SetNavID(window.NavLastIds[(int)layer], layer, 0, window.NavRectRel[(int)layer]);
                 if (g.NavCursorVisible)
@@ -5009,7 +4916,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Opens a full-side window docked to an edge of a viewport's work area. Mirrors canonical
-    /// <c>ImGui::BeginViewportSideBar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9301-9335</c>).
+    /// <c>ImGui::BeginViewportSideBar</c>.
     /// </summary>
     /// <param name="name">Window name; canonical uses <c>"##MainMenuBar"</c> for the main menu bar.</param>
     /// <param name="viewport">Host viewport, or <see langword="null"/> to use the main viewport.</param>
@@ -5068,8 +4975,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Opens the full-screen main menu bar on the main viewport and begins its menu bar. Canvases canonical
-    /// <c>ImGui::BeginMainMenuBar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9337-9363</c>), declared in
-    /// <c>imgui.h:822</c>.
+    /// <c>ImGui::BeginMainMenuBar</c>., declared in
     /// </summary>
     /// <returns>
     /// <see langword="true"/> when the bar window is open and <see cref="EndMainMenuBar"/> must be called;
@@ -5081,7 +4987,7 @@ public static partial class ImGui
     /// window through <c>BeginViewportSideBar("##MainMenuBar", viewport, ImGuiDir_Up, height,
     /// window_flags)</c>. On success it temporarily clears <c>ImGuiWindowFlags_NoSavedSettings</c> so tables
     /// or child windows submitted inside the bar may still use settings, then calls
-    /// <see cref="BeginMenuBar"/> (<c>imgui_widgets.cpp:9340-9362</c>).
+    /// <see cref="BeginMenuBar"/>.
     /// </remarks>
     public static bool BeginMainMenuBar()
     {
@@ -5114,18 +5020,18 @@ public static partial class ImGui
     /// <summary>
     /// Ends the full-screen main menu bar opened by <see cref="BeginMainMenuBar"/> and restores the focus the
     /// user had before entering the menu layer. Canvases canonical <c>ImGui::EndMainMenuBar</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9365-9379</c>), declared in <c>imgui.h:823</c>.
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The user-error precondition is reported through <see cref="ErrorLog"/> and the call returns without
     /// touching the window stack, reproducing canonical's <c>IM_ASSERT_USER_ERROR_RET</c>
-    /// (<c>imgui_widgets.cpp:9368</c>). <c>ImGuiWindowFlags_NoSavedSettings</c> is restored afterwards so
+    ///. <c>ImGuiWindowFlags_NoSavedSettings</c> is restored afterwards so
     /// tables or child windows submitted inside the bar may still use settings (<c>9360, 9371</c>).
     /// </para>
     /// <para>
     /// Focus restoration runs when the user left the menu layer by activating an item and no navigation or
-    /// active item is pending (<c>imgui_widgets.cpp:9373-9376</c>); it is the pair of
+    /// active item is pending.; it is the pair of
     /// <see cref="BeginMainMenuBar"/>.
     /// </para>
     /// </remarks>
@@ -5134,7 +5040,7 @@ public static partial class ImGui
         ImGuiContext g = GetCurrentContext()!;
         if (g.CurrentWindow == null || !g.CurrentWindow.DC.MenuBarAppending)
         {
-            ErrorLog("Calling EndMainMenuBar() not from a menu-bar!"); // Canonical IM_ASSERT_USER_ERROR_RET (imgui_widgets.cpp:9368).
+            ErrorLog("Calling EndMainMenuBar() not from a menu-bar!"); // Canonical IM_ASSERT_USER_ERROR_RET.
             return;
         }
 
@@ -5150,12 +5056,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region Menu and menu item (imgui_widgets.cpp:9381-9758)
+    #region Menu and menu item
 
     /// <summary>
     /// Tests whether the current window is the root of the menu set whose popup was opened at the current
     /// begin-popup level. Canvases canonical <c>IsRootOfOpenMenuSet</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9381-9403</c>), a translation-unit-local helper.
+    ///., a translation-unit-local helper.
     /// </summary>
     /// <returns>True when hovering may be shared across the menus of the same set.</returns>
     /// <remarks>
@@ -5167,7 +5073,7 @@ public static partial class ImGui
     /// <para>
     /// The check compares the current window's navigation layer against the parent navigation layer recorded
     /// on the upper popup, then requires that popup's window to be a child menu of the current window
-    /// (<c>imgui_widgets.cpp:9399-9402</c>). The long canonical rationale at <c>9388-9398</c> explains that
+    ///. The canonical rationale explains that
     /// the identifier comparison was replaced by the navigation-layer comparison so user <c>PushID()</c>
     /// scopes do not break menu-set detection.
     /// </para>
@@ -5189,8 +5095,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a sub-menu entry, opening its popup window when the entry is activated or hovered. Canvases
-    /// canonical <c>ImGui::BeginMenuEx</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9405-9628</c>), declared in
-    /// <c>imgui_internal.h:3766</c>.
+    /// canonical <c>ImGui::BeginMenuEx</c>., declared in
     /// </summary>
     /// <param name="label">Entry label, which also supplies the identifier; a <c>##</c> suffix is hidden from
     /// the rendered text but remains part of the identifier.</param>
@@ -5204,7 +5109,7 @@ public static partial class ImGui
     /// composition, duplicate-submission short-circuit, label measurement, menu-set hover setup, layout
     /// branch, drag-away active-identifier release, open/close decision, popup opening, and
     /// <c>LastItemData</c> restoration. The vertical branch implements the Amazon mega-dropdown triangle test
-    /// (<c>imgui_widgets.cpp:9513-9534</c>) so a menu does not close while the pointer travels toward its
+    ///. so a menu does not close while the pointer travels toward its
     /// child menu.
     /// </para>
     /// <para>
@@ -5219,9 +5124,7 @@ public static partial class ImGui
     /// canonical requires.
     /// </para>
     /// <para>
-    /// The logging decoration (<c>LogSetNextTextDecoration</c>, <c>imgui_widgets.cpp:9470, 9487</c>) is
-    /// applied when logging is active; the test-engine item registration
-    /// (<c>IMGUI_TEST_ENGINE_ITEM_INFO</c>, <c>9581</c>) is not ported. Tab bars and columns
+    /// The logging decoration (<c>LogSetNextTextDecoration</c>) is applied when logging is active; the test-engine item registration is not ported. Tab bars and columns
     /// have no canonical role in this function.
     /// </para>
     /// </remarks>
@@ -5237,7 +5140,7 @@ public static partial class ImGui
         bool menuIsOpen = IsPopupOpen(id, ImGuiPopupFlags.None);
 
         // Sub-menus are child windows so the mouse can hover across them; the first level of a hierarchy
-        // relies on IsRootOfOpenMenuSet() instead (imgui_widgets.cpp:9416-9420).
+        // relies on IsRootOfOpenMenuSet() instead.
         ImGuiWindowFlags windowFlags = ImGuiWindowFlags.ChildMenu | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoMove
             | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoNavFocus;
         if ((window.Flags & ImGuiWindowFlags.ChildMenu) != 0)
@@ -5256,7 +5159,7 @@ public static partial class ImGui
         g.MenusIdSubmittedThisFrame.Add(id);
 
         string labelEnd = FindRenderedTextEnd(label);
-        ImVec2 labelSize = CalcTextSize(labelEnd, false, -1.0f); // Canonical CalcTextSize(label, label_end, false) (imgui_widgets.cpp:9438).
+        ImVec2 labelSize = CalcTextSize(labelEnd, false, -1.0f); // Canonical CalcTextSize(label, label_end, false).
 
         // Allow hovering across the menus of one set without making every entry a child window.
         bool menusetIsOpen = IsRootOfOpenMenuSet();
@@ -5283,10 +5186,10 @@ public static partial class ImGui
             PushStyleVarX(ImGuiStyleVar.ItemSpacing, style.ItemSpacing.X * 2.0f);
             ImVec2 textPos = new ImVec2(window.DC.CursorPos.X + offsets.OffsetLabel, pos.Y + window.DC.CurrLineTextBaseOffset);
             pressed = Selectable("", menuIsOpen, selectableFlags, labelSize);
-            LogSetNextTextDecoration("[", "]"); // (imgui_widgets.cpp:9470)
+            LogSetNextTextDecoration("[", "]"); //.
             RenderText(textPos, label, labelEnd, false);
             PopStyleVar();
-            // -1 spacing compensates the spacing Selectable() added through SameLine() (imgui_widgets.cpp:9473).
+            // -1 spacing compensates the spacing Selectable() added through SameLine().
             window.DC.CursorPos = new ImVec2(window.DC.CursorPos.X + (float)(int)(style.ItemSpacing.X * (-1.0f + 0.5f)), window.DC.CursorPos.Y);
             popupPos = new ImVec2(pos.X - 1.0f - (float)(int)(style.ItemSpacing.X * 0.5f), textPos.Y - style.FramePadding.Y + window.MenuBarHeight);
         }
@@ -5301,7 +5204,7 @@ public static partial class ImGui
             pressed = Selectable("", menuIsOpen,
                 selectableFlags | (ImGuiSelectableFlags)ImGuiSelectableFlagsPrivate.ImGuiSelectableFlags_SpanAvailWidth,
                 new ImVec2(minW, labelSize.Y));
-            LogSetNextTextDecoration("", ">"); // (imgui_widgets.cpp:9487)
+            LogSetNextTextDecoration("", ">"); //.
             RenderText(new ImVec2(textPos.X + offsets.OffsetLabel, textPos.Y), label, labelEnd, false);
             if (iconW > 0.0f)
                 RenderText(new ImVec2(textPos.X + offsets.OffsetIcon, textPos.Y), icon!);
@@ -5313,7 +5216,7 @@ public static partial class ImGui
             EndDisabled(); // Chunk 10 owns BeginDisabled/EndDisabled.
 
         // Once dragged, release the active identifier and key ownership so pressing down on one menu and
-        // releasing on another works (imgui_widgets.cpp:9498-9504).
+        // releasing on another works.
         if (g.ActiveId == id && g.HoveredId != id && g.ActiveIdSource == ImGuiInputSource.Mouse && IsMouseDragging(ImGuiMouseButton.Left))
         {
             ClearActiveID();
@@ -5329,7 +5232,7 @@ public static partial class ImGui
         {
             // Close the menu when the pointer is no longer over it unless it is moving roughly toward the
             // child menu; the triangle test avoids timers and makes menus feel reactive
-            // (http://bjk5.com/post/44698559168, imgui_widgets.cpp:9511-9556).
+            // (http://bjk5.com/post/44698559168, ).
             bool movingTowardChildMenu = false;
             ImGuiPopupData? childPopup = g.BeginPopupStack.Count < g.OpenPopupStack.Count ? g.OpenPopupStack[g.BeginPopupStack.Count] : null;
             ImGuiWindow? childMenuWindow = childPopup != null && childPopup.Window != null && childPopup.Window.ParentWindow == window
@@ -5392,7 +5295,7 @@ public static partial class ImGui
         if (wantClose && IsPopupOpen(id, ImGuiPopupFlags.None))
             ClosePopupToLevel(g.BeginPopupStack.Count, true);
 
-        // Test-engine item registration (imgui_widgets.cpp:9581) is not ported.
+        // Test-engine item registration. is not ported.
         PopID();
 
         if (g.ActiveId == id && wantOpen)
@@ -5401,7 +5304,7 @@ public static partial class ImGui
         if (wantOpen && !menuIsOpen && g.OpenPopupStack.Count > g.BeginPopupStack.Count)
         {
             // Do not recycle the same menu level in one frame for a different identifier: close the other
-            // menu first and yield for a frame (imgui_widgets.cpp:9589-9591).
+            // menu first and yield for a frame.
             OpenPopup(label);
         }
         else if (wantOpen)
@@ -5420,7 +5323,7 @@ public static partial class ImGui
             if (menuIsOpen)
             {
                 // Perform the navigation init request that ImGuiPopupFlags_NoReopenAlwaysNavInit would issue
-                // when the popup was already open through a previous mouse hover (imgui_widgets.cpp:9607-9613).
+                // when the popup was already open through a previous mouse hover.
                 if (wantOpen && wantOpenNavInit && !g.NavInitRequest)
                 {
                     FocusWindow(g.CurrentWindow, ImGuiFocusRequestFlags.UnlessBelowModal);
@@ -5443,7 +5346,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a sub-menu entry without an icon. Canvases canonical <c>ImGui::BeginMenu</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9630-9633</c>), declared in <c>imgui.h:824</c>.
+    ///.
     /// </summary>
     /// <param name="label">Entry label, which also supplies the identifier.</param>
     /// <param name="enabled">False disables the entry and force-closes its popup.</param>
@@ -5455,16 +5358,16 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends the sub-menu popup opened by <see cref="BeginMenu"/> and handles left-navigation closing.
-    /// Canvases canonical <c>ImGui::EndMenu</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9635-9652</c>),
-    /// declared in <c>imgui.h:825</c>.
+    /// Canvases canonical <c>ImGui::EndMenu</c>.,
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
     /// When the popup was not re-entered this frame and a left move request inside it found no result, the
     /// menu closes itself and the request is cancelled so the parent menu can process it
-    /// (<c>imgui_widgets.cpp:9643-9649</c>). The user-error precondition is reported through
+    ///. The user-error precondition is reported through
     /// <see cref="ErrorLog"/> and the call returns, reproducing canonical's
-    /// <c>IM_ASSERT_USER_ERROR_RET</c> (<c>9640</c>).
+    /// <c>IM_ASSERT_USER_ERROR_RET</c>.
     /// </para>
     /// <para>
     /// <c>EndPopup()</c> is owned by part 05.
@@ -5476,7 +5379,7 @@ public static partial class ImGui
         ImGuiWindow window = g.CurrentWindow!;
         if ((window.Flags & (ImGuiWindowFlags.Popup | ImGuiWindowFlags.ChildMenu)) != (ImGuiWindowFlags.Popup | ImGuiWindowFlags.ChildMenu))
         {
-            ErrorLog("Calling EndMenu() in wrong window!"); // Canonical IM_ASSERT_USER_ERROR_RET (imgui_widgets.cpp:9640).
+            ErrorLog("Calling EndMenu() in wrong window!"); // Canonical IM_ASSERT_USER_ERROR_RET.
             return;
         }
 
@@ -5495,7 +5398,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a menu entry with an optional icon and shortcut, rendering the selection state and returning
     /// whether the entry was activated. Canvases canonical <c>ImGui::MenuItemEx</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9654-9742</c>), declared in <c>imgui_internal.h:3767</c>.
+    ///.
     /// </summary>
     /// <param name="label">Entry label, which also supplies the identifier.</param>
     /// <param name="icon">Optional icon drawn in the icon column, or null when the entry has no icon.</param>
@@ -5509,17 +5412,16 @@ public static partial class ImGui
     /// layout branch, drag-away active-identifier release, and disabled/identifier unwinding. In horizontal
     /// layout the shortcut is not rendered and the selected state is carried by the highlight, matching
     /// <see cref="BeginMenuEx"/>'s spacing so menu entries align inside a menu bar
-    /// (<c>imgui_widgets.cpp:9683-9695</c>).
     /// </para>
     /// <para>
     /// The vertical branch declares the four columns through <c>DeclColumns</c>, right-aligns the shortcut
     /// with the stretch width, and draws the checkmark at the mark column
-    /// (<c>imgui_widgets.cpp:9696-9722</c>). The shortcut is rendered with the disabled text color and its
+    ///. The shortcut is rendered with the disabled text color and its
     /// logging decoration is applied when logging is active.
     /// </para>
     /// <para>
     /// <c>BeginDisabled()</c>/<c>EndDisabled()</c> belong to Chunk 10 and are called as canonical requires.
-    /// The test-engine item registration (<c>IMGUI_TEST_ENGINE_ITEM_INFO</c>, <c>9736</c>) is not ported.
+    /// The test-engine item registration is not ported.
     /// </para>
     /// </remarks>
     internal static bool MenuItemEx(string label, string? icon, string? shortcut, bool selected, bool enabled)
@@ -5532,7 +5434,7 @@ public static partial class ImGui
         ImGuiStyle style = g.Style;
         ImVec2 pos = window.DC.CursorPos;
         string labelEnd = FindRenderedTextEnd(label);
-        ImVec2 labelSize = CalcTextSize(labelEnd, false, -1.0f); // Canonical CalcTextSize(label, label_end, false) (imgui_widgets.cpp:9664).
+        ImVec2 labelSize = CalcTextSize(labelEnd, false, -1.0f); // Canonical CalcTextSize(label, label_end, false).
 
         bool menusetIsOpen = IsRootOfOpenMenuSet();
         if (menusetIsOpen)
@@ -5551,7 +5453,7 @@ public static partial class ImGui
         if (window.DC.LayoutType == ImGuiLayoutType.Horizontal)
         {
             // Mimic BeginMenu()'s layout spacing so MenuItem() works inside a menu bar; the shortcut is not
-            // rendered and the highlight replaces the checkmark (imgui_widgets.cpp:9683-9695).
+            // rendered and the highlight replaces the checkmark.
             window.DC.CursorPos = new ImVec2(window.DC.CursorPos.X + (float)(int)(style.ItemSpacing.X * 0.5f), window.DC.CursorPos.Y);
             ImVec2 textPos = new ImVec2(window.DC.CursorPos.X + offsets.OffsetLabel, window.DC.CursorPos.Y + window.DC.CurrLineTextBaseOffset);
             PushStyleVarX(ImGuiStyleVar.ItemSpacing, style.ItemSpacing.X * 2.0f);
@@ -5581,7 +5483,7 @@ public static partial class ImGui
                 if (shortcutW > 0.0f)
                 {
                     PushStyleColor(ImGuiCol.Text, style.Colors[(int)ImGuiCol.TextDisabled]);
-                    LogSetNextTextDecoration("(", ")"); // (imgui_widgets.cpp:9716)
+                    LogSetNextTextDecoration("(", ")"); //.
                     RenderText(textPos + new ImVec2(offsets.OffsetShortcut + stretchW, 0.0f), shortcut!, null, false);
                     PopStyleColor();
                 }
@@ -5594,7 +5496,7 @@ public static partial class ImGui
         style.SelectableRounding = backupRounding;
 
         // Once dragged, release the active identifier and key ownership so pressing down on one menu item and
-        // releasing on another works (imgui_widgets.cpp:9726-9733).
+        // releasing on another works.
         uint id = g.LastItemData.ID;
         if (g.ActiveId == id && g.HoveredId != id && g.ActiveIdSource == ImGuiInputSource.Mouse && IsMouseDragging(ImGuiMouseButton.Left))
         {
@@ -5602,7 +5504,7 @@ public static partial class ImGui
             SetKeyOwner(ImGuiKey.MouseLeft, ImGuiKeyOwner_NoOwner);
         }
 
-        // Test-engine item registration (imgui_widgets.cpp:9736) is not ported.
+        // Test-engine item registration. is not ported.
         if (!enabled)
             EndDisabled(); // Chunk 10 owns BeginDisabled/EndDisabled.
         PopID();
@@ -5612,8 +5514,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a menu entry that returns whether it was activated. Canvases canonical
-    /// <c>ImGui::MenuItem</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9744-9747</c>), declared in
-    /// <c>imgui.h:826</c>.
+    /// <c>ImGui::MenuItem</c>., declared in
     /// </summary>
     /// <param name="label">Entry label, which also supplies the identifier.</param>
     /// <param name="shortcut">Optional shortcut text drawn right-aligned, or null.</param>
@@ -5627,8 +5528,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a menu entry that toggles a caller-owned selection flag when activated. Canvases canonical
-    /// <c>ImGui::MenuItem</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:9749-9758</c>), declared in
-    /// <c>imgui.h:827</c>.
+    /// <c>ImGui::MenuItem</c>., declared in
     /// </summary>
     /// <param name="label">Entry label, which also supplies the identifier.</param>
     /// <param name="shortcut">Optional shortcut text drawn right-aligned, or null.</param>
@@ -5652,7 +5552,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Tests whether a point lies inside a triangle. Canvases canonical <c>ImTriangleContainsPoint</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2226-2232</c>), declared in <c>imgui_internal.h:567</c>.
+    ///.
     /// </summary>
     /// <param name="a">First triangle vertex.</param>
     /// <param name="b">Second triangle vertex.</param>
@@ -5661,7 +5561,7 @@ public static partial class ImGui
     /// <returns>True when the point lies on the same side of all three directed edges.</returns>
     /// <remarks>
     /// The canonical helper lives in the general-helpers category owned by Chunk 9; the only widget that
-    /// needs it before then is the menu mega-dropdown test (<c>imgui_widgets.cpp:9532</c>), so it is
+    /// needs it before then is the menu mega-dropdown test., so it is
     /// realized here as a private helper. Chunk 9 may promote it to the shared surface without changing this
     /// call site.
     /// </remarks>
@@ -5680,7 +5580,7 @@ public static partial class ImGui
     /// <returns>A new record holding the same values as <paramref name="source"/>.</returns>
     /// <remarks>
     /// Canonical <c>ImGuiLastItemData</c> is a value structure, so
-    /// <c>ImGuiLastItemData last_item_in_parent = g.LastItemData;</c> (<c>imgui_widgets.cpp:9600, 9617</c>)
+    /// <c>ImGuiLastItemData last_item_in_parent = g.LastItemData;</c> (<c>, 9617</c>)
     /// is a snapshot. The port declares the type as a reference type that item submission mutates in place,
     /// so saving the reference alone would alias the mutated record and the restore would be a no-op; this
     /// helper reproduces the canonical value copy.
@@ -5705,14 +5605,14 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: POPUPS AND TOOLTIPS (canonical imgui.cpp)
+    #region SECTION: POPUPS AND TOOLTIPS
 
-    #region [SECTION] TOOLTIPS (imgui.cpp:12907-13007,15743-15749)
+    #region [SECTION] TOOLTIPS
 
     /// <summary>
     /// Begins a tooltip window positioned automatically relative to the mouse or to the active
     /// drag-and-drop source. Ports canonical <c>ImGui::BeginTooltip()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12911-12914</c>), declared in <c>imgui.h:833</c>.
+    ///.
     /// </summary>
     /// <returns><see langword="true"/> when the tooltip window began; canonical always returns true.</returns>
     /// <remarks>Equivalent to <see cref="BeginTooltipEx"/> with no tooltip flags and no extra window
@@ -5725,7 +5625,7 @@ public static partial class ImGui
     /// <summary>
     /// Begins a tooltip for the last submitted item, but only while that item is hovered with the
     /// flags canonical selects for tooltips. Ports canonical <c>ImGui::BeginItemTooltip()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12916-12921</c>), declared in <c>imgui.h:842</c>.
+    ///.
     /// </summary>
     /// <returns><see langword="true"/> when the item is hovered and the tooltip window began.</returns>
     /// <remarks>The hover test uses <see cref="ImGuiHoveredFlags.ForTooltip"/>, which canonical maps to
@@ -5740,8 +5640,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a tooltip window with the supplied tooltip behavior and extra window flags. Ports
-    /// canonical <c>ImGui::BeginTooltipEx()</c> (<c>ThirdParty/imgui/imgui.cpp:12923-12968</c>),
-    /// declared in <c>imgui_internal.h:3761</c>.
+    /// canonical <c>ImGui::BeginTooltipEx()</c>.,
+    ///.
     /// </summary>
     /// <param name="tooltipFlags">Tooltip behavior flags. <see cref="ImGuiTooltipFlags.OverridePrevious"/>
     /// hides a previously submitted tooltip window and advances the tooltip override counter.</param>
@@ -5750,7 +5650,7 @@ public static partial class ImGui
     /// true even though the API was expanded for future false returns.</returns>
     /// <remarks>
     /// <para>
-    /// The window name carries the tooltip override count (<c>imgui.cpp:12957-12959</c>) so a fresh
+    /// The window name carries the tooltip override count. so a fresh
     /// window is created instead of recycling the previous tooltip content:
     /// <c>##Tooltip_%02d</c>, or <c>##Tooltip_DragDrop_%02d</c> for a drag-and-drop tooltip.
     /// </para>
@@ -5764,7 +5664,7 @@ public static partial class ImGui
     /// <para>
     /// The drag-and-drop offsets are canonical <c>TOOLTIP_DEFAULT_OFFSET_MOUSE = (16, 10)</c>,
     /// <c>TOOLTIP_DEFAULT_OFFSET_TOUCH = (0, -20)</c> and
-    /// <c>TOOLTIP_DEFAULT_PIVOT_TOUCH = (0.5, 1.0)</c> (<c>imgui.cpp:1379-1381</c>), multiplied by
+    /// <c>TOOLTIP_DEFAULT_PIVOT_TOUCH = (0.5, 1.0)</c>., multiplied by
     /// <c>style.MouseCursorScale</c>.
     /// </para>
     /// </remarks>
@@ -5813,7 +5713,7 @@ public static partial class ImGui
     /// <summary>
     /// Begins a hidden tooltip window used internally to prepare tooltip content without taking input
     /// or space. Ports canonical <c>ImGui::BeginTooltipHidden()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:15743-15749</c>), declared in <c>imgui_internal.h:3762</c>.
+    ///.
     /// </summary>
     /// <returns><see langword="true"/> when the window began.</returns>
     /// <remarks>Unlike <see cref="BeginTooltipEx"/> the flag set omits <c>NoDocking</c>, matching
@@ -5833,7 +5733,7 @@ public static partial class ImGui
     /// Ends the tooltip window begun by <see cref="BeginTooltip"/>, <see cref="BeginItemTooltip"/>,
     /// <see cref="BeginTooltipEx"/>, <see cref="BeginTooltipHidden"/> or
     /// <see cref="SetTooltipV"/>. Ports canonical <c>ImGui::EndTooltip()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12970-12974</c>), declared in <c>imgui.h:834</c>.
+    ///.
     /// </summary>
     /// <remarks>The canonical <c>IM_ASSERT</c> that the current window carries
     /// <see cref="ImGuiWindowFlags.Tooltip"/> is realized with
@@ -5848,7 +5748,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tooltip containing formatted text, replacing any tooltip already submitted for this
     /// frame. Ports canonical <c>ImGui::SetTooltip()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12976-12982</c>), declared in <c>imgui.h:835</c>.
+    ///.
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -5859,8 +5759,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a tooltip containing formatted text from a pre-built argument array. Ports canonical
-    /// <c>ImGui::SetTooltipV()</c> (<c>ThirdParty/imgui/imgui.cpp:12984-12990</c>), declared in
-    /// <c>imgui.h:836</c>.
+    /// <c>ImGui::SetTooltipV()</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -5878,7 +5777,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tooltip for the last submitted item, but only while that item is hovered with the
     /// flags canonical selects for tooltips. Ports canonical <c>ImGui::SetItemTooltip()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12994-13001</c>), declared in <c>imgui.h:843</c>.
+    ///.
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -5891,8 +5790,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits a tooltip for the last submitted item from a pre-built argument array, but only while
     /// that item is hovered with the flags canonical selects for tooltips. Ports canonical
-    /// <c>ImGui::SetItemTooltipV()</c> (<c>ThirdParty/imgui/imgui.cpp:13003-13007</c>), declared in
-    /// <c>imgui.h:844</c>.
+    /// <c>ImGui::SetItemTooltipV()</c>., declared in
     /// </summary>
     /// <param name="fmt">Canonical printf-style format string.</param>
     /// <param name="args">Arguments consumed by the conversions in <paramref name="fmt"/>.</param>
@@ -5904,12 +5802,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] POPUPS (imgui.cpp:13010-13537)
+    #region [SECTION] POPUPS
 
     /// <summary>
     /// Tests whether a popup identifier is open, optionally ignoring the identifier or the popup level.
     /// Ports canonical <c>ImGui::IsPopupOpen(ImGuiID, ImGuiPopupFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13015-13044</c>), declared in <c>imgui_internal.h:3749</c>.
+    ///.
     /// </summary>
     /// <param name="id">The popup identifier; must be zero when
     /// <see cref="ImGuiPopupFlags.AnyPopupId"/> is set.</param>
@@ -5954,7 +5852,7 @@ public static partial class ImGui
     /// <summary>
     /// Tests whether the popup identified by a string is open. Ports canonical
     /// <c>ImGui::IsPopupOpen(const char*, ImGuiPopupFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13046-13053</c>), declared in <c>imgui.h:891</c>.
+    ///.
     /// </summary>
     /// <param name="strId">The identifier string, hashed relative to the current window.</param>
     /// <param name="popupFlags">The supported flags are <see cref="ImGuiPopupFlags.AnyPopupId"/> and
@@ -5975,7 +5873,7 @@ public static partial class ImGui
     /// <summary>
     /// Returns the top-most open modal window, or <see langword="null"/> when none is open. Ports
     /// canonical <c>ImGui::GetTopMostPopupModal()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13056-13064</c>), declared in <c>imgui_internal.h:3751</c>.
+    ///.
     /// </summary>
     /// <returns>The deepest modal window on the open-popup stack, searching from the top down.</returns>
     /// <remarks>Also see <see cref="FindBlockingModal"/>.</remarks>
@@ -5994,7 +5892,7 @@ public static partial class ImGui
     /// <summary>
     /// Returns the top-most modal window that is also active and visible, or <see langword="null"/>.
     /// Ports canonical <c>ImGui::GetTopMostAndVisiblePopupModal()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13067-13075</c>), declared in <c>imgui_internal.h:3752</c>.
+    ///.
     /// </summary>
     /// <returns>The deepest active and visible modal window on the open-popup stack.</returns>
     /// <remarks>Used to confirm what a stack of modals displays.</remarks>
@@ -6013,7 +5911,7 @@ public static partial class ImGui
     /// <summary>
     /// Finds the first modal window that should block focus for the specified window. Ports canonical
     /// <c>ImGui::FindBlockingModal(ImGuiWindow*)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13091-13112</c>), declared in <c>imgui_internal.h:3753</c>.
+    ///.
     /// </summary>
     /// <param name="window">The window that wants focus, or <see langword="null"/> to test whether any
     /// modal would block a newly focused window.</param>
@@ -6023,7 +5921,7 @@ public static partial class ImGui
     /// </returns>
     /// <remarks>
     /// When multiple modals are stacked, a newly created window honors begin-stack order and never
-    /// drops below its own modal parent; the canonical comment block <c>imgui.cpp:13078-13090</c>
+    /// drops below its own modal parent; the canonical comment block 
     /// documents the contract. <c>FindBlockingModal(null) == null</c> is generally equivalent to
     /// <c>GetTopMostPopupModal() == null</c>, except that this function also tests
     /// <c>Active</c>/<c>WasActive</c>.
@@ -6057,7 +5955,7 @@ public static partial class ImGui
     /// <summary>
     /// Marks the popup identified by a string as open. Ports canonical
     /// <c>ImGui::OpenPopup(const char*, ImGuiPopupFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13114-13120</c>), declared in <c>imgui.h:869</c>.
+    ///.
     /// </summary>
     /// <param name="strId">The identifier string, hashed relative to the current window.</param>
     /// <param name="popupFlags">Popup behavior flags forwarded to <see cref="OpenPopupEx"/>.</param>
@@ -6074,7 +5972,7 @@ public static partial class ImGui
     /// <summary>
     /// Marks the popup identified by an explicit identifier as open. Ports canonical
     /// <c>ImGui::OpenPopup(ImGuiID, ImGuiPopupFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13122-13125</c>), declared in <c>imgui.h:870</c>.
+    ///.
     /// </summary>
     /// <param name="id">The pre-computed popup identifier.</param>
     /// <param name="popupFlags">Popup behavior flags forwarded to <see cref="OpenPopupEx"/>.</param>
@@ -6087,8 +5985,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Marks a popup as open, keeping at most one open popup per level of the popup hierarchy. Ports
-    /// canonical <c>ImGui::OpenPopupEx()</c> (<c>ThirdParty/imgui/imgui.cpp:13133-13187</c>),
-    /// declared in <c>imgui_internal.h:3745</c>.
+    /// canonical <c>ImGui::OpenPopupEx()</c>.,
+    ///.
     /// </summary>
     /// <param name="id">The popup identifier; it is relative to the current ID stack.</param>
     /// <param name="popupFlags">Popup behavior flags; <see cref="ImGuiPopupFlags.NoOpenOverExistingPopup"/>
@@ -6105,7 +6003,7 @@ public static partial class ImGui
     /// <para>
     /// Calling <c>OpenPopup()</c> every frame is a likely programming mistake that would leave the UI
     /// unusable, so successive-frame calls silently keep the existing entry even without
-    /// <see cref="ImGuiPopupFlags.NoReopen"/> (<c>imgui.cpp:13160-13167</c>).
+    /// <see cref="ImGuiPopupFlags.NoReopen"/>.
     /// </para>
     /// <para>The open request is debug-logged after the reference positions are resolved and before the
     /// open-popup stack is inspected.</para>
@@ -6165,8 +6063,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Closes any popups that are stacked over the reference window. Ports canonical
-    /// <c>ImGui::ClosePopupsOverWindow()</c> (<c>ThirdParty/imgui/imgui.cpp:13191-13236</c>),
-    /// declared in <c>imgui_internal.h:3747</c>.
+    /// <c>ImGui::ClosePopupsOverWindow()</c>.,
+    ///.
     /// </summary>
     /// <param name="refWindow">The reference window, generally the navigation window; when
     /// <see langword="null"/> no popup is considered a descendant and the whole stack is closed.</param>
@@ -6219,8 +6117,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Closes every open popup except modals. Ports canonical
-    /// <c>ImGui::ClosePopupsExceptModals()</c> (<c>ThirdParty/imgui/imgui.cpp:13238-13251</c>),
-    /// declared in <c>imgui_internal.h:3748</c>.
+    /// <c>ImGui::ClosePopupsExceptModals()</c>.,
+    ///.
     /// </summary>
     /// <remarks>The stack is scanned from the top down; the scan stops at the first entry whose window
     /// is missing or modal, and everything above it is removed with focus restoration.</remarks>
@@ -6243,7 +6141,7 @@ public static partial class ImGui
     /// <summary>
     /// Trims the open-popup stack to the specified level and optionally restores navigation focus.
     /// Ports canonical <c>ImGui::ClosePopupToLevel()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13253-13276</c>), declared in <c>imgui_internal.h:3746</c>.
+    ///.
     /// </summary>
     /// <param name="remaining">The number of entries to keep; this must satisfy
     /// <c>0 &lt;= remaining &lt; g.OpenPopupStack.Count</c>.</param>
@@ -6311,7 +6209,7 @@ public static partial class ImGui
     /// <summary>
     /// Closes the popup that was begun with <c>BeginPopup()</c> and, for menus, its top-most non-modal
     /// parent. Ports canonical <c>ImGui::CloseCurrentPopup()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13279-13307</c>), declared in <c>imgui.h:872</c>.
+    ///.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -6360,8 +6258,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins the popup window for an already-open popup identifier. Ports canonical
-    /// <c>ImGui::BeginPopupEx()</c> (<c>ThirdParty/imgui/imgui.cpp:13310-13328</c>), declared in
-    /// <c>imgui_internal.h:3743</c>.
+    /// <c>ImGui::BeginPopupEx()</c>., declared in
     /// </summary>
     /// <param name="id">The popup identifier previously passed to <c>OpenPopup()</c>.</param>
     /// <param name="extraWindowFlags">Window flags supplied by the caller; the popup, no-docking and
@@ -6399,7 +6296,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins a child-menu popup window. Ports canonical <c>ImGui::BeginPopupMenuEx()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13330-13358</c>), declared in <c>imgui_internal.h:3744</c>.
+    ///.
     /// </summary>
     /// <param name="id">The popup identifier computed by the menu that owns this popup.</param>
     /// <param name="label">The menu label; it becomes the window identifier portion of the name.</param>
@@ -6452,8 +6349,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Begins the popup identified by a string, adding the canonical popup default flags. Ports
-    /// canonical <c>ImGui::BeginPopup()</c> (<c>ThirdParty/imgui/imgui.cpp:13360-13371</c>), declared
-    /// in <c>imgui.h:856</c>.
+    /// canonical <c>ImGui::BeginPopup()</c>., declared
+    ///.
     /// </summary>
     /// <param name="strId">The identifier string, hashed relative to the current window.</param>
     /// <param name="flags">Caller window flags; <see cref="ImGuiWindowFlags.AlwaysAutoResize"/>,
@@ -6480,7 +6377,7 @@ public static partial class ImGui
     /// <summary>
     /// Begins a modal popup window without a close button. Ports canonical
     /// <c>ImGui::BeginPopupModal(const char*, bool*, ImGuiWindowFlags)</c> with a null
-    /// <c>p_open</c> (<c>ThirdParty/imgui/imgui.cpp:13377-13409</c>), declared in <c>imgui.h:857</c>.
+    /// <c>p_open</c>.
     /// </summary>
     /// <param name="name">The modal name; it is hashed relative to the current window.</param>
     /// <param name="flags">Caller window flags; the popup, modal, no-collapse and no-docking flags are
@@ -6497,7 +6394,7 @@ public static partial class ImGui
     /// <summary>
     /// Begins a modal popup window with an optional close button. Ports canonical
     /// <c>ImGui::BeginPopupModal(const char*, bool*, ImGuiWindowFlags)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13377-13409</c>), declared in <c>imgui.h:857</c>.
+    ///.
     /// </summary>
     /// <param name="name">The modal name; it is hashed relative to the current window.</param>
     /// <param name="pOpen">When the modal is not open it is set back to <see langword="false"/>; setting
@@ -6516,7 +6413,6 @@ public static partial class ImGui
     /// <summary>
     /// Implements the shared modal-popup begin path for both <c>BeginPopupModal()</c> overloads. Ports
     /// the body of canonical <c>ImGui::BeginPopupModal()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13377-13409</c>).
     /// </summary>
     /// <param name="name">The modal name; it is hashed relative to the current window.</param>
     /// <param name="flags">Caller window flags; the popup, modal, no-collapse and no-docking flags are
@@ -6581,8 +6477,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends a popup window begun with any of the <c>BeginPopup*()</c> functions. Ports canonical
-    /// <c>ImGui::EndPopup()</c> (<c>ThirdParty/imgui/imgui.cpp:13411-13430</c>), declared in
-    /// <c>imgui.h:858</c>.
+    /// <c>ImGui::EndPopup()</c>., declared in
     /// </summary>
     /// <remarks>
     /// <para>
@@ -6624,7 +6519,7 @@ public static partial class ImGui
     /// <summary>
     /// Derives the mouse button that opens a context menu from popup flags. Ports the logic of canonical
     /// <c>ImGui::GetMouseButtonFromPopupFlags()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13432-13443</c>), declared in <c>imgui_internal.h:3756</c>.
+    ///.
     /// </summary>
     /// <param name="flags">The popup flags whose encoded mouse-button field is decoded.</param>
     /// <returns>
@@ -6635,7 +6530,7 @@ public static partial class ImGui
     /// <remarks>
     /// Part 05 binds this logic privately because the three popup context-menu request functions below
     /// are its only consumers, and because the canonical internal request for the helper must not be
-    /// duplicated by a later part that restores the <c>imgui_internal.h</c> surface. The method name
+    /// duplicated by internal helper methods. The method name
     /// therefore differs from the canonical one while the derivation is exact.
     /// </remarks>
     private static ImGuiMouseButton GetPopupMouseButton(ImGuiPopupFlags flags)
@@ -6653,7 +6548,7 @@ public static partial class ImGui
     /// <summary>
     /// Tests whether the last submitted item requests that its context-menu popup be opened. Ports
     /// canonical <c>ImGui::IsPopupOpenRequestForItem()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13445-13454</c>), declared in <c>imgui_internal.h:3757</c>.
+    ///.
     /// </summary>
     /// <param name="popupFlags">Popup flags selecting the mouse button.</param>
     /// <param name="id">The identifier of the item whose context menu is requested.</param>
@@ -6677,7 +6572,7 @@ public static partial class ImGui
     /// <summary>
     /// Tests whether the current window requests that its context-menu popup be opened. Ports
     /// canonical <c>ImGui::IsPopupOpenRequestForWindow()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13456-13467</c>), declared in <c>imgui_internal.h:3758</c>.
+    ///.
     /// </summary>
     /// <param name="popupFlags">Popup flags selecting the mouse button; when
     /// <see cref="ImGuiPopupFlags.NoOpenOverItems"/> is set, the mouse path is suppressed while any item
@@ -6707,8 +6602,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Opens a popup when the selected mouse button is released over the last item. Ports canonical
-    /// <c>ImGui::OpenPopupOnItemClick()</c> (<c>ThirdParty/imgui/imgui.cpp:13471-13482</c>), declared
-    /// in <c>imgui.h:871</c>.
+    /// <c>ImGui::OpenPopupOnItemClick()</c>., declared
+    ///.
     /// </summary>
     /// <param name="strId">An explicit popup identifier string, or <see langword="null"/> to use the
     /// last item identifier.</param>
@@ -6733,7 +6628,7 @@ public static partial class ImGui
     /// <summary>
     /// Opens and begins a popup associated with the last submitted item when the selected mouse button
     /// is released over it. Ports canonical <c>ImGui::BeginPopupContextItem()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13500-13511</c>), declared in <c>imgui.h:883</c>.
+    ///.
     /// </summary>
     /// <param name="strId">An explicit popup identifier string, or <see langword="null"/> to associate
     /// the popup with the last item identifier.</param>
@@ -6761,7 +6656,7 @@ public static partial class ImGui
     /// <summary>
     /// Opens and begins a popup associated with the current window when the selected mouse button is
     /// released over it. Ports canonical <c>ImGui::BeginPopupContextWindow()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13513-13523</c>), declared in <c>imgui.h:884</c>.
+    ///.
     /// </summary>
     /// <param name="strId">An explicit popup identifier string, or <see langword="null"/> to use the
     /// canonical <c>"window_context"</c> identifier.</param>
@@ -6781,7 +6676,7 @@ public static partial class ImGui
     /// <summary>
     /// Opens and begins a popup when the selected mouse button is released over an empty area of the
     /// current window. Ports canonical <c>ImGui::BeginPopupContextVoid()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13525-13537</c>), declared in <c>imgui.h:885</c>.
+    ///.
     /// </summary>
     /// <param name="strId">An explicit popup identifier string, or <see langword="null"/> to use the
     /// canonical <c>"void_context"</c> identifier.</param>
@@ -6809,14 +6704,13 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: DRAG AND SLIDER WIDGETS (imgui_widgets.cpp)
+    #region SECTION: DRAG AND SLIDER WIDGETS
 
-    #region [SECTION] Widgets: DragScalar, DragFloat, DragInt, etc. — shared scalar support (imgui_widgets.cpp:2484-2515)
+    #region [SECTION] Widgets: DragScalar, DragFloat, DragInt, etc. — shared scalar support
 
     /// <summary>
     /// The canonical <c>FLT_MIN</c> value, the smallest positive normalized <see cref="float"/>
     /// returned by <see cref="GetMinimumStepAtDecimalPrecision"/> when no decimal precision is known
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2487-2488</c>).
     /// </summary>
     /// <remarks>
     /// This is deliberately not <see cref="float.Epsilon"/>, which is the smallest denormal value and
@@ -6826,34 +6720,30 @@ public static partial class ImGui
 
     /// <summary>
     /// Distance multiplier applied to <c>IO.MouseDragThreshold</c> before a mouse drag is considered to
-    /// have passed its threshold, mirroring the canonical <c>DRAG_MOUSE_THRESHOLD_FACTOR</c> define
-    /// (<c>ThirdParty/imgui/imgui.cpp</c>, <c>ThirdParty/imgui/imgui_widgets.cpp:2553,2763</c>).
+    /// have passed its threshold, mirroring the canonical <c>DRAG_MOUSE_THRESHOLD_FACTOR</c> define.
     /// </summary>
     private const float DragSliderMouseThresholdFactor = 0.50f;
 
     /// <summary>
     /// Read-only item flag, folded from the canonical private item-flag namespace into the public
-    /// <see cref="ImGuiItemFlags"/> value the widget checks
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1080</c>, <c>imgui_widgets.cpp:2684,3242</c>).
+    /// <see cref="ImGuiItemFlags"/> value the widget checks.
     /// </summary>
     private const ImGuiItemFlags DragSliderItemFlagReadOnly = (ImGuiItemFlags)ImGuiItemFlagsPrivate.ImGuiItemFlags_ReadOnly;
 
     /// <summary>
     /// Inputable item flag, folded from the canonical private item-flag namespace; it tells the item
-    /// system that a drag or slider can absorb keyboard activation into text entry
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1085</c>, <c>imgui_widgets.cpp:2740,3342</c>).
+    /// system that a drag or slider can absorb keyboard activation into text entry.
     /// </summary>
     private const ImGuiItemFlags DragSliderItemFlagInputable = (ImGuiItemFlags)ImGuiItemFlagsPrivate.ImGuiItemFlags_Inputable;
 
     /// <summary>
-    /// Internal read-only slider flag, folded from <see cref="ImGuiSliderFlagsPrivate"/>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1108</c>, <c>imgui_widgets.cpp:2684,3242</c>).
+    /// Internal read-only slider flag, folded from <see cref="ImGuiSliderFlagsPrivate"/>.
     /// </summary>
     private const ImGuiSliderFlags DragSliderFlagReadOnly = (ImGuiSliderFlags)ImGuiSliderFlagsPrivate.ImGuiSliderFlags_ReadOnly;
 
     /// <summary>
     /// Internal vertical-orientation slider flag, folded from <see cref="ImGuiSliderFlagsPrivate"/>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1107</c>, <c>imgui_widgets.cpp:3545</c>).
+    /// (, ).
     /// </summary>
     private const ImGuiSliderFlags DragSliderFlagVertical = (ImGuiSliderFlags)ImGuiSliderFlagsPrivate.ImGuiSliderFlags_Vertical;
 
@@ -6861,7 +6751,6 @@ public static partial class ImGui
     /// Returns the smallest value change that one keyboard or gamepad tweak step should produce for a
     /// numeric field displayed with the given decimal precision.
     /// Canvases canonical <c>GetMinimumStepAtDecimalPrecision</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2484-2490</c>).
     /// </summary>
     /// <param name="decimalPrecision">
     /// Number of digits displayed after the decimal point, or a negative value when the precision is
@@ -6872,7 +6761,7 @@ public static partial class ImGui
     /// exactly from a table for precisions below ten and with a power function beyond that.
     /// </returns>
     /// <remarks>
-    /// The result is used by <see cref="DragBehaviorT{T}"/> (<c>imgui_widgets.cpp:2568</c>) to keep a
+    /// The result is used by <see cref="DragBehaviorT{T}"/>. to keep a
     /// nav tweak from moving the value less than the displayed precision allows.
     /// </remarks>
     internal static float GetMinimumStepAtDecimalPrecision(int decimalPrecision)
@@ -6899,7 +6788,6 @@ public static partial class ImGui
     /// Rounds a floating-point scalar by formatting it with the widget's display format and reading the
     /// text back, so the stored value matches what the user sees.
     /// Canvases canonical <c>RoundScalarWithFormatT</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2492-2515</c>).
     /// </summary>
     /// <typeparam name="T">The scalar type; canonical only supports <see cref="float"/> and <see cref="double"/>.</typeparam>
     /// <param name="format">The widget display format, which may carry leading or trailing decoration.</param>
@@ -6916,7 +6804,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// Canonical sanitizes the format for printing by removing the stb_sprintf custom flags
-    /// <c>'</c>, <c>$</c> and <c>_</c> (<c>imgui_widgets.cpp:3650-3662</c>). The shared
+    /// <c>'</c>, <c>$</c> and <c>_</c>. The shared
     /// <c>ImParseFormatSanitizeForPrinting</c> helper is not present in part 90, so the sanitization is
     /// performed inline here on the exact trimmed specifier range; this is reported as a missing
     /// part-90 helper rather than silently diverging.
@@ -6960,7 +6848,7 @@ public static partial class ImGui
     /// <param name="text">The formatted text.</param>
     /// <returns>
     /// The leading number, or zero when the text holds no digit. This mirrors the canonical
-    /// <c>ImAtof</c> prefix scan used by <c>RoundScalarWithFormatT</c> (<c>imgui_widgets.cpp:2512</c>).
+    /// <c>ImAtof</c> prefix scan used by <c>RoundScalarWithFormatT</c>.
     /// </returns>
     /// <remarks>
     /// Only the leading sign, digits, decimal point and exponent are consumed; any trailing characters
@@ -7012,8 +6900,7 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Reports whether a data type is one of the two floating-point types the drag and slider widgets
-    /// treat specially (<c>ThirdParty/imgui/imgui_widgets.cpp:2545,3116</c>).
+    /// Reports whether a data type is one of the two floating-point types the drag and slider widgets treat specially.
     /// </summary>
     /// <param name="dataType">The data type to classify.</param>
     /// <returns><see langword="true"/> for <see cref="ImGuiDataType.Float"/> and <see cref="ImGuiDataType.Double"/>.</returns>
@@ -7103,7 +6990,7 @@ public static partial class ImGui
     /// <returns>The difference widened to <see cref="double"/>.</returns>
     /// <remarks>
     /// Integer subtraction wraps modulo the type width exactly as canonical's <c>v_max - v_min</c> does
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2548,2577,3117</c>); unsigned differences therefore stay
+    /// ; unsigned differences therefore stay
     /// non-negative until they wrap, matching the unsigned comparisons canonical performs.
     /// </remarks>
     private static double DragSliderDifference<T>(ImGuiDataType dataType, T a, T b)
@@ -7154,7 +7041,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Adds the drag accumulator to a scalar using the signed accumulator type canonical selects for the
-    /// data type (<c>ThirdParty/imgui/imgui_widgets.cpp:2617</c>).
+    /// data type.
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of <paramref name="value"/>.</param>
@@ -7215,7 +7102,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the signed difference canonical subtracts from the drag accumulator after rounding
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2634</c>).
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of both operands.</param>
@@ -7275,8 +7161,7 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Applies one wrapped range step used by the <see cref="ImGuiSliderFlags.WrapAround"/> path
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2647,2649</c>).
+    /// Applies one wrapped range step used by the <see cref="ImGuiSliderFlags.WrapAround"/> path.
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of all three scalars.</param>
@@ -7374,7 +7259,7 @@ public static partial class ImGui
     /// <summary>
     /// Computes the linear parametric position of <paramref name="vClamped"/> on the range
     /// <c>[vMin, vMax]</c>, reproducing the canonical linear branch of
-    /// <c>ScaleRatioFromValueT</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3036</c>).
+    /// <c>ScaleRatioFromValueT</c>.
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of all three scalars.</param>
@@ -7384,7 +7269,7 @@ public static partial class ImGui
     /// <returns>The parametric position in <c>[0,1]</c>.</returns>
     /// <remarks>
     /// Integer types compute the numerator and denominator in their own width and then convert to
-    /// <see cref="float"/>, matching canonical's <c>(FLOATTYPE)(SIGNEDTYPE)(...)</c> casts; the unsigned
+    /// <see cref="float"/>, matching canonical's <c>(FLOATTYPE)(SIGNEDTYPE)(.)</c> casts; the unsigned
     /// types wrap through the signed accumulator before the conversion.
     /// </remarks>
     private static float DragSliderScaleLinearRatio<T>(ImGuiDataType dataType, T vClamped, T vMin, T vMax)
@@ -7450,7 +7335,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Converts a parametric position back into an integer scalar, reproducing the canonical integer
-    /// branch of <c>ScaleValueFromRatioT</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3093-3101</c>).
+    /// branch of <c>ScaleValueFromRatioT</c>.
     /// </summary>
     /// <typeparam name="T">The concrete integer scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of both bounds.</param>
@@ -7549,7 +7434,7 @@ public static partial class ImGui
     /// <returns><c>-1</c> when <paramref name="a"/> is smaller, <c>+1</c> when larger, otherwise <c>0</c>.</returns>
     /// <remarks>
     /// Realizes the canonical <c>DataTypeCompare</c> call inside <c>TempInputIsClampEnabled</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2710</c>) on the port's boxed scalar boundary.
+    ///. on the port's boxed scalar boundary.
     /// </remarks>
     private static int DragSliderCompareBoxed(ImGuiDataType dataType, object a, object b)
     {
@@ -7578,7 +7463,7 @@ public static partial class ImGui
     /// <param name="pData">The boxed scalar to back up.</param>
     /// <remarks>
     /// Canonical performs <c>memcpy(&amp;g.ActiveIdValueOnActivation, p_data, DataTypeGetInfo(data_type)-&gt;Size)</c>
-    /// when a drag or slider becomes active (<c>ThirdParty/imgui/imgui_widgets.cpp:2770-2772,3362-3364</c>).
+    /// when a drag or slider becomes active.
     /// The main library never reads the backup; it exists so mods can revert an interaction, and the
     /// port preserves it for the same reason. Only <see cref="ImGuiDataTypeInfo.Size"/> bytes are
     /// written, matching the canonical width for narrow types.
@@ -7605,12 +7490,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Widgets: DragScalar, DragFloat, DragInt, etc. (imgui_widgets.cpp:2517-2958)
+    #region [SECTION] Widgets: DragScalar, DragFloat, DragInt, etc.
 
     /// <summary>
     /// Applies one frame of drag interaction to an active scalar widget.
     /// Canvases canonical <c>DragBehaviorT</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2537-2666</c>).
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of the value and bounds.</param>
@@ -7630,7 +7514,7 @@ public static partial class ImGui
     /// <para>
     /// The logarithmic branch converts through the parametric space of
     /// <see cref="ScaleRatioFromValueT{T}"/> and <see cref="ScaleValueFromRatioT{T}"/>; the drag-specific
-    /// zero dead-zone is deliberately zero (<c>imgui_widgets.cpp:2602</c>).
+    /// zero dead-zone is deliberately zero.
     /// </para>
     /// <para>
     /// The state read and written is the canonical set: <c>g.ActiveIdSource</c>, <c>g.IO.MouseDelta</c>,
@@ -7679,7 +7563,7 @@ public static partial class ImGui
         if (axis == ImGuiAxis.Y)
             adjustDelta = -adjustDelta;
 
-        // For logarithmic use the range is effectively 0..1, so scale the delta into that range.
+        // For logarithmic use the range is effectively 0.1, so scale the delta into that range.
         if (isLogarithmic && range < float.MaxValue && range > 0.000001f)
             adjustDelta /= (float)range;
 
@@ -7769,7 +7653,6 @@ public static partial class ImGui
     /// <summary>
     /// Dispatches drag interaction to the generic core for the concrete data type.
     /// Canvases canonical <c>DragBehavior</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2668-2703</c>).
     /// </summary>
     /// <param name="id">The widget identifier.</param>
     /// <param name="dataType">The data type of the value and bounds.</param>
@@ -7784,7 +7667,7 @@ public static partial class ImGui
     /// <para>
     /// Canonical takes <c>void*</c> and passes the caller's pointer straight into the template, so the
     /// generic core writes directly into the caller's memory
-    /// (<c>imgui_widgets.cpp:2689-2698</c>). Because C# cannot express an untyped pointer, the port
+    ///. Because C# cannot express an untyped pointer, the port
     /// reads the boxed value into a typed local, calls the core through <c>ref</c>, and copies the local
     /// back into the boxed slot whenever the core reports a change; every canonical data type therefore
     /// writes through, including the wide <c>S32</c>/<c>U32</c>/<c>S64</c>/<c>U64</c>/<c>Float</c>/<c>Double</c>
@@ -7793,7 +7676,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// Canonical asserts that the flags carry no legacy <c>float power</c> argument
-    /// (<c>imgui_widgets.cpp:2671</c>); the port mirrors that assert, including the <c>flags == 1</c>
+    ///.; the port mirrors that assert, including the <c>flags == 1</c>
     /// allowance.
     /// </para>
     /// </remarks>
@@ -7897,7 +7780,6 @@ public static partial class ImGui
     /// <summary>
     /// Reports whether Ctrl+Click text entry should clamp its result to the widget bounds.
     /// Canvases canonical <c>TempInputIsClampEnabled</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2705-2717</c>).
     /// </summary>
     /// <param name="flags">The slider flags.</param>
     /// <param name="dataType">The data type of the bounds.</param>
@@ -7925,7 +7807,6 @@ public static partial class ImGui
     /// <summary>
     /// Implements the full drag scalar item for one data type on the port's boxed scalar boundary.
     /// Canvases canonical <c>DragScalar</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2721-2814</c>).
     /// </summary>
     /// <param name="label">The widget label; it supplies both the identifier and the displayed text.</param>
     /// <param name="dataType">The data type of the value and bounds.</param>
@@ -8043,8 +7924,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a single-precision floating-point value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>, implemented at
-    /// <c>imgui_widgets.cpp:2721-2814</c>).
+    /// Canvases canonical <c>DragScalar</c> (, implemented at
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Float"/> for this overload.</param>
@@ -8070,7 +7950,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a signed 32-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S32"/> for this overload.</param>
@@ -8092,7 +7972,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags an unsigned 32-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U32"/> for this overload.</param>
@@ -8114,7 +7994,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a double-precision floating-point value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Double"/> for this overload.</param>
@@ -8136,7 +8016,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a signed 8-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S8"/> for this overload.</param>
@@ -8158,7 +8038,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags an unsigned 8-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U8"/> for this overload.</param>
@@ -8180,7 +8060,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a signed 16-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S16"/> for this overload.</param>
@@ -8202,7 +8082,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags an unsigned 16-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U16"/> for this overload.</param>
@@ -8224,7 +8104,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a signed 64-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S64"/> for this overload.</param>
@@ -8246,7 +8126,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags an unsigned 64-bit integer value.
-    /// Canvases canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui.h:698</c>).
+    /// Canvases canonical <c>DragScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U64"/> for this overload.</param>
@@ -8268,7 +8148,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lays out several drag fields on one line and routes each to <see cref="DragScalarCore"/>.
-    /// Canvases canonical <c>DragScalarN</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2816-2851</c>).
+    /// Canvases canonical <c>DragScalarN</c>.
     /// </summary>
     /// <typeparam name="T">The concrete element type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="label">The widget label.</param>
@@ -8284,7 +8164,7 @@ public static partial class ImGui
     /// <remarks>
     /// Canonical advances a <c>void*</c> by the data type size; the port indexes the managed array. The
     /// per-component identifier scope (<c>PushID(label)</c>, <c>PushID(i)</c>, empty widget label)
-    /// matches canonical <c>imgui_widgets.cpp:2824-2830</c>.
+    /// matches canonical.
     /// </remarks>
     private static bool DragScalarNCore<T>(string label, ImGuiDataType dataType, T[] v, int components, float vSpeed, object? pMin, object? pMax, string? format, ImGuiSliderFlags flags)
         where T : unmanaged, IComparable<T>, IEquatable<T>
@@ -8327,7 +8207,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a fixed number of single-precision floating-point components on one line.
-    /// Canvases canonical <c>DragScalarN</c> (<c>ThirdParty/imgui/imgui.h:699</c>).
+    /// Canvases canonical <c>DragScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Float"/> for this overload.</param>
@@ -8347,7 +8227,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a fixed number of signed 32-bit integer components on one line.
-    /// Canvases canonical <c>DragScalarN</c> (<c>ThirdParty/imgui/imgui.h:699</c>).
+    /// Canvases canonical <c>DragScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S32"/> for this overload.</param>
@@ -8367,7 +8247,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a fixed number of unsigned 32-bit integer components on one line.
-    /// Canvases canonical <c>DragScalarN</c> (<c>ThirdParty/imgui/imgui.h:699</c>).
+    /// Canvases canonical <c>DragScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U32"/> for this overload.</param>
@@ -8387,7 +8267,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a fixed number of double-precision floating-point components on one line.
-    /// Canvases canonical <c>DragScalarN</c> (<c>ThirdParty/imgui/imgui.h:699</c>).
+    /// Canvases canonical <c>DragScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Double"/> for this overload.</param>
@@ -8407,8 +8287,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a single float with the canonical float defaults.
-    /// Canvases canonical <c>DragFloat</c> (<c>ThirdParty/imgui/imgui.h:688</c>, implemented at
-    /// <c>imgui_widgets.cpp:2853-2856</c>).
+    /// Canvases canonical <c>DragFloat</c> (, implemented at
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The value, updated in place.</param>
@@ -8425,7 +8304,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags two floats on one line. Canvases canonical <c>DragFloat2</c>
-    /// (<c>ThirdParty/imgui/imgui.h:689</c>, implemented at <c>imgui_widgets.cpp:2858-2861</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least two elements are required.</param>
@@ -8443,7 +8322,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags three floats on one line. Canvases canonical <c>DragFloat3</c>
-    /// (<c>ThirdParty/imgui/imgui.h:690</c>, implemented at <c>imgui_widgets.cpp:2863-2866</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least three elements are required.</param>
@@ -8461,7 +8340,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags four floats on one line. Canvases canonical <c>DragFloat4</c>
-    /// (<c>ThirdParty/imgui/imgui.h:691</c>, implemented at <c>imgui_widgets.cpp:2868-2871</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least four elements are required.</param>
@@ -8479,7 +8358,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a minimum and a maximum float that cross-clamp each other.
-    /// Canvases canonical <c>DragFloatRange2</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2874-2904</c>).
+    /// Canvases canonical <c>DragFloatRange2</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="vCurrentMin">The current minimum, updated in place.</param>
@@ -8529,8 +8408,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a single signed integer with the canonical integer defaults.
-    /// Canvases canonical <c>DragInt</c> (<c>ThirdParty/imgui/imgui.h:693</c>, implemented at
-    /// <c>imgui_widgets.cpp:2907-2910</c>).
+    /// Canvases canonical <c>DragInt</c> (, implemented at
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The value, updated in place.</param>
@@ -8547,7 +8425,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags two integers on one line. Canvases canonical <c>DragInt2</c>
-    /// (<c>ThirdParty/imgui/imgui.h:694</c>, implemented at <c>imgui_widgets.cpp:2912-2915</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least two elements are required.</param>
@@ -8565,7 +8443,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags three integers on one line. Canvases canonical <c>DragInt3</c>
-    /// (<c>ThirdParty/imgui/imgui.h:695</c>, implemented at <c>imgui_widgets.cpp:2917-2920</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least three elements are required.</param>
@@ -8583,7 +8461,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags four integers on one line. Canvases canonical <c>DragInt4</c>
-    /// (<c>ThirdParty/imgui/imgui.h:696</c>, implemented at <c>imgui_widgets.cpp:2922-2925</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least four elements are required.</param>
@@ -8601,7 +8479,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Drags a minimum and a maximum integer that cross-clamp each other.
-    /// Canvases canonical <c>DragIntRange2</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2928-2958</c>).
+    /// Canvases canonical <c>DragIntRange2</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="vCurrentMin">The current minimum, updated in place.</param>
@@ -8651,12 +8529,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Widgets: SliderScalar, SliderFloat, SliderInt, etc. (imgui_widgets.cpp:2960-3573)
+    #region [SECTION] Widgets: SliderScalar, SliderFloat, SliderInt, etc.
 
     /// <summary>
     /// Converts a value in the slider's output space into a parametric slider position.
     /// Canvases canonical <c>ScaleRatioFromValueT</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2985-3038</c>).
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of the value and bounds.</param>
@@ -8698,7 +8575,7 @@ public static partial class ImGui
                 ? (vMaxDouble < 0.0 ? -(double)logarithmicZeroEpsilon : logarithmicZeroEpsilon)
                 : vMaxDouble;
 
-            // Ranges of the form (-100 .. 0) must convert to (-100 .. -epsilon), not (-100 .. epsilon).
+            // Ranges of the form (-100. 0) must convert to (-100. -epsilon), not (-100. epsilon).
             if (vMinDouble == 0.0 && vMaxDouble < 0.0)
                 vMinFudged = -(double)logarithmicZeroEpsilon;
             else if (vMaxDouble == 0.0 && vMinDouble < 0.0)
@@ -8741,7 +8618,6 @@ public static partial class ImGui
     /// <summary>
     /// Converts a parametric slider position into a value in the slider's output space.
     /// Canvases canonical <c>ScaleValueFromRatioT</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3042-3105</c>).
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of the bounds.</param>
@@ -8836,7 +8712,6 @@ public static partial class ImGui
     /// <summary>
     /// Applies one frame of slider interaction to an active scalar widget and reports the grab rectangle.
     /// Canvases canonical <c>SliderBehaviorT</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3109-3280</c>).
     /// </summary>
     /// <typeparam name="T">The concrete scalar type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="bb">The slider frame rectangle.</param>
@@ -9027,7 +8902,6 @@ public static partial class ImGui
     /// <summary>
     /// Dispatches slider interaction to the generic core for the concrete data type.
     /// Canvases canonical <c>SliderBehavior</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3285-3319</c>).
     /// </summary>
     /// <param name="bb">The slider frame rectangle.</param>
     /// <param name="id">The widget identifier.</param>
@@ -9042,7 +8916,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Canonical takes <c>void*</c> and passes the caller's pointer straight into the template, so each
-    /// case writes directly into the caller's memory (<c>imgui_widgets.cpp:3293-3314</c>). The port reads
+    /// case writes directly into the caller's memory. The port reads
     /// the boxed value into a typed local, calls the core through <c>ref</c>, and copies the local back
     /// into the boxed slot whenever the core reports a change, so every canonical data type writes
     /// through, including the wide <c>S32</c>/<c>U32</c>/<c>S64</c>/<c>U64</c>/<c>Float</c>/<c>Double</c>
@@ -9050,7 +8924,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// The canonical half-range asserts protect the parametric math from overflow
-    /// (<c>imgui_widgets.cpp:3298-3313</c>); the port mirrors them, and also asserts that
+    ///.; the port mirrors them, and also asserts that
     /// <see cref="ImGuiSliderFlags.WrapAround"/> is unset because only the drag widgets support wrapping.
     /// </para>
     /// </remarks>
@@ -9161,7 +9035,6 @@ public static partial class ImGui
     /// <summary>
     /// Implements the full horizontal slider item for one data type on the port's boxed scalar boundary.
     /// Canvases canonical <c>SliderScalar</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3323-3412</c>).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type of the value and bounds.</param>
@@ -9174,9 +9047,9 @@ public static partial class ImGui
     /// <remarks>
     /// Unlike <see cref="DragScalarCore"/>, the slider has no double-click-to-input path and no
     /// <c>ConfigDragClickToInputText</c> handling, and it ORs rather than assigns
-    /// <c>g.ActiveIdUsingNavDirMask</c> (<c>imgui_widgets.cpp:3371</c>). Its temp-input clamping uses
+    /// <c>g.ActiveIdUsingNavDirMask</c>. Its temp-input clamping uses
     /// <see cref="ImGuiSliderFlags.ClampOnInput"/> directly instead of
-    /// <see cref="TempInputIsClampEnabled"/> (<c>imgui_widgets.cpp:3378</c>).
+    /// <see cref="TempInputIsClampEnabled"/>.
     /// </remarks>
     private static bool SliderScalarCore(string label, ImGuiDataType dataType, ref object? pData, object? pMin, object? pMax, string? format, ImGuiSliderFlags flags)
     {
@@ -9270,8 +9143,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a single-precision floating-point value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>, implemented at
-    /// <c>imgui_widgets.cpp:3323-3412</c>).
+    /// Canvases canonical <c>SliderScalar</c> (, implemented at
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Float"/> for this overload.</param>
@@ -9292,7 +9164,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a signed 32-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S32"/> for this overload.</param>
@@ -9313,7 +9185,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an unsigned 32-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U32"/> for this overload.</param>
@@ -9334,7 +9206,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a double-precision floating-point value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Double"/> for this overload.</param>
@@ -9355,7 +9227,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a signed 8-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S8"/> for this overload.</param>
@@ -9376,7 +9248,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an unsigned 8-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U8"/> for this overload.</param>
@@ -9397,7 +9269,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a signed 16-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S16"/> for this overload.</param>
@@ -9418,7 +9290,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an unsigned 16-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U16"/> for this overload.</param>
@@ -9439,7 +9311,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a signed 64-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S64"/> for this overload.</param>
@@ -9460,7 +9332,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an unsigned 64-bit integer value.
-    /// Canvases canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui.h:716</c>).
+    /// Canvases canonical <c>SliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U64"/> for this overload.</param>
@@ -9481,7 +9353,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lays out several sliders on one line and routes each to <see cref="SliderScalarCore"/>.
-    /// Canvases canonical <c>SliderScalarN</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3415-3450</c>).
+    /// Canvases canonical <c>SliderScalarN</c>.
     /// </summary>
     /// <typeparam name="T">The concrete element type; it must match <paramref name="dataType"/>.</typeparam>
     /// <param name="label">The widget label.</param>
@@ -9534,7 +9406,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a fixed number of single-precision floating-point components on one line.
-    /// Canvases canonical <c>SliderScalarN</c> (<c>ThirdParty/imgui/imgui.h:717</c>).
+    /// Canvases canonical <c>SliderScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Float"/> for this overload.</param>
@@ -9553,7 +9425,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a fixed number of signed 32-bit integer components on one line.
-    /// Canvases canonical <c>SliderScalarN</c> (<c>ThirdParty/imgui/imgui.h:717</c>).
+    /// Canvases canonical <c>SliderScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S32"/> for this overload.</param>
@@ -9572,7 +9444,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a fixed number of unsigned 32-bit integer components on one line.
-    /// Canvases canonical <c>SliderScalarN</c> (<c>ThirdParty/imgui/imgui.h:717</c>).
+    /// Canvases canonical <c>SliderScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U32"/> for this overload.</param>
@@ -9591,7 +9463,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a fixed number of double-precision floating-point components on one line.
-    /// Canvases canonical <c>SliderScalarN</c> (<c>ThirdParty/imgui/imgui.h:717</c>).
+    /// Canvases canonical <c>SliderScalarN</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.Double"/> for this overload.</param>
@@ -9610,7 +9482,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a single float. Canvases canonical <c>SliderFloat</c>
-    /// (<c>ThirdParty/imgui/imgui.h:707</c>, implemented at <c>imgui_widgets.cpp:3452-3455</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The value, updated in place.</param>
@@ -9626,7 +9498,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides two floats on one line. Canvases canonical <c>SliderFloat2</c>
-    /// (<c>ThirdParty/imgui/imgui.h:708</c>, implemented at <c>imgui_widgets.cpp:3457-3460</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least two elements are required.</param>
@@ -9643,7 +9515,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides three floats on one line. Canvases canonical <c>SliderFloat3</c>
-    /// (<c>ThirdParty/imgui/imgui.h:709</c>, implemented at <c>imgui_widgets.cpp:3462-3465</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least three elements are required.</param>
@@ -9660,7 +9532,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides four floats on one line. Canvases canonical <c>SliderFloat4</c>
-    /// (<c>ThirdParty/imgui/imgui.h:710</c>, implemented at <c>imgui_widgets.cpp:3467-3470</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least four elements are required.</param>
@@ -9677,8 +9549,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an angle expressed in radians but displayed and bounded in degrees.
-    /// Canvases canonical <c>SliderAngle</c> (<c>ThirdParty/imgui/imgui.h:711</c>, implemented at
-    /// <c>imgui_widgets.cpp:3472-3481</c>).
+    /// Canvases canonical <c>SliderAngle</c> (, implemented at
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="vRad">The angle in radians, updated in place.</param>
@@ -9702,7 +9573,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a single signed integer. Canvases canonical <c>SliderInt</c>
-    /// (<c>ThirdParty/imgui/imgui.h:712</c>, implemented at <c>imgui_widgets.cpp:3483-3486</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The value, updated in place.</param>
@@ -9718,7 +9589,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides two integers on one line. Canvases canonical <c>SliderInt2</c>
-    /// (<c>ThirdParty/imgui/imgui.h:713</c>, implemented at <c>imgui_widgets.cpp:3488-3491</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least two elements are required.</param>
@@ -9735,7 +9606,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides three integers on one line. Canvases canonical <c>SliderInt3</c>
-    /// (<c>ThirdParty/imgui/imgui.h:714</c>, implemented at <c>imgui_widgets.cpp:3493-3496</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least three elements are required.</param>
@@ -9752,7 +9623,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides four integers on one line. Canvases canonical <c>SliderInt4</c>
-    /// (<c>ThirdParty/imgui/imgui.h:715</c>, implemented at <c>imgui_widgets.cpp:3498-3501</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="v">The component array; at least four elements are required.</param>
@@ -9769,7 +9640,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Implements the full vertical slider item for one data type on the port's boxed scalar boundary.
-    /// Canvases canonical <c>VSliderScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3503-3563</c>).
+    /// Canvases canonical <c>VSliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size supplied by the caller.</param>
@@ -9783,7 +9654,7 @@ public static partial class ImGui
     /// <remarks>
     /// The vertical slider has no temporary text-input path, submits its item rectangle without the
     /// inputable flag, and draws its border directly through <c>RenderFrame(borders: true)</c> rather than
-    /// a separate <c>RenderFrameBorder</c> call (<c>imgui_widgets.cpp:3541</c>).
+    /// a separate <c>RenderFrameBorder</c> call.
     /// </remarks>
     private static bool VSliderScalarCore(string label, ImVec2 size, ImGuiDataType dataType, ref object? pData, object? pMin, object? pMax, string? format, ImGuiSliderFlags flags)
     {
@@ -9841,8 +9712,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a single-precision floating-point value vertically.
-    /// Canvases canonical <c>VSliderScalar</c> (<c>ThirdParty/imgui/imgui.h:720</c>, implemented at
-    /// <c>imgui_widgets.cpp:3503-3563</c>).
+    /// Canvases canonical <c>VSliderScalar</c> (, implemented at
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size.</param>
@@ -9864,7 +9734,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a signed 32-bit integer value vertically.
-    /// Canvases canonical <c>VSliderScalar</c> (<c>ThirdParty/imgui/imgui.h:720</c>).
+    /// Canvases canonical <c>VSliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size.</param>
@@ -9886,7 +9756,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an unsigned 32-bit integer value vertically.
-    /// Canvases canonical <c>VSliderScalar</c> (<c>ThirdParty/imgui/imgui.h:720</c>).
+    /// Canvases canonical <c>VSliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size.</param>
@@ -9908,7 +9778,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a double-precision floating-point value vertically.
-    /// Canvases canonical <c>VSliderScalar</c> (<c>ThirdParty/imgui/imgui.h:720</c>).
+    /// Canvases canonical <c>VSliderScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size.</param>
@@ -9930,7 +9800,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides a float vertically. Canvases canonical <c>VSliderFloat</c>
-    /// (<c>ThirdParty/imgui/imgui.h:718</c>, implemented at <c>imgui_widgets.cpp:3565-3568</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size.</param>
@@ -9947,7 +9817,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Slides an integer vertically. Canvases canonical <c>VSliderInt</c>
-    /// (<c>ThirdParty/imgui/imgui.h:719</c>, implemented at <c>imgui_widgets.cpp:3570-3573</c>).
+    /// (, implemented.).
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="size">The frame size.</param>
@@ -9967,16 +9837,16 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: INPUT TEXT AND SCALAR INPUTS (imgui_widgets.cpp)
+    #region SECTION: INPUT TEXT AND SCALAR INPUTS
 
-    #region [SECTION] Widgets: InputScalar, InputFloat, InputInt, etc. (imgui_widgets.cpp:3575-3996)
+    #region [SECTION] Widgets: InputScalar, InputFloat, InputInt, etc.
 
     #region Shared scalar and text-buffer helpers
 
     /// <summary>
     /// Removes leading and trailing spaces and tabs from a zero-terminated byte buffer in place; ports
     /// the canonical <c>ImStrTrimBlanks</c> trim used by <see cref="TempInputScalar"/>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3769</c>, <c>ThirdParty/imgui/imgui.cpp:2368-2382</c>).
+    /// (, ).
     /// </summary>
     /// <param name="buf">Zero-terminated UTF-8 buffer to trim; the terminator is rewritten.</param>
     private static void ImStrTrimBlanks(byte[] buf)
@@ -10015,7 +9885,7 @@ public static partial class ImGui
     /// <summary>
     /// Grows a managed text buffer with zeros until it holds at least <paramref name="length"/>
     /// elements, matching the value-initializing canonical <c>ImVector::resize</c> growth used for
-    /// text state buffers (<c>ThirdParty/imgui/imgui_widgets.cpp:4869,4885,4904</c>).
+    /// text state buffers.
     /// </summary>
     /// <param name="buffer">Buffer to grow.</param>
     /// <param name="length">Required element count.</param>
@@ -10056,7 +9926,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Compares the leading bytes of a managed text buffer with a byte array, mirroring canonical
-    /// <c>strncmp</c> equality tests (<c>ThirdParty/imgui/imgui_widgets.cpp:4896,5426,5436</c>).
+    /// <c>strncmp</c> equality tests.
     /// </summary>
     /// <param name="buffer">Managed buffer.</param>
     /// <param name="other">Byte array to compare against.</param>
@@ -10074,8 +9944,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Compares a managed text buffer with the zero-terminated content of a byte array, mirroring the
-    /// canonical full <c>strcmp</c> tests used for change detection
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5426,5436,5449</c>).
+    /// canonical full <c>strcmp</c> tests used for change detection.
     /// </summary>
     /// <param name="state">Managed buffer holding the edited text.</param>
     /// <param name="buf">Zero-terminated user byte buffer.</param>
@@ -10095,7 +9964,6 @@ public static partial class ImGui
     /// <summary>
     /// Copies a byte run into a managed buffer and truncates it to exactly that length, matching the
     /// canonical <c>ImVector::resize</c> shrink used for the deactivation backup
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4627</c>).
     /// </summary>
     /// <param name="destination">Destination buffer, replaced in place.</param>
     /// <param name="source">Source bytes.</param>
@@ -10160,7 +10028,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Finds one byte within a run starting at a given offset, mirroring canonical <c>ImMemchr</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4672</c>).
     /// </summary>
     /// <param name="text">Byte run to scan.</param>
     /// <param name="start">First offset to inspect.</param>
@@ -10252,7 +10119,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Compares two boxed scalar values of the same data type, the boxed realization of canonical
-    /// <c>DataTypeCompare</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2429-2448</c>).
+    /// <c>DataTypeCompare</c>.
     /// </summary>
     /// <param name="dataType">Concrete type of both values.</param>
     /// <param name="a">First value.</param>
@@ -10280,7 +10147,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Clamps a boxed scalar to an optional inclusive range, the boxed realization of canonical
-    /// <c>DataTypeClamp</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2458-2477</c>).
+    /// <c>DataTypeClamp</c>.
     /// </summary>
     /// <param name="dataType">Concrete type of the value.</param>
     /// <param name="pData">Boxed value, clamped in place.</param>
@@ -10376,7 +10243,7 @@ public static partial class ImGui
     /// <summary>
     /// Applies the canonical <c>'+'</c> or <c>'-'</c> scalar operation to a boxed value, the boxed
     /// realization of canonical <c>DataTypeApplyOp</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2315-2365</c>, used at <c>3882,3888</c>).
+    /// (, used at <c>3882,3888</c>).
     /// </summary>
     /// <param name="dataType">Concrete type of the operands.</param>
     /// <param name="op">Either <c>'+'</c> or <c>'-'</c>.</param>
@@ -10403,8 +10270,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Stores the default value of the next scalar item, used to display or parse an empty field as a
-    /// reference value; ports canonical <c>SetNextItemRefVal</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3799-3804</c>, read at <c>3821</c>).
+    /// reference value; ports canonical <c>SetNextItemRefVal</c>.
     /// </summary>
     /// <param name="dataType">Concrete type of the value.</param>
     /// <param name="pData">Boxed value to remember as the reference default.</param>
@@ -10417,8 +10283,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reports whether a temporary text input owns the given identifier, either directly or through a
-    /// pending deactivation record; ports canonical <c>TempInputIsActive</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:4099</c>, used at <c>imgui_widgets.cpp:2748,3350,3733</c>).
+    /// pending deactivation record; ports canonical <c>TempInputIsActive</c>.
     /// </summary>
     /// <param name="id">Widget identifier to test.</param>
     /// <returns><see langword="true"/> when the temporary input is active or pends deactivation.</returns>
@@ -10431,7 +10296,6 @@ public static partial class ImGui
     /// <summary>
     /// Creates a text input overlaid on another active widget, such as the Ctrl+Click entry of a drag
     /// or slider; ports canonical <c>TempInputText</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3725-3752</c>).
     /// </summary>
     /// <param name="bb">Frame rectangle the input must cover.</param>
     /// <param name="id">Identifier of the widget being overlaid.</param>
@@ -10478,7 +10342,6 @@ public static partial class ImGui
     /// <summary>
     /// Edits a scalar value in place through a temporary text input, applying the display format and
     /// optional clamping; ports canonical <c>TempInputScalar</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3757-3797</c>).
     /// </summary>
     /// <param name="bb">Frame rectangle of the overlaid widget.</param>
     /// <param name="id">Identifier of the overlaid widget.</param>
@@ -10546,7 +10409,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Implements the scalar input item for one data type on the port's boxed scalar boundary; ports
-    /// canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3808-3914</c>).
+    /// canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">Widget label; it supplies both the identifier and the displayed text.</param>
     /// <param name="dataType">Concrete type of the value and the step values.</param>
@@ -10562,7 +10425,7 @@ public static partial class ImGui
     /// <remarks>
     /// Canonical takes <c>void*</c> and a size; the port carries a boxed value and switches on
     /// <paramref name="dataType"/>. <c>ImGuiInputTextFlags_EnterReturnsTrue</c> is deliberately not
-    /// supported by the scalar item, matching the commented-out canonical assert at line 3816.
+    /// supported by the scalar item, matching the commented-out canonical assert.
     /// </remarks>
     private static bool InputScalarCore(string label, ImGuiDataType dataType, ref object? pData, object? pStep, object? pStepFast, string? format, ImGuiInputTextFlags flags)
     {
@@ -10683,7 +10546,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a single-precision floating-point value. Canvases canonical <c>InputScalar</c>
-    /// (<c>ThirdParty/imgui/imgui.h:737</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="dataType">Concrete type of the value.</param>
@@ -10703,7 +10565,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a 32-bit signed integer value. Canvases canonical <c>InputScalar</c>
-    /// (<c>ThirdParty/imgui/imgui.h:737</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="dataType">Concrete type of the value.</param>
@@ -10723,7 +10584,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a 32-bit unsigned integer value. Canvases canonical <c>InputScalar</c>
-    /// (<c>ThirdParty/imgui/imgui.h:737</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="dataType">Concrete type of the value.</param>
@@ -10743,7 +10603,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a double-precision floating-point value. Canvases canonical <c>InputScalar</c>
-    /// (<c>ThirdParty/imgui/imgui.h:737</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="dataType">Concrete type of the value.</param>
@@ -10763,7 +10622,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a signed 8-bit integer value with an optional text field.
-    /// Canvases canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui.h:734</c>).
+    /// Canvases canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S8"/> for this overload.</param>
@@ -10783,7 +10642,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits an unsigned 8-bit integer value with an optional text field.
-    /// Canvases canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui.h:734</c>).
+    /// Canvases canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U8"/> for this overload.</param>
@@ -10803,7 +10662,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a signed 16-bit integer value with an optional text field.
-    /// Canvases canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui.h:734</c>).
+    /// Canvases canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S16"/> for this overload.</param>
@@ -10823,7 +10682,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits an unsigned 16-bit integer value with an optional text field.
-    /// Canvases canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui.h:734</c>).
+    /// Canvases canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U16"/> for this overload.</param>
@@ -10843,7 +10702,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a signed 64-bit integer value with an optional text field.
-    /// Canvases canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui.h:734</c>).
+    /// Canvases canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.S64"/> for this overload.</param>
@@ -10863,7 +10722,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits an unsigned 64-bit integer value with an optional text field.
-    /// Canvases canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui.h:734</c>).
+    /// Canvases canonical <c>InputScalar</c>.
     /// </summary>
     /// <param name="label">The widget label.</param>
     /// <param name="dataType">The data type; it must be <see cref="ImGuiDataType.U64"/> for this overload.</param>
@@ -10883,7 +10742,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Lays out a row of scalar inputs over a typed array; ports canonical <c>InputScalarN</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3916-3949</c>).
     /// </summary>
     /// <param name="label">Widget label; the per-component identifiers are scoped by it.</param>
     /// <param name="dataType">Concrete type of every component.</param>
@@ -10897,7 +10755,7 @@ public static partial class ImGui
     /// <remarks>
     /// Canonical advances a <c>void*</c> by the data-type size; the port indexes the component array
     /// and reuses <see cref="InputScalarCore"/> for each element. The trailing label uses zero spacing,
-    /// unlike the drag variants, matching canonical line 3943.
+    /// unlike the drag variants.
     /// </remarks>
     private static bool InputScalarNBoxed(string label, ImGuiDataType dataType, object?[] values, int components, object? step, object? stepFast, string? format, ImGuiInputTextFlags flags)
     {
@@ -10936,7 +10794,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Displays a row of floating-point inputs. Canvases canonical <c>InputScalarN</c>
-    /// (<c>ThirdParty/imgui/imgui.h:738</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="dataType">Concrete type of every component.</param>
@@ -10960,7 +10817,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Displays a row of signed-integer inputs. Canvases canonical <c>InputScalarN</c>
-    /// (<c>ThirdParty/imgui/imgui.h:738</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="dataType">Concrete type of every component.</param>
@@ -10984,7 +10840,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a single floating-point value with optional step buttons; ports canonical
-    /// <c>InputFloat</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3951-3954</c>).
+    /// <c>InputFloat</c>.
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Value updated in place.</param>
@@ -11000,7 +10856,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a two-component floating-point vector; ports canonical <c>InputFloat2</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3956-3959</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Component storage updated in place.</param>
@@ -11015,7 +10870,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a three-component floating-point vector; ports canonical <c>InputFloat3</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3961-3964</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Component storage updated in place.</param>
@@ -11030,7 +10884,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a four-component floating-point vector; ports canonical <c>InputFloat4</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3966-3969</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Component storage updated in place.</param>
@@ -11045,7 +10898,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a single signed-integer value, using a hexadecimal display when requested; ports canonical
-    /// <c>InputInt</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3971-3976</c>).
+    /// <c>InputInt</c>.
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Value updated in place.</param>
@@ -11062,7 +10915,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a two-component signed-integer vector; ports canonical <c>InputInt2</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3978-3981</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Component storage updated in place.</param>
@@ -11076,7 +10928,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a three-component signed-integer vector; ports canonical <c>InputInt3</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3983-3986</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Component storage updated in place.</param>
@@ -11090,7 +10941,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a four-component signed-integer vector; ports canonical <c>InputInt4</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3988-3991</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Component storage updated in place.</param>
@@ -11104,7 +10954,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a double-precision value with optional step buttons; ports canonical <c>InputDouble</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3993-3996</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="v">Value updated in place.</param>
@@ -11120,7 +10969,7 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Widgets: InputText support utilities (imgui_widgets.cpp:4032-4721)
+    #region [SECTION] Widgets: InputText support utilities
 
     /// <summary>Character class for a line-breaking blank, matching <c>ImWcharClass_Blank</c>.</summary>
     private const int InputTextClassBlank = 1;
@@ -11133,8 +10982,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns whether a codepoint is one of the blank characters that can end a wrapped line; ports
-    /// canonical <c>ImCharIsBlankW</c> (<c>ThirdParty/imgui/imgui.cpp:2362-2366</c>, used at
-    /// <c>imgui_widgets.cpp:4545</c>).
+    /// canonical <c>ImCharIsBlankW</c> (, used at
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns><see langword="true"/> for space, tab, and the ideographic space.</returns>
@@ -11145,7 +10993,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Classifies a codepoint for word wrapping, reproducing the canonical classifier tables
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5529-5548</c>).
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns>One of the <c>InputTextClass*</c> values.</returns>
@@ -11161,7 +11008,6 @@ public static partial class ImGui
     /// <summary>
     /// Decodes the codepoint starting at a byte offset and reports how many bytes it consumed.
     /// Canonical uses <c>ImTextCharFromUtf8</c> over the UTF-8 buffer
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4067-4073</c>).
     /// </summary>
     /// <param name="text">UTF-8 byte run.</param>
     /// <param name="idx">Byte offset of the codepoint.</param>
@@ -11183,8 +11029,8 @@ public static partial class ImGui
 
     /// <summary>
     /// Finds the byte offset where word wrapping should break; ports
-    /// <c>ImFontCalcWordWrapPositionEx</c> (<c>ThirdParty/imgui/imgui_draw.cpp:5553-5666</c>) as used by
-    /// the line-index builder (<c>imgui_widgets.cpp:4666</c>).
+    /// <c>ImFontCalcWordWrapPositionEx</c>. as used by
+    /// the line-index builder.
     /// </summary>
     /// <param name="g">Owning context; it supplies the baked font and scale.</param>
     /// <param name="text">UTF-8 byte run.</param>
@@ -11277,8 +11123,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Measures the widest line of a UTF-8 byte run without wrapping; the port counterpart of the
-    /// canonical <c>CalcTextSize</c> calls in the selection and left-elision paths
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5639,5646,5675</c>).
+    /// canonical <c>CalcTextSize</c> calls in the selection and left-elision paths.
     /// </summary>
     /// <param name="g">Owning context; it supplies the baked font and scale.</param>
     /// <param name="text">UTF-8 byte run.</param>
@@ -11312,7 +11157,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the byte offset of the start of the line that contains a position; ports canonical
-    /// <c>ImStrbol</c> (<c>ThirdParty/imgui/imgui.cpp:2337-2344</c>, used at <c>4167,4204</c>).
+    /// <c>ImStrbol</c> (, used at <c>4167,4204</c>).
     /// </summary>
     /// <param name="text">UTF-8 byte run.</param>
     /// <param name="at">Byte offset inside the run.</param>
@@ -11327,8 +11172,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Steps back to the first byte of the previous UTF-8 codepoint; ports canonical
-    /// <c>ImTextFindPreviousUtf8Codepoint</c> (<c>ThirdParty/imgui/imgui.cpp:2882-2891</c>, used at
-    /// <c>imgui_widgets.cpp:4079</c>).
+    /// <c>ImTextFindPreviousUtf8Codepoint</c> (, used at
     /// </summary>
     /// <param name="text">UTF-8 byte run.</param>
     /// <param name="at">Byte offset whose predecessor is requested.</param>
@@ -11347,8 +11191,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Truncates a UTF-8 byte range to the closest codepoint boundary at or before a limit; ports
-    /// canonical <c>ImTextFindValidUtf8CodepointEnd</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2893-2901</c>, used at <c>imgui_widgets.cpp:4246,4406</c>).
+    /// canonical <c>ImTextFindValidUtf8CodepointEnd</c>.
     /// </summary>
     /// <param name="text">UTF-8 byte run.</param>
     /// <param name="textEnd">Exclusive end of the proposed insertion.</param>
@@ -11370,7 +11213,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Encodes one Unicode codepoint as UTF-8, mirroring <c>ImTextCharToUtf8</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2794-2837</c>). Kept local because the encoding is used by the
+    ///. Kept local because the encoding is used by the
     /// filter and paste paths only.
     /// </summary>
     /// <param name="outUtf8">Destination span of at least four bytes.</param>
@@ -11410,8 +11253,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the first and last-plus-one visible item indices for a vertically clipped list; ports
-    /// canonical <c>CalcClipRectVisibleItemsY</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:12540-12548</c>, used at <c>imgui_widgets.cpp:5548,5629</c>).
+    /// canonical <c>CalcClipRectVisibleItemsY</c>.
     /// </summary>
     /// <param name="clipRect">Clip rectangle in screen space.</param>
     /// <param name="pos">Position of the first item.</param>
@@ -11428,8 +11270,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the active text state when the identifier owns it, or <see langword="null"/>; ports
-    /// canonical <c>GetInputTextState</c> (<c>ThirdParty/imgui/imgui_internal.h:4100</c>, used at
-    /// <c>imgui_widgets.cpp:4827</c>).
+    /// canonical <c>GetInputTextState</c> (, used at
     /// </summary>
     /// <param name="id">Widget identifier to test.</param>
     /// <returns>The shared text state when it belongs to <paramref name="id"/>, otherwise <see langword="null"/>.</returns>
@@ -11441,7 +11282,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the lower-bound index of a value in a sorted offset list; ports the file-scope
-    /// <c>ImLowerBound</c> used by the line-index lookup (<c>ThirdParty/imgui/imgui_widgets.cpp:4632-4650</c>).
+    /// <c>ImLowerBound</c> used by the line-index lookup.
     /// </summary>
     /// <param name="offsets">Sorted offset list.</param>
     /// <param name="v">Value to locate.</param>
@@ -11469,7 +11310,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the canonical line-begin offset for a line index, falling back to zero when the index
-    /// holds no offsets (<c>ThirdParty/imgui/imgui_internal.h:844</c>).
+    /// holds no offsets.
     /// </summary>
     /// <param name="lineIndex">Line index.</param>
     /// <param name="line">Zero-based line number.</param>
@@ -11481,7 +11322,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Rebuilds the line-start index over a text buffer; ports canonical
-    /// <c>InputTextLineIndexBuild</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4654-4703</c>).
+    /// <c>InputTextLineIndexBuild</c>.
     /// </summary>
     /// <param name="flags">Text input flags; <see cref="ImGuiInputTextFlags.WordWrap"/> selects the wrap path.</param>
     /// <param name="lineIndex">Index rebuilt in place.</param>
@@ -11529,7 +11370,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the cursor offset within the rendered text; ports canonical
-    /// <c>InputTextLineIndexGetPosOffset</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4705-4721</c>).
+    /// <c>InputTextLineIndexGetPosOffset</c>.
     /// </summary>
     /// <param name="g">Owning context.</param>
     /// <param name="state">Active text state.</param>
@@ -11557,7 +11398,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reconciles the undo stack after a callback or reload replaced the text buffer; ports canonical
-    /// <c>InputTextReconcileUndoState</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4579-4601</c>).
+    /// <c>InputTextReconcileUndoState</c>.
     /// </summary>
     /// <param name="state">Active text state; its buffer is assumed to still hold the old text.</param>
     /// <param name="oldBuf">Old text bytes.</param>
@@ -11597,7 +11438,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Swaps the active font for one whose fallback is the password bullet; ports canonical
-    /// <c>PushPasswordFont</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4434-4448</c>).
+    /// <c>PushPasswordFont</c>.
     /// </summary>
     /// <remarks>
     /// The baked lookup tables are swapped into the context backup so every codepoint resolves to the
@@ -11631,7 +11472,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Restores the font tables backed up by <see cref="PushPasswordFont"/>; ports canonical
-    /// <c>PopPasswordFont</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4450-4460</c>).
+    /// <c>PopPasswordFont</c>.
     /// </summary>
     public static void PopPasswordFont()
     {
@@ -11651,7 +11492,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Filters or rewrites one input character for the active text field; ports canonical
-    /// <c>InputTextFilterCharacter</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4463-4574</c>).
+    /// <c>InputTextFilterCharacter</c>.
     /// </summary>
     /// <param name="g">Owning context.</param>
     /// <param name="state">Active text state; its flags and identity drive the filters.</param>
@@ -11772,7 +11613,7 @@ public static partial class ImGui
     /// <summary>
     /// Reapplies the retained text to the user buffer on the frame a text field deactivates; ports
     /// canonical <c>InputTextDeactivateHook</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4607-4630</c>, called from <c>4881</c> and by the
+    /// (called by the
     /// active-id machinery).
     /// </summary>
     /// <param name="id">Identifier of the deactivating field.</param>
@@ -11806,7 +11647,6 @@ public static partial class ImGui
     /// <summary>
     /// Returns the gamepad key used to validate the active text field, honoring
     /// <see cref="ImGuiIO.ConfigNavSwapGamepadButtons"/>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1564</c>).
     /// </summary>
     /// <param name="g">Owning context.</param>
     /// <returns>The validate key.</returns>
@@ -11818,7 +11658,6 @@ public static partial class ImGui
     /// <summary>
     /// Returns the gamepad key used to cancel the active text field, honoring
     /// <see cref="ImGuiIO.ConfigNavSwapGamepadButtons"/>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1565</c>).
     /// </summary>
     /// <param name="g">Owning context.</param>
     /// <returns>The cancel key.</returns>
@@ -11829,11 +11668,10 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Widgets: InputText, InputTextMultiline, InputTextWithHint (imgui_widgets.cpp:3998-5754)
+    #region [SECTION] Widgets: InputText, InputTextMultiline, InputTextWithHint
 
     /// <summary>
     /// Edits a single-line string buffer. Canvases canonical <c>InputText</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4015-4019</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="buf">Zero-terminated UTF-8 buffer; its contents are replaced with the edited text.</param>
@@ -11857,7 +11695,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a single-line managed string. Canvases canonical <c>InputText</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4015-4019</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="buf">String replaced with the edited text.</param>
@@ -11881,7 +11718,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a multiline byte buffer. Canvases canonical <c>InputTextMultiline</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4021-4024</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="buf">Zero-terminated UTF-8 buffer; its contents are replaced with the edited text.</param>
@@ -11902,7 +11738,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a multiline managed string. Canvases canonical <c>InputTextMultiline</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4021-4024</c>).
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="buf">String replaced with the edited text.</param>
@@ -11921,7 +11756,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a single-line buffer while displaying a hint when it is empty. Canvases canonical
-    /// <c>InputTextWithHint</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4026-4030</c>).
+    /// <c>InputTextWithHint</c>.
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="hint">Placeholder shown while the buffer is empty.</param>
@@ -11942,7 +11777,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a single-line managed string while displaying a hint when it is empty. Canvases canonical
-    /// <c>InputTextWithHint</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4026-4030</c>).
+    /// <c>InputTextWithHint</c>.
     /// </summary>
     /// <param name="label">Widget label.</param>
     /// <param name="hint">Placeholder shown while the buffer is empty.</param>
@@ -12011,7 +11846,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Edits a UTF-8 text buffer with the full canonical behavior set. Canvases canonical
-    /// <c>InputTextEx</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4723-5754</c>).
+    /// <c>InputTextEx</c>.
     /// </summary>
     /// <param name="label">Widget label; it supplies both the identifier and the displayed text.</param>
     /// <param name="hint">Optional placeholder shown while the buffer is empty.</param>
@@ -12564,7 +12399,6 @@ public static partial class ImGui
             {
                 string clipboard = GetClipboardText();
                 // Canonical gates on the resolved clipboard text, not on the obsolete IO getter
-                // (imgui_widgets.cpp:5272-5297), so a platform-only getter can paste.
                 if (clipboard.Length > 0)
                 {
                     byte[] clipBytes = System.Text.Encoding.UTF8.GetBytes(clipboard);
@@ -12973,13 +12807,12 @@ public static partial class ImGui
         if (state != null && isReadonly)
             state.TextSrc = null;
 
-        // Log as text (imgui_widgets.cpp:5737-5740).
+        // Log as text.
         if (g.LogEnabled && (!isPassword || isDisplayingHint))
         {
             LogSetNextTextDecoration("{", "}");
             // Canonical passes an explicit end pointer for the displayed input text, so the range is
             // captured verbatim rather than being re-truncated at a literal "##" in the user's content
-            // (ThirdParty/imgui/imgui_widgets.cpp:5737-5740).
             string loggedInputText = InputTextDecodeUtf8(displaySpan.Slice(0, displayEnd));
             LogRenderedText(drawPos, loggedInputText, loggedInputText);
         }
@@ -13001,21 +12834,19 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: COLOR WIDGETS, PLOTS, AND TYPING SELECT (imgui_widgets.cpp)
+    #region SECTION: COLOR WIDGETS, PLOTS, AND TYPING SELECT
 
-    #region [SECTION] Widgets: ColorEdit, ColorPicker, ColorButton, etc. (imgui_widgets.cpp:5796-6726)
+    #region [SECTION] Widgets: ColorEdit, ColorPicker, ColorButton, etc.
 
     /// <summary>
     /// Gets the fixed identifiers of the four component sliders. Kept as file-scope data because
     /// canonical declares the array <c>static const</c> inside <c>ColorEdit4</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5920</c>)
     /// </summary>
     private static readonly string[] ColorEditComponentIds = { "##X", "##Y", "##Z", "##W" };
 
     /// <summary>
     /// Gets the integer component-slider format tables, indexed by short/long-RGBA/long-HSVA. Kept as
     /// file-scope data because canonical declares the table <c>static const</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5921-5926</c>)
     /// </summary>
     private static readonly string[][] ColorEditIntFormats =
     {
@@ -13027,7 +12858,6 @@ public static partial class ImGui
     /// <summary>
     /// Gets the floating-point component-slider format tables, indexed by short/long-RGBA/long-HSVA.
     /// Kept as file-scope data because canonical declares the table <c>static const</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5927-5932</c>)
     /// </summary>
     private static readonly string[][] ColorEditFloatFormats =
     {
@@ -13040,7 +12870,7 @@ public static partial class ImGui
     /// Displays three color components as an RGB editor. Only the first three elements of
     /// <paramref name="col"/> are read or written because the canonical call adds
     /// <see cref="ImGuiColorEditFlags.NoAlpha"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5809-5812</c>, declared in <c>imgui.h:743</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text, also used as the identifier seed and popup title.</param>
     /// <param name="col">Color components; at least three elements.</param>
@@ -13054,7 +12884,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Restores the hue of a grayscale color from the value saved by the last RGB-to-HSV round trip.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5814-5821</c>)
     /// </summary>
     /// <param name="col">The RGB color being edited.</param>
     /// <param name="h">The hue in/out parameter, overwritten with the saved hue when the guard passes.</param>
@@ -13076,7 +12905,6 @@ public static partial class ImGui
     /// Restores the hue and saturation of a color whose HSV conversion became undefined because the
     /// color is grayscale or black. RGB input can produce hue/saturation that reset to zero; preserving
     /// the last meaningful values keeps the displayed HSV from jittering.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5825-5840</c>)
     /// </summary>
     /// <param name="col">The RGB color being edited.</param>
     /// <param name="h">The hue in/out parameter.</param>
@@ -13101,7 +12929,7 @@ public static partial class ImGui
     /// <summary>
     /// Displays a color as a row of R/G/B/A or H/S/V/A drag inputs, a hexadecimal input, or a compact
     /// preview that opens a picker. The widget is the canonical multi-mode color editor.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5845-6096</c>, declared in <c>imgui.h:744</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text, identifier seed, and picker popup title.</param>
     /// <param name="col">Color components; at least three elements, four when alpha is enabled.</param>
@@ -13116,8 +12944,8 @@ public static partial class ImGui
     /// <para>
     /// The widget is also a standardized drag target for
     /// <c>IMGUI_PAYLOAD_TYPE_COLOR_3F</c>/<c>IMGUI_PAYLOAD_TYPE_COLOR_4F</c> payloads, matching
-    /// <c>imgui_widgets.cpp:6066-6086</c>. Accepted RGB values are converted to HSV when the widget
-    /// edits in HSV. The canonical <c>SetNextItemColorMarker()</c> inline (<c>imgui_internal.h:4108</c>)
+    ///. Accepted RGB values are converted to HSV when the widget
+    /// edits in HSV. The canonical <c>SetNextItemColorMarker()</c> inline.
     /// is not yet declared in the port, so the two queued fields are written directly.
     /// </para>
     /// <para>
@@ -13210,7 +13038,7 @@ public static partial class ImGui
 
         if ((flags & (ImGuiColorEditFlags.DisplayRGB | ImGuiColorEditFlags.DisplayHSV)) != 0 && (flags & ImGuiColorEditFlags.NoInputs) == 0)
         {
-            // RGB/HSV 0..255 sliders.
+            // RGB/HSV 0.255 sliders.
             float wItems = wInputs - style.ItemInnerSpacing.X * (components - 1);
             float wPerComponent = TruncateToInt(wItems / components);
             bool drawColorMarker = (flags & (ImGuiColorEditFlags.DisplayHSV | ImGuiColorEditFlags.NoColorMarkers)) == 0;
@@ -13228,7 +13056,7 @@ public static partial class ImGui
                 prevSplit = nextSplit;
                 if (drawColorMarker)
                 {
-                    // Canonical SetNextItemColorMarker(GDefaultRgbaColorMarkers[n]) (imgui_internal.h:4108).
+                    // Canonical SetNextItemColorMarker(GDefaultRgbaColorMarkers[n]).
                     g.NextItemData.HasFlags |= ImGuiNextItemDataFlags.HasColorMarker;
                     g.NextItemData.ColorMarker = GDefaultRgbaColorMarkers[n];
                 }
@@ -13261,7 +13089,7 @@ public static partial class ImGui
                     p++;
                 i[0] = i[1] = i[2] = 0;
                 i[3] = 0xFF; // Alpha defaults to 255 because scanf does not parse an omitted alpha.
-                // Canonical sscanf("%02X...") stops at the first non-hexadecimal character.
+                // Canonical sscanf("%02X.") stops at the first non-hexadecimal character.
                 int parsedComponents = alpha ? 4 : 3;
                 for (int n = 0; n < parsedComponents; n++)
                 {
@@ -13366,7 +13194,7 @@ public static partial class ImGui
         PopID();
         EndGroup();
 
-        // Drag and Drop Target (imgui_widgets.cpp:6066-6086). The HoveredRect test is an optional
+        // Drag and Drop Target. The HoveredRect test is an optional
         // micro-optimization because BeginDragDropTarget() performs the same check. The read-only bit
         // is the canonical internal ImGuiItemFlags_ReadOnly, which the public item-flag enum does not
         // expose.
@@ -13421,7 +13249,7 @@ public static partial class ImGui
     /// <summary>
     /// Displays a color picker for three RGB components by promoting them to an alpha-opaque four
     /// component buffer and delegating to <see cref="ColorPicker4"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6098-6105</c>, declared in <c>imgui.h:745</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text, identifier seed, and picker title.</param>
     /// <param name="col">Color components; at least three elements.</param>
@@ -13442,7 +13270,6 @@ public static partial class ImGui
     /// <summary>
     /// Renders the pair of black-outlined white triangles that flank a hue or alpha bar, indicating
     /// that the bar is horizontally draggable through this widget.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6108-6115</c>)
     /// </summary>
     /// <param name="drawList">The draw list receiving the geometry.</param>
     /// <param name="pos">The center of the left arrow triangle.</param>
@@ -13461,7 +13288,7 @@ public static partial class ImGui
     /// <summary>
     /// Displays the canonical color picker: either a hue wheel with an SV triangle or an SV square
     /// with hue and optional alpha bars, plus an optional side preview and RGB/HSV/hex sub-editors.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6121-6494</c>, declared in <c>imgui.h:746</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text, identifier seed, and picker title.</param>
     /// <param name="col">Color components; at least three elements, four when alpha is enabled.</param>
@@ -13819,7 +13646,6 @@ public static partial class ImGui
 
                 // Paint the hue gradient over the arc's freshly stroked vertices. The gradient axis
                 // runs between the inner-radius points at the two arc angles, matching canonical
-                // (ThirdParty/imgui/imgui_widgets.cpp:6409-6416).
                 ImVec2 gradientP0 = new(wheelCenter.X + MathF.Cos(a0) * wheelRInner, wheelCenter.Y + MathF.Sin(a0) * wheelRInner);
                 ImVec2 gradientP1 = new(wheelCenter.X + MathF.Cos(a1) * wheelRInner, wheelCenter.Y + MathF.Sin(a1) * wheelRInner);
                 ShadeVertsLinearColorGradientKeepAlpha(drawList, vertStartIdx, vertEndIdx, gradientP0, gradientP1, colHues[n], colHues[n + 1]);
@@ -13907,7 +13733,7 @@ public static partial class ImGui
     /// <summary>
     /// Displays a small color square that acts as a button, a drag-and-drop source, and a hover
     /// tooltip. The description string is used only for the identifier and the tooltip title.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6500-6581</c>, declared in <c>imgui.h:747</c>)
+    /// (.)
     /// </summary>
     /// <param name="descId">Identifier text; never rendered beside the square.</param>
     /// <param name="col">The displayed color; interpreted as HSV when <see cref="ImGuiColorEditFlags.InputHSV"/> is set.</param>
@@ -14000,7 +13826,7 @@ public static partial class ImGui
                 window.DrawList.AddRect(bb.Min, bb.Max, GetColorU32(ImGuiCol.FrameBg), rounding, 1.0f * (float)(int)g.Style._MainScale);
         }
 
-        // Drag and Drop Source (imgui_widgets.cpp:6562-6574). The ActiveId test is an optional
+        // Drag and Drop Source. The ActiveId test is an optional
         // micro-optimization because BeginDragDropSource() performs the same check.
         if (g.ActiveId == id && (flags & ImGuiColorEditFlags.NoDragDrop) == 0 && BeginDragDropSource())
         {
@@ -14025,7 +13851,7 @@ public static partial class ImGui
     /// <summary>
     /// Stores the color-edit display, data-type, picker, and input defaults that widgets without an
     /// explicit mask pick up from the context.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6583-6594</c>, declared in <c>imgui.h:4406</c>)
+    /// (.)
     /// </summary>
     /// <param name="flags">The replacement options; an absent category falls back to the compiled default.</param>
     /// <remarks>
@@ -14049,7 +13875,7 @@ public static partial class ImGui
     /// <summary>
     /// Appends the hover tooltip that describes a color component as hexadecimal, integer, and
     /// floating-point tuples.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6597-6631</c>, declared in <c>imgui_internal.h:4105</c>)
+    /// (.)
     /// </summary>
     /// <param name="text">Optional title text rendered above a separator.</param>
     /// <param name="col">The color to describe. Canonical passes a
@@ -14101,7 +13927,7 @@ public static partial class ImGui
     /// <summary>
     /// Builds the right-click context menu that selects the display mode and data type and offers
     /// clipboard copy formats for the color being edited.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6633-6685</c>, declared in <c>imgui_internal.h:4106</c>)
+    /// (.)
     /// </summary>
     /// <param name="col">The color whose copy strings are generated.</param>
     /// <param name="flags">The widget flags; a present display or data-type mask disables that group.</param>
@@ -14170,7 +13996,7 @@ public static partial class ImGui
     /// <summary>
     /// Builds the right-click context menu that selects the picker style (hue bar or hue wheel) and
     /// toggles the alpha bar, previewing each picker style with a nested color picker.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6687-6726</c>, declared in <c>imgui_internal.h:4107</c>)
+    /// (.)
     /// </summary>
     /// <param name="col">The color previewed in each nested picker.</param>
     /// <param name="flags">The widget flags; a present picker mask disables the thumbnail group.</param>
@@ -14223,7 +14049,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Rounds a non-negative scalar to the nearest integer using the canonical <c>IM_ROUND</c> rule.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:298</c>)
     /// </summary>
     /// <param name="value">The scalar to round.</param>
     /// <returns>The rounded scalar.</returns>
@@ -14261,7 +14086,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Rotates a point by a precomputed cosine and sine pair, matching canonical <c>ImRotate</c>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:553</c>)
     /// </summary>
     /// <param name="p">The point to rotate.</param>
     /// <param name="cosA">The cosine of the rotation angle.</param>
@@ -14275,7 +14099,6 @@ public static partial class ImGui
     /// <summary>
     /// Tests whether a point lies inside a triangle by comparing the signs of the three edge cross
     /// products, matching canonical <c>ImTriangleContainsPoint</c>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2226-2233</c>)
     /// </summary>
     /// <param name="a">First triangle vertex.</param>
     /// <param name="b">Second triangle vertex.</param>
@@ -14293,7 +14116,6 @@ public static partial class ImGui
     /// <summary>
     /// Finds the point of a triangle closest to a query point, matching canonical
     /// <c>ImTriangleClosestPoint</c>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2245-2259</c>)
     /// </summary>
     /// <param name="a">First triangle vertex.</param>
     /// <param name="b">Second triangle vertex.</param>
@@ -14318,7 +14140,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Projects a point onto a segment, matching canonical <c>ImLineClosestPoint</c>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2213-2225</c>)
     /// </summary>
     /// <param name="a">First segment endpoint.</param>
     /// <param name="b">Second segment endpoint.</param>
@@ -14339,7 +14160,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the squared length of a vector, matching canonical <c>ImLengthSqr</c>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:541</c>)
     /// </summary>
     /// <param name="v">The vector to measure.</param>
     /// <returns>The sum of the squared components.</returns>
@@ -14350,12 +14170,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Widgets: Typing-Select support (imgui_widgets.cpp:7607-7794)
+    #region [SECTION] Widgets: Typing-Select support
 
     /// <summary>
     /// Consumes the frame's queued character input into the typing-select search buffer and returns the
     /// request for the current frame, or <see langword="null"/> when the buffer is empty.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7617-7711</c>, declared in <c>imgui_internal.h:3964</c>)
+    /// (.)
     /// </summary>
     /// <param name="flags">Typing-select behavior flags.</param>
     /// <returns>
@@ -14376,7 +14196,7 @@ public static partial class ImGui
     /// <para>
     /// The canonical UTF-8 helpers (<c>ImTextCountUtf8BytesFromStr</c>, <c>ImTextCharToUtf8</c>,
     /// <c>ImTextFindPreviousUtf8Codepoint</c>, <c>ImCharIsBlankW</c>) are not present in the port, so
-    /// their logic is inlined here with .NET string primitives.
+    /// their logic is inlined here with.NET string primitives.
     /// </para>
     /// </remarks>
     internal static ImGuiTypingSelectRequest? GetTypingSelectRequest(ImGuiTypingSelectFlags flags = 0)
@@ -14507,7 +14327,6 @@ public static partial class ImGui
     /// <summary>
     /// Returns the length of the shared case-insensitive prefix between a search-buffer range and an
     /// item name, matching canonical <c>ImStrimatchlen</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7713-7719</c>)
     /// </summary>
     /// <param name="s1">The search buffer.</param>
     /// <param name="s1End">The exclusive index in <paramref name="s1"/> at which matching stops.</param>
@@ -14540,7 +14359,7 @@ public static partial class ImGui
     /// <summary>
     /// Finds the next item whose name starts with the single character held by the request, cycling
     /// forward from the currently selected item.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7742-7765</c>, declared in <c>imgui_internal.h:3965</c>)
+    /// (.)
     /// </summary>
     /// <param name="req">The request produced by <see cref="GetTypingSelectRequest"/>.</param>
     /// <param name="itemsCount">The number of candidate items.</param>
@@ -14577,7 +14396,7 @@ public static partial class ImGui
     /// <summary>
     /// Finds the item with the longest case-insensitive prefix match against the search buffer,
     /// matching canonical <c>TypingSelectFindBestLeadingMatch</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7767-7783</c>, declared in <c>imgui_internal.h:3966</c>)
+    /// (.)
     /// </summary>
     /// <param name="req">The request produced by <see cref="GetTypingSelectRequest"/>.</param>
     /// <param name="itemsCount">The number of candidate items.</param>
@@ -14605,7 +14424,7 @@ public static partial class ImGui
     /// <summary>
     /// Resolves a typing-select request to an item index by dispatching to the single-character or
     /// best-leading-prefix search, then makes the navigation cursor visible when a match was found.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7727-7739</c>, declared in <c>imgui_internal.h:3965</c>)
+    /// (.)
     /// </summary>
     /// <param name="req">
     /// The request produced by <see cref="GetTypingSelectRequest"/>, or <see langword="null"/> so that
@@ -14632,7 +14451,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Writes the typing-select debug state to the current debug window.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7785-7794</c>, declared in <c>imgui_internal.h:4164</c>)
+    /// (.)
     /// </summary>
     /// <param name="data">The typing-select state to report.</param>
     /// <remarks>
@@ -14649,12 +14468,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] Widgets: PlotLines, PlotHistogram (imgui_widgets.cpp:8945-9109)
+    #region [SECTION] Widgets: PlotLines, PlotHistogram
 
     /// <summary>
     /// Holds the array view and byte stride consumed by <see cref="Plot_ArrayGetter"/> for the array
     /// overloads of <c>PlotLines</c> and <c>PlotHistogram</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9073-9079</c>)
     /// </summary>
     private sealed class ImGuiPlotArrayGetterData
     {
@@ -14678,7 +14496,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Reads one sample through the array getter data, matching canonical <c>Plot_ArrayGetter</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9081-9086</c>)
     /// </summary>
     /// <param name="data">An <see cref="ImGuiPlotArrayGetterData"/> instance.</param>
     /// <param name="idx">The sample index.</param>
@@ -14705,7 +14522,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws the shared plot core: frame, auto-scale, hover tooltip, line or histogram geometry,
     /// overlay text, and label. Returns the hovered sample index.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8955-9071</c>, declared in <c>imgui_internal.h:4111</c>)
+    /// (.)
     /// </summary>
     /// <param name="plotType">Whether to draw connected lines or zero-anchored histogram bars.</param>
     /// <param name="label">Label text and identifier seed.</param>
@@ -14841,7 +14658,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a line plot from a flat array of samples, optionally strided.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9088-9092</c>, declared in <c>imgui.h:803</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text and identifier seed.</param>
     /// <param name="values">The sample array.</param>
@@ -14860,7 +14677,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a line plot whose samples are produced by a callback.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9094-9097</c>, declared in <c>imgui.h:804</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text and identifier seed.</param>
     /// <param name="valuesGetter">Reads the sample at the given index.</param>
@@ -14879,7 +14696,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws a histogram from a flat array of samples. The supplied data is already histogram data;
     /// canonical does not compute a histogram.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9100-9104</c>, declared in <c>imgui.h:805</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text and identifier seed.</param>
     /// <param name="values">The sample array.</param>
@@ -14898,7 +14715,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a histogram whose samples are produced by a callback.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9106-9109</c>, declared in <c>imgui.h:806</c>)
+    /// (.)
     /// </summary>
     /// <param name="label">Label text and identifier seed.</param>
     /// <param name="valuesGetter">Reads the sample at the given index.</param>
@@ -14919,14 +14736,13 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: DATA TYPE AND COLOR CONVERSION HELPERS (imgui_widgets.cpp, imgui.cpp)
+    #region SECTION: DATA TYPE AND COLOR CONVERSION HELPERS
 
     #region [SECTION] Data Type and Data Formatting Helpers [Internal]
 
     /// <summary>
     /// The four default component markers used by the color editing and picking widgets, one per RGBA
     /// component.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2259-2262</c>)
     /// </summary>
     /// <remarks>
     /// Canonical declares the table in this section as <c>static const ImU32
@@ -14945,7 +14761,7 @@ public static partial class ImGui
     /// <summary>
     /// Returns the static description of a data type: its byte size, short debug name, default
     /// printing format, and default scanning format.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2286-2290</c>, <c>ThirdParty/imgui/imgui_internal.h:981-989</c>)
+    /// (, )
     /// </summary>
     /// <param name="dataType">The data type to describe.</param>
     /// <returns>
@@ -14985,7 +14801,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Formats one boxed data-type value with a printf-style format.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2292-2313</c>)
     /// </summary>
     /// <param name="dataType">The data type of <paramref name="pData"/>.</param>
     /// <param name="pData">The boxed value to format.</param>
@@ -15034,7 +14849,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Adds or subtracts one typed value from another with the canonical saturating-overflow rule.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2315-2365</c>, <c>ThirdParty/imgui/imgui_internal.h:531-532</c>)
+    /// (, )
     /// </summary>
     /// <typeparam name="T">The value type; it must match the concrete type named by <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of all three values.</param>
@@ -15174,7 +14989,7 @@ public static partial class ImGui
     /// <summary>
     /// Parses widget text into a boxed data-type value, honouring the canonical blank trimming, the
     /// empty-input default, the format-derived number base, and the small-type clamping.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2367-2419</c>, <c>ThirdParty/imgui/imgui_internal.h:4089</c>)
+    /// (, )
     /// </summary>
     /// <param name="buf">The text the user typed or the widget produced.</param>
     /// <param name="dataType">The data type to parse.</param>
@@ -15199,7 +15014,7 @@ public static partial class ImGui
     /// Canonical delegates the actual scanning to <c>sscanf</c>; this port implements the scanner
     /// directly (see <see cref="DataTypeScanInteger"/> and <see cref="DataTypeScanFloat"/>) so widget
     /// text never goes through the culture-sensitive <c>double.Parse</c>/<c>int.Parse</c> APIs. The
-    /// canonical v1.92.9b function has no <see cref="ImGuiInputTextFlags"/> parameter; character
+    /// canonical function has no <see cref="ImGuiInputTextFlags"/> parameter; character
     /// filtering (for example <c>ImGuiInputTextFlags_CharsDecimal</c>) happens earlier, inside
     /// <c>InputTextEx</c>, and is owned by the input-text part.
     /// </para>
@@ -15296,7 +15111,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Orders two typed values.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2422-2446</c>)
     /// </summary>
     /// <typeparam name="T">The value type; it must match the concrete type named by <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of both operands; retained for canonical signature parity.</param>
@@ -15318,7 +15132,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Clamps a typed value to an optional lower and upper bound.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2450-2475</c>)
     /// </summary>
     /// <typeparam name="T">The value type; it must match the concrete type named by <paramref name="dataType"/>.</typeparam>
     /// <param name="dataType">The data type of the value; retained for canonical signature parity.</param>
@@ -15345,7 +15158,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Tests whether a boxed data-type value equals zero.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2478-2482</c>)
     /// </summary>
     /// <param name="dataType">The data type of <paramref name="pData"/>.</param>
     /// <param name="pData">The boxed value to test.</param>
@@ -15384,7 +15196,6 @@ public static partial class ImGui
     /// <summary>
     /// Finds the start of the first real conversion in a printf-style format, skipping escaped
     /// <c>%%</c> pairs.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3600-3612</c>)
     /// </summary>
     /// <param name="fmt">The format string.</param>
     /// <returns>
@@ -15409,7 +15220,6 @@ public static partial class ImGui
     /// <summary>
     /// Finds the index just past the conversion character of the format specifier that starts at
     /// <paramref name="start"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3614-3633</c>)
     /// </summary>
     /// <param name="fmt">The format string.</param>
     /// <param name="start">The index of the specifier's <c>'%'</c>.</param>
@@ -15436,7 +15246,6 @@ public static partial class ImGui
     /// <summary>
     /// Extracts the conversion specifier out of a format that may carry leading or trailing
     /// decorations, for example <c>"hello %.3f"</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3635-3647</c>)
     /// </summary>
     /// <param name="fmt">The decorated format string.</param>
     /// <returns>The bare specifier, or an empty string when the format holds no visible number.</returns>
@@ -15454,7 +15263,6 @@ public static partial class ImGui
     /// <summary>
     /// Reduces a format specifier to the form a printer accepts by dropping the stb_sprintf custom
     /// flags <c>'</c>, <c>$</c> and <c>_</c> and zero-terminating at the conversion character.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3650-3662</c>)
     /// </summary>
     /// <param name="fmt">The format specifier, normally the start of a decorated format.</param>
     /// <returns>The sanitized specifier, or an empty string when no specifier is present.</returns>
@@ -15479,7 +15287,6 @@ public static partial class ImGui
     /// <summary>
     /// Reduces a format specifier to the form a scanner accepts by dropping flags, width and precision
     /// while keeping length modifiers.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3665-3685</c>)
     /// </summary>
     /// <param name="fmt">The format specifier, normally the start of a decorated format.</param>
     /// <returns>The sanitized specifier, or an empty string when no specifier is present.</returns>
@@ -15503,7 +15310,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Reads the displayed decimal precision back out of a format string.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3700-3715</c>)
     /// </summary>
     /// <param name="format">The format string.</param>
     /// <param name="defaultPrecision">The precision to return when the format does not specify one.</param>
@@ -15533,7 +15339,6 @@ public static partial class ImGui
     /// <summary>
     /// Reads an optionally signed decimal integer from a format string, matching canonical
     /// <c>ImAtoi</c>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3687-3698</c>)
     /// </summary>
     /// <param name="text">The source text.</param>
     /// <param name="start">The index to begin reading at.</param>
@@ -15923,7 +15728,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Adds two signed 64-bit operands, saturating at the supplied bounds.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:531</c>)
     /// </summary>
     /// <param name="a">The first operand.</param>
     /// <param name="b">The second operand.</param>
@@ -15941,7 +15745,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Subtracts two signed 64-bit operands, saturating at the supplied bounds.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:532</c>)
     /// </summary>
     /// <param name="a">The minuend.</param>
     /// <param name="b">The subtrahend.</param>
@@ -15959,7 +15762,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Adds two unsigned 64-bit operands, saturating at <paramref name="max"/>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:531</c>)
     /// </summary>
     /// <param name="a">The first operand.</param>
     /// <param name="b">The second operand.</param>
@@ -15974,7 +15776,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Subtracts two unsigned 64-bit operands, saturating at zero.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:532</c>)
     /// </summary>
     /// <param name="a">The minuend.</param>
     /// <param name="b">The subtrahend.</param>
@@ -15993,10 +15794,9 @@ public static partial class ImGui
     /// <summary>
     /// Unpacks a 32-bit RGBA color into normalized floating-point components, in the default
     /// <c>IM_COL32</c> byte order (red least significant).
-    /// (<c>ThirdParty/imgui/imgui.cpp:2935-2943</c>)
     /// </summary>
     /// <param name="in_">The packed color.</param>
-    /// <returns>The unpacked color with components in the 0..1 range.</returns>
+    /// <returns>The unpacked color with components in the 0.1 range.</returns>
     /// <remarks>Canonical multiplies by <c>1.0f / 255.0f</c>; this port performs the same multiply so the result is bit-identical.</remarks>
     public static ImVec4 ColorConvertU32ToFloat4(uint in_)
     {
@@ -16011,12 +15811,12 @@ public static partial class ImGui
     /// <summary>
     /// Packs normalized floating-point color components into a 32-bit RGBA value, in the default
     /// <c>IM_COL32</c> byte order (red least significant).
-    /// (<c>ThirdParty/imgui/imgui.cpp:2945-2955</c>, <c>ThirdParty/imgui/imgui_internal.h:296</c>)
+    /// (, )
     /// </summary>
-    /// <param name="in_">The color with components nominally in the 0..1 range; they are saturated.</param>
+    /// <param name="in_">The color with components nominally in the 0.1 range; they are saturated.</param>
     /// <returns>The packed color.</returns>
     /// <remarks>
-    /// Each component is saturated to 0..1, multiplied by 255, offset by 0.5 and truncated, matching
+    /// Each component is saturated to 0.1, multiplied by 255, offset by 0.5 and truncated, matching
     /// canonical <c>IM_F32_TO_INT8_SAT</c>. The saturation helper follows canonical
     /// <c>ImSaturate</c> (<c>ImMax(ImMin(v, 1), 0)</c>) rather than <see cref="Math.Clamp(float, float, float)"/>
     /// so that a <c>NaN</c> component packs as 255 exactly as canonical does.
@@ -16033,7 +15833,6 @@ public static partial class ImGui
     /// <summary>
     /// Converts normalized red/green/blue components to hue/saturation/value, using the canonical
     /// branch structure derived from Foley and van Dam.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2957-2977</c>)
     /// </summary>
     /// <param name="r">The red component.</param>
     /// <param name="g">The green component.</param>
@@ -16073,7 +15872,6 @@ public static partial class ImGui
     /// <summary>
     /// Converts normalized hue/saturation/value to red/green/blue components, using the canonical
     /// six-sector branch structure.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2979-3000</c>)
     /// </summary>
     /// <param name="h">The hue.</param>
     /// <param name="s">The saturation.</param>
@@ -16115,12 +15913,11 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Saturates a color component to the 0..1 range with the canonical <c>ImSaturate</c> comparison
+    /// Saturates a color component to the 0.1 range with the canonical <c>ImSaturate</c> comparison
     /// order.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:290-296</c>)
     /// </summary>
     /// <param name="value">The component value.</param>
-    /// <returns>The value clamped to 0..1; a <c>NaN</c> input resolves to 1 as in canonical.</returns>
+    /// <returns>The value clamped to 0.1; a <c>NaN</c> input resolves to 1 as in canonical.</returns>
     private static float ColorConvertSaturate(float value)
     {
         float clamped = value < 1.0f ? value : 1.0f;
@@ -16132,9 +15929,9 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: GROUP AND DISABLED SCOPES, LOG DECORATION, ITEM COLOR MARKER (imgui.cpp)
+    #region SECTION: GROUP AND DISABLED SCOPES, LOG DECORATION, ITEM COLOR MARKER
 
-    #region [SECTION] GROUPS (canonical imgui.cpp:12569-12663)
+    #region [SECTION] GROUPS
 
     /// <summary>
     /// Starts a group: locks the horizontal cursor position and begins capturing a bounding box that the
@@ -16143,7 +15940,7 @@ public static partial class ImGui
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Ports canonical <c>ImGui::BeginGroup()</c> (<c>ThirdParty/imgui/imgui.cpp:12569-12597</c>).
+    /// Ports canonical <c>ImGui::BeginGroup()</c>.
     /// </para>
     /// <para>
     /// The saved cursor, indent, line, and interaction fields are restored by <see cref="EndGroup"/>, so
@@ -16154,7 +15951,7 @@ public static partial class ImGui
     /// <para>
     /// Ownership: the chunk plan assigned <c>BeginGroup()</c>/<c>EndGroup()</c> to Chunk 10, but the menu
     /// and color widgets in parts 04/06/08 already call them, so Chunk 4 realizes them here. The pair keeps
-    /// its canonical public surface (<c>ThirdParty/imgui/imgui.h:594-595</c>). Chunk 10 owns nothing in
+    /// its canonical public surface. Chunk 10 owns nothing in
     /// this member any more and must not redefine either half of the pair.
     /// </para>
     /// </remarks>
@@ -16199,7 +15996,7 @@ public static partial class ImGui
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Ports canonical <c>ImGui::EndGroup()</c> (<c>ThirdParty/imgui/imgui.cpp:12599-12663</c>).
+    /// Ports canonical <c>ImGui::EndGroup()</c>.
     /// </para>
     /// <para>
     /// The group rectangle spans from the saved cursor position to the largest cursor extent reached
@@ -16210,7 +16007,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// Ownership: realize here together with <see cref="BeginGroup"/> and keep the canonical public surface
-    /// (<c>ThirdParty/imgui/imgui.h:595</c>); Chunk 10 owns nothing in this member any more and must not
+    ///.; Chunk 10 owns nothing in this member any more and must not
     /// redefine it.
     /// </para>
     /// </remarks>
@@ -16285,7 +16082,7 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] DISABLED STATE (canonical imgui.cpp:8983-9008)
+    #region [SECTION] DISABLED STATE
 
     /// <summary>
     /// Starts a disabled scope: while at least one nested scope is disabled, the interaction flag
@@ -16297,11 +16094,11 @@ public static partial class ImGui
     /// keeps everything disabled.</param>
     /// <remarks>
     /// <para>
-    /// Ports canonical <c>ImGui::BeginDisabled()</c> (<c>ThirdParty/imgui/imgui.cpp:8983-8996</c>).
+    /// Ports canonical <c>ImGui::BeginDisabled()</c>.
     /// </para>
     /// <para>
     /// Canonical comments that the visual effect is currently expressed by altering
-    /// <c>Style.Alpha</c> in place, equivalent to <c>PushStyleVar(ImGuiStyleVar_Alpha, ...)</c>, and that a
+    /// <c>Style.Alpha</c> in place, equivalent to <c>PushStyleVar(ImGuiStyleVar_Alpha,.)</c>, and that a
     /// future styling system may change that mechanism. The port performs the same direct alpha backup and
     /// scaling so it interoperates with the already-existing
     /// <see cref="BeginDisabledOverrideReenable"/>/<see cref="EndDisabledOverrideReenable"/> pair, which
@@ -16316,7 +16113,7 @@ public static partial class ImGui
     /// <para>
     /// Ownership: the chunk plan assigned the pair to Chunk 10, but part 08 already calls
     /// <c>BeginDisabled()</c>/<c>EndDisabled()</c>, so Chunk 4 realizes them here. The pair keeps its
-    /// canonical public surface (<c>ThirdParty/imgui/imgui.h:1027-1028</c>). Chunk 10 owns nothing in these
+    /// canonical public surface. Chunk 10 owns nothing in these
     /// members any more and must not redefine them.
     /// </para>
     /// </remarks>
@@ -16342,7 +16139,7 @@ public static partial class ImGui
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Ports canonical <c>ImGui::EndDisabled()</c> (<c>ThirdParty/imgui/imgui.cpp:8998-9008</c>).
+    /// Ports canonical <c>ImGui::EndDisabled()</c>.
     /// </para>
     /// <para>
     /// Calling this more times than <see cref="BeginDisabled"/> is a recoverable user error: canonical
@@ -16351,7 +16148,7 @@ public static partial class ImGui
     /// </para>
     /// <para>
     /// Ownership: realize here together with <see cref="BeginDisabled"/> and keep the canonical public surface
-    /// (<c>ThirdParty/imgui/imgui.h:1028</c>); Chunk 10 owns nothing in these members any more and must not
+    ///.; Chunk 10 owns nothing in these members any more and must not
     /// redefine them.
     /// </para>
     /// </remarks>
@@ -16374,7 +16171,7 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] LOGGING (canonical imgui.cpp:16244-16249)
+    #region [SECTION] LOGGING
 
     /// <summary>
     /// Latches a prefix and suffix to decorate the next text submission that the render logger captures.
@@ -16386,7 +16183,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Ports canonical <c>ImGui::LogSetNextTextDecoration(const char* prefix, const char* suffix)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:16244-16249</c>, declared at <c>ThirdParty/imgui/imgui_internal.h:3736</c>).
+    /// (, declared.).
     /// Canonical has no active/inactive branch: the two pointers are latched unconditionally into
     /// <see cref="ImGuiContext.LogNextPrefix"/> and <see cref="ImGuiContext.LogNextSuffix"/> and consumed
     /// by <c>LogRenderedText</c> only if logging is subsequently enabled.
@@ -16407,7 +16204,7 @@ public static partial class ImGui
 
     #endregion
 
-    #region [SECTION] NEXT ITEM DATA: COLOR MARKER (canonical imgui_internal.h:4108)
+    #region [SECTION] NEXT ITEM DATA: COLOR MARKER
 
     /// <summary>
     /// Queues a color marker on the next submitted item, enabling the color-marker display used by the
@@ -16416,7 +16213,7 @@ public static partial class ImGui
     /// <param name="col">The packed color used to draw the marker.</param>
     /// <remarks>
     /// Ports the canonical inline <c>SetNextItemColorMarker(ImU32 col)</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:4108</c>): the <see cref="ImGuiNextItemDataFlags.HasColorMarker"/>
+    ///.: the <see cref="ImGuiNextItemDataFlags.HasColorMarker"/>
     /// bit is OR'ed into <see cref="ImGuiNextItemData.HasFlags"/> and the color is stored in
     /// <see cref="ImGuiNextItemData.ColorMarker"/>. The next <c>ItemAdd</c> clears the flags, so the marker
     /// applies to exactly one item. Chunk 12 (metrics/debug) consumes the marker when it draws item
@@ -16434,14 +16231,13 @@ public static partial class ImGui
     #endregion
 
 
-    #region SECTION: POPUP AND TOOLTIP PLACEMENT (imgui.cpp)
+    #region SECTION: POPUP AND TOOLTIP PLACEMENT
 
-    #region [SECTION] POPUP PLACEMENT (canonical imgui.cpp:13544-13700)
+    #region [SECTION] POPUP PLACEMENT
 
     /// <summary>
     /// The preferred direction order used by <see cref="FindBestWindowPosForPopupEx"/> for the combo-box
     /// position policy, matching the canonical <c>dir_preferred_order</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13555</c>).
     /// </summary>
     /// <remarks>
     /// A combo popup wants a connecting edge to its preview box, so below/right/left/above are tried in
@@ -16455,7 +16251,6 @@ public static partial class ImGui
     /// <summary>
     /// The preferred direction order used by <see cref="FindBestWindowPosForPopupEx"/> for the default and
     /// tooltip position policies, matching the canonical <c>dir_preferred_order</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13576</c>).
     /// </summary>
     /// <remarks>
     /// Right/down/up/left maximize the chance that a free-standing popup or tooltip stays fully inside the
@@ -16484,7 +16279,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Ports canonical <c>ImGui::FindBestWindowPosForPopupEx()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13544-13617</c>, declared at <c>ThirdParty/imgui/imgui_internal.h:3755</c>).
+    /// (, declared.).
     /// </para>
     /// <para>
     /// The combo policy first retries the previous direction, then walks the canonical
@@ -16589,7 +16384,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Ports canonical <c>ImGui::GetPopupAllowedExtentRect()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13619-13638</c>, declared at <c>ThirdParty/imgui/imgui_internal.h:3750</c>).
+    /// (, declared.).
     /// Note that this is used for popups, which may overlap the non-work area of individual viewports, so
     /// the full viewport rectangle is preferred over the work-area rectangle.
     /// </para>
@@ -16632,7 +16427,7 @@ public static partial class ImGui
     /// <remarks>
     /// <para>
     /// Ports canonical <c>ImGui::FindBestWindowPosForPopup()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:13640-13700</c>, declared at <c>ThirdParty/imgui/imgui_internal.h:3754</c>).
+    /// (, declared.).
     /// </para>
     /// <para>
     /// Child menus are placed beside the parent menu item, avoiding the parent menu bar's clip rectangle
@@ -16645,7 +16440,7 @@ public static partial class ImGui
     /// <para>
     /// The canonical tooltip offset constants <c>TOOLTIP_DEFAULT_OFFSET_TOUCH = (0, -20)</c>,
     /// <c>TOOLTIP_DEFAULT_OFFSET_MOUSE = (16, 10)</c>, and <c>TOOLTIP_DEFAULT_PIVOT_TOUCH = (0.5, 1.0)</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:1379-1381</c>) are inlined because no shared member declares them.
+    ///. are inlined because no shared member declares them.
     /// </para>
     /// <para>
     /// The canonical automatic-position direction is stored back into
@@ -16739,12 +16534,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: INPUT TEXT DEBUG INSPECTOR (imgui_widgets.cpp:5756-5793)
+    #region SECTION: INPUT TEXT DEBUG INSPECTOR
 
     /// <summary>
     /// Reports an input-text editor's internal state: its identity, cursor and selection, buffer accounting,
     /// preferred cursor column, and the whole undo ring.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:5756-5793</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4159</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="state">The input-text state to report.</param>
     /// <remarks>

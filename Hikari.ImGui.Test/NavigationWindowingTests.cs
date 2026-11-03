@@ -1,11 +1,15 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using NUnit.Framework;
 
 namespace Hikari.ImGui.Test;
 
 /// <summary>
 /// Verifies the Ctrl+Tab navigation windowing state machine ported from canonical <c>NavUpdateWindowing</c>
-/// (<c>ThirdParty/imgui/imgui.cpp:15473-15685</c>) and its overlay (<c>ThirdParty/imgui/imgui.cpp:15686-15721</c>).
+///. and its overlay.
 /// </summary>
 /// <remarks>
 /// Each test drives a real <see cref="ImGuiContext"/> through full frames. Keyboard input is injected with
@@ -46,7 +50,7 @@ public class NavigationWindowingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that holding Ctrl and pressing Tab starts windowing and previews the next window without
-    /// yet changing the focused window (<c>ThirdParty/imgui/imgui.cpp:15497-15517</c>).
+    /// yet changing the focused window.
     /// </summary>
     [Test]
     public void CtrlTab_StartsWindowingAndPreviewsTarget()
@@ -68,7 +72,7 @@ public class NavigationWindowingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that releasing Ctrl applies the previewed window as the focused window and clears the target
-    /// (<c>ThirdParty/imgui/imgui.cpp:15550-15564</c>, <c>ThirdParty/imgui/imgui.cpp:15439-15472</c>).
+    /// (, ).
     /// </summary>
     [Test]
     public void ReleasingCtrl_AppliesFocusToPreviewedWindow()
@@ -94,7 +98,6 @@ public class NavigationWindowingTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that windowing does not start while a modal popup is open, because canonical
     /// <c>NavUpdateWindowing</c> clears the target when <c>GetTopMostPopupModal()</c> is non-null
-    /// (<c>ThirdParty/imgui/imgui.cpp:15478-15480</c>).
     /// </summary>
     [Test]
     public void CtrlTab_DoesNotStartWhileModalIsOpen()
@@ -144,7 +147,7 @@ public class NavigationWindowingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the window-list overlay is hidden until the list delay has elapsed
-    /// (<c>ThirdParty/imgui/imgui.cpp:15686-15690</c>, delay <c>NAV_WINDOWING_LIST_APPEAR_DELAY = 0.15</c>).
+    /// (, delay <c>NAV_WINDOWING_LIST_APPEAR_DELAY = 0.15</c>).
     /// </summary>
     [Test]
     public void WindowingOverlay_AppearsOnlyAfterListDelay()

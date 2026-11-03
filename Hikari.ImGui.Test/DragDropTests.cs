@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -11,11 +15,6 @@ namespace Hikari.ImGui.Test;
 /// window payload path.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c> at
-/// <c>ThirdParty/imgui/imgui.cpp:15718-16110</c> for the state machine and
-/// <c>ThirdParty/imgui/imgui.h:2856-2878</c> for <c>ImGuiPayload</c>.
-/// </para>
 /// <para>
 /// Every test drives a real <see cref="ImGuiContext"/> with queued mouse position and button events.
 /// A drag is started by hovering the source item, pressing the left button, and then moving the
@@ -116,7 +115,7 @@ public class DragDropTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a drag source latches its active item identifier, managed payload object, source
     /// flags, mouse button, and payload frame count. Canonical <c>BeginDragDropSource</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:15758-15875</c>) and the managed payload path.
+    ///. and the managed payload path.
     /// </summary>
     [Test]
     public void BeginDragDropSource_LatchesSourceAndManagedPayload()
@@ -164,7 +163,7 @@ public class DragDropTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the default source flags open a drag-and-drop preview tooltip named with the
     /// canonical <c>##Tooltip_DragDrop_</c> prefix, and that <c>EndDragDropSource()</c> closes it.
-    /// Canonical <c>BeginDragDropSource</c> (<c>ThirdParty/imgui/imgui.cpp:15858-15869</c>).
+    /// Canonical <c>BeginDragDropSource</c>.
     /// </summary>
     [Test]
     public void BeginDragDropSource_DefaultFlagsOpenDragDropPreviewTooltip()
@@ -206,7 +205,6 @@ public class DragDropTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGuiCond.Once"/> copies the payload fields only on the frame the drag
     /// starts, while the payload frame count still advances every frame, and that
     /// <see cref="ImGuiCond.Always"/> overwrites them. Canonical <c>SetDragDropPayload</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:15906-15931</c>).
     /// </summary>
     [Test]
     public void SetDragDropPayload_OnceDoesNotOverwriteAfterFirstFrame()
@@ -262,7 +260,6 @@ public class DragDropTests : ImGuiTestFixture
     /// <see cref="ImGuiDragDropFlags.AcceptBeforeDelivery"/>, returns the payload before delivery with
     /// <c>Preview</c> set only from the second hovered frame onward, then reports delivery once the
     /// button is released. Canonical <c>AcceptDragDropPayload</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:16027-16078</c>).
     /// </summary>
     [Test]
     public void AcceptDragDropPayload_RejectsWrongTypeAndHonorsAcceptBeforeDelivery()
@@ -360,7 +357,7 @@ public class DragDropTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that without <see cref="ImGuiDragDropFlags.AcceptBeforeDelivery"/> the payload is not
     /// returned while it is merely previewed, and is returned once the button is released. Canonical
-    /// <c>AcceptDragDropPayload</c> (<c>ThirdParty/imgui/imgui.cpp:16070-16077</c>).
+    /// <c>AcceptDragDropPayload</c>.
     /// </summary>
     [Test]
     public void AcceptDragDropPayload_WithoutBeforeDeliveryReturnsNullUntilRelease()
@@ -419,7 +416,7 @@ public class DragDropTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <c>BeginDragDropTarget()</c> requires an active drag and a hovered last item, and
     /// that during a drag it publishes the hovered item's identifier and clip rectangle. Canonical
-    /// <c>BeginDragDropTarget</c> (<c>ThirdParty/imgui/imgui.cpp:15990-16025</c>).
+    /// <c>BeginDragDropTarget</c>.
     /// </summary>
     [Test]
     public void BeginDragDropTarget_RequiresActiveDragAndHoveredItem()
@@ -479,7 +476,7 @@ public class DragDropTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <c>BeginDragDropTargetCustom()</c> accepts an explicit rectangle for a distinct
     /// identifier and rejects the drag source's own identifier. Canonical
-    /// <c>BeginDragDropTargetCustom</c> (<c>ThirdParty/imgui/imgui.cpp:15946-15963</c>).
+    /// <c>BeginDragDropTargetCustom</c>.
     /// </summary>
     [Test]
     public void BeginDragDropTargetCustom_MapsRectangleAndRejectsSourceIdentifier()
@@ -533,7 +530,7 @@ public class DragDropTests : ImGuiTestFixture
     /// Verifies that the docking payload path still works: the managed overload submits
     /// <c>IMGUI_PAYLOAD_TYPE_WINDOW</c> with the dragged window as its object, and a target accepts it
     /// by that type while rejecting other types. Canonical <c>BeginDockableDragDropSource</c> and
-    /// <c>BeginDockableDragDropTarget</c> (<c>ThirdParty/imgui/imgui.cpp:21566-21703</c>).
+    /// <c>BeginDockableDragDropTarget</c>.
     /// </summary>
     [Test]
     public void DockingWindowPayload_FlowsThroughManagedOverload()
@@ -591,7 +588,7 @@ public class DragDropTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <c>EndDragDropSource()</c> discards a drag whose source never submitted a
     /// payload, so no empty payload survives into the target pass. Canonical
-    /// <c>EndDragDropSource</c> (<c>ThirdParty/imgui/imgui.cpp:15886-15889</c>).
+    /// <c>EndDragDropSource</c>.
     /// </summary>
     [Test]
     public void EndDragDropSource_WithoutPayloadDiscardsDrag()
@@ -631,8 +628,7 @@ public class DragDropTests : ImGuiTestFixture
     /// Verifies that <c>ColorButton()</c> publishes the canonical four-component color payload while
     /// it is dragged and that <c>ColorEdit3()</c> accepts that payload and copies the red, green, and
     /// blue components into its caller buffer. Canonical <c>ColorButton</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6562-6574</c>) and the <c>ColorEdit4</c> drag target
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:6066-6086</c>).
+    ///. and the <c>ColorEdit4</c> drag target
     /// </summary>
     [Test]
     public void ColorButton_ToColorEdit3_RoundTripsColorPayload()
@@ -684,7 +680,7 @@ public class DragDropTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>AcceptDragDropPayload(null)</c> accepts any payload type, matching the
-    /// canonical null-tag wildcard (<c>ThirdParty/imgui/imgui.cpp:16033</c>).
+    /// canonical null-tag wildcard.
     /// </summary>
     [Test]
     public void AcceptDragDropPayload_NullTypeAcceptsAnyPayload()

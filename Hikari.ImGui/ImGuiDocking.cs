@@ -1,63 +1,6 @@
-// ROLE IN ENGINE
-// ==============
-// The docking subsystem: hierarchical dock node layout, dockspace submission, interactive window
-// docking and undocking, dock-tree splitting and merging, tab-bar integration for leaf nodes,
-// and the DockBuilder API family. This file is the C# counterpart of canonical Dear ImGui
-// `[SECTION] DOCKING` in `imgui.cpp:17921-21905` and completes the partial `ImGui` class
-// declared by `ImGui.cs`. It also hosts the canonical drag-and-drop state machine
-// (`[SECTION] DRAG AND DROP`, `imgui.cpp:15718-16110`), which docking reuses through the
-// `IMGUI_PAYLOAD_TYPE_WINDOW` payload to undock and redock windows.
-//
-// DESIGN RATIONALE & LIFECYCLE OWNERSHIP
-// ======================================
-// The rationale behind the dock node architecture is separation of layout topology from window lifetime:
-// 1. Node Hierarchy & Ownership:
-//    - Dock nodes form a persistent binary tree owned by ImGuiDockContext (`g.DockContext`).
-//    - Windows maintain weak references to nodes via `ImGuiWindow.DockId`. When a window closes or is hidden,
-//      the dock node ownership is preserved unless explicitly pruned or destroyed via DockBuilder.
-//    - Leaf dock nodes own an embedded `ImGuiTabBar` instance managing docked window tabs.
-// 2. Coordinate Transforms & Layout Alignment:
-//    - All dock node bounds (`Pos`, `Size`) are tracked in global screen coordinates.
-//    - Windows docked inside a leaf node undergo a coordinate transform so their client area matches
-//      the dock node's tab bar / inner content rectangle.
-// 3. Split Thresholds & Edge Cases:
-//    - Tree splits (horizontal and vertical) enforce a minimum split ratio threshold to prevent zero-size leaf nodes.
-//    - Central nodes (`ImGuiDockNodeFlags.CentralNode`) dynamically absorb residual space left by sibling splits.
-//    - Edge case handling accounts for empty nodes, passthru viewports, and undocking drag payloads.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-// =================================
-//   Application / Demo
-//       |
-//       v
-//   DockSpace / DockSpaceOverViewport / DockBuilder*
-//       |
-//       +---> ImGuiDockContext (g.DockContext)
-//       |         |
-//       |         +---> ImGuiDockNode (hierarchy tree)
-//       |                   |
-//       |                   +---> ImGuiTabBar / ImGuiTabItem (leaf windows container)
-//       |                   +---> HostWindow (dock node host container)
-//       |
-//   NewFrame()
-//       |---> DockContextNewFrameUpdateUndocking() (processes queued undock requests)
-//       +---> DockContextNewFrameUpdateDocking()   (processes queued dock requests, updates floating nodes)
-//
-//   Begin() (in ImGui.cs)
-//       |---> SetWindowDock()
-//       |---> BeginDocked()
-//       |---> BeginDockableDragDropSource()
-//       +---> BeginDockableDragDropTarget()
-//
-//   EndFrame()
-//       +---> DockContextEndFrame() (draws empty leaf node backgrounds)
-//
-//   Drag and drop (BeginDragDropSource / BeginDragDropTarget / AcceptDragDropPayload)
-//       |---> ImGuiContext.DragDrop* state (source, target, payload, accept bookkeeping)
-//       |---> NewFrame(): resets the accept state and cancels with Escape; EndFrame(): elapses
-//       |                 delivered or abandoned payloads and draws the fallback preview tooltip
-//       +---> BeginDockableDragDropSource()/Target() carry docked windows in a window payload
-
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
 
 using System;
 using System.Collections.Generic;
@@ -68,6 +11,10 @@ using System.Runtime.CompilerServices;
 
 namespace Hikari.ImGui;
 
+/// <summary>
+/// Provides immediate-mode GUI operations, context and frame lifecycle management, windowing,
+/// layout, input routing, styling, widgets, tables, and docking facilities.
+/// </summary>
 public static unsafe partial class ImGui
 {
     #region [SECTION] DOCKING: Constants & Shared State
@@ -95,7 +42,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Initializes the docking subsystem context and registers the settings handler for docking.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18145-18163</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     public static void DockContextInitialize(ImGuiContext ctx)
@@ -106,7 +52,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Registers the `Docking` settings handler with the context.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18145-18159</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <remarks>
@@ -132,7 +77,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Adapts the canonical two-argument clear callback to the port's context-only helper.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18150</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="handler">The settings handler, unused.</param>
@@ -144,7 +88,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Adapts the canonical two-argument apply callback to the port's context-only helper.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18153</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="handler">The settings handler, unused.</param>
@@ -154,6 +97,10 @@ public static unsafe partial class ImGui
         DockSettingsHandler_ApplyAll(ctx);
     }
 
+    /// <summary>
+    /// Clears all docking node settings in the specified context.
+    /// </summary>
+    /// <param name="ctx">The context whose docking settings will be cleared.</param>
     internal static void DockSettingsHandler_ClearAll(ImGuiContext ctx)
     {
         ctx.DockContext.NodesSettings.Clear();
@@ -162,7 +109,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Recreates dock nodes from the loaded settings.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18153-18159</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <remarks>
@@ -179,7 +125,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Opens the single `[Docking][Data]` section for reading.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18161-18166</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context, unused.</param>
     /// <param name="handler">The settings handler, unused.</param>
@@ -197,7 +142,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finds the docking settings record for a node identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21728-21737</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="id">Node identifier to look up.</param>
@@ -215,7 +159,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Reads one depth-indented dock node line.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21764-21803</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="handler">The settings handler, unused.</param>
@@ -334,7 +277,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Converts a dock node and its descendants into settings records, depth-first.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21805-21827</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context; the records are appended to its docking context.</param>
     /// <param name="node">The node to convert.</param>
@@ -369,7 +311,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Converts one dock node into a settings record without its descendants.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21805-21827</c>)
     /// </summary>
     /// <param name="node">The node to convert.</param>
     /// <returns>The settings record for the node at depth zero.</returns>
@@ -397,7 +338,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Rewrites the current dock node hierarchy into the context's settings list.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21829-21844</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <remarks>
@@ -416,7 +356,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Removes references to invalidated nodes from the window settings entries.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21700-21726</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="nodeIds">The invalidated node identifiers.</param>
@@ -440,7 +379,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Discards settings nodes that no longer reference a live window or dock space.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18374-18430</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <remarks>
@@ -529,7 +467,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Writes the docking section to the output buffer.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21829-21900</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="handler">The docking settings handler supplying the section type name.</param>
@@ -631,7 +568,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Shuts down the docking subsystem context and deletes all active nodes.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18164-18170</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     public static void DockContextShutdown(ImGuiContext ctx)
@@ -645,7 +581,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Clears dock nodes belonging to the given root hierarchy.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18172-18178</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="root_id">Root node identifier, or 0 to clear all nodes.</param>
@@ -658,7 +593,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Rebuilds dock nodes from settings data.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18182-18192</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     public static void DockContextRebuildNodes(ImGuiContext ctx)
@@ -671,7 +605,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Updates queued undocking requests at the beginning of the frame before input processing.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18195-18235</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     public static void DockContextNewFrameUpdateUndocking(ImGuiContext ctx)
@@ -716,7 +649,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Processes queued docking requests and creates host windows for floating root nodes.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18238-18269</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     public static void DockContextNewFrameUpdateDocking(ImGuiContext ctx)
@@ -757,7 +689,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Completes the docking frame lifecycle by drawing backgrounds of empty leaf nodes.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18271-18285</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     public static void DockContextEndFrame(ImGuiContext ctx)
@@ -778,7 +709,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Generates a new unique dock node identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18292-18301</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <returns>A new non-colliding dock node ID.</returns>
@@ -792,7 +722,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finds a dock node by its identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18287-18290</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="id">Node identifier.</param>
@@ -811,7 +740,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Enqueues a dock request to be executed during the frame update.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18519-18530</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="target">Target window, if any.</param>
@@ -838,7 +766,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Enqueues an undock request for a single window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18532-18538</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="window">Window to undock.</param>
@@ -854,7 +781,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Enqueues an undock request for an entire dock node hierarchy.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18540-18546</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="node">Dock node to undock.</param>
@@ -870,7 +796,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Cancels queued requests targeting a removed node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18548-18554</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="node">Node being removed.</param>
@@ -886,7 +811,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Processes a single window undocking operation immediately.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18717-18731</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="window">Window to undock.</param>
@@ -909,7 +833,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Processes a dock node undocking operation immediately.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18733-18772</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="node">Dock node to undock.</param>
@@ -956,7 +879,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Calculates the screen position for a docking drop split.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18775-18790</c>)
     /// </summary>
     /// <param name="target">Target window.</param>
     /// <param name="target_node">Target node.</param>
@@ -976,7 +898,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Calculates the screen position for a docking drop split.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18775-18790</c>)
     /// </summary>
     /// <param name="target">Target window.</param>
     /// <param name="target_node">Target node.</param>
@@ -1011,7 +932,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Sets the dock target node identifier for the next window to be submitted.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20738-20743</c>)
     /// </summary>
     /// <param name="dock_id">Dock node identifier.</param>
     /// <param name="cond">Condition flag determining when the dock ID is applied.</param>
@@ -1023,7 +943,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Gets the dock node identifier of the current window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20728-20731</c>)
     /// </summary>
     /// <returns>The dock ID of the current window, or 0 if undocked.</returns>
     public static uint GetWindowDockID()
@@ -1034,7 +953,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Returns whether the current window is docked into a dock node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20733-20736</c>)
     /// </summary>
     /// <returns><c>true</c> if the current window is docked; otherwise <c>false</c>.</returns>
     public static bool IsWindowDocked()
@@ -1045,7 +963,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Docks a window into a specific dock node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20745-20779</c>)
     /// </summary>
     /// <param name="window">Window to dock.</param>
     /// <param name="dock_id">Destination dock node identifier.</param>
@@ -1087,7 +1004,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Creates an explicit dockspace node within an existing window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20785-20889</c>)
     /// </summary>
     /// <param name="dockspace_id">Unique dockspace identifier.</param>
     /// <param name="size">Explicit dockspace size, or (0,0) to fill remaining window space.</param>
@@ -1180,7 +1096,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Submits a fullscreen dockspace window spanning the given viewport.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20895-20933</c>)
     /// </summary>
     /// <param name="dockspace_id">Unique dockspace ID, or 0 to generate a stable ID.</param>
     /// <param name="viewport">Viewport to cover, or <c>null</c> for main viewport.</param>
@@ -1225,7 +1140,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins appending user-submitted controls into an active dock node's tab bar.
-    /// (<c>ThirdParty/imgui/imgui.cpp:19653-19667</c>)
     /// </summary>
     /// <param name="node">Target dock node.</param>
     /// <returns><c>true</c> if amending succeeded; otherwise <c>false</c>.</returns>
@@ -1247,7 +1161,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finishes appending controls into a dock node's tab bar.
-    /// (<c>ThirdParty/imgui/imgui.cpp:19669-19674</c>)
     /// </summary>
     public static void DockNodeEndAmendTabBar()
     {
@@ -1258,7 +1171,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Default handler for a dock node window menu popup.
-    /// (<c>ThirdParty/imgui/imgui.cpp:19623-19650</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="node">Target dock node.</param>
@@ -1282,7 +1194,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Performs docking-specific initialization for a docked window during Begin().
-    /// (<c>ThirdParty/imgui/imgui.cpp:21436-21564</c>)
     /// </summary>
     /// <param name="window">Window being processed.</param>
     /// <param name="p_open">Optional open toggle flag.</param>
@@ -1303,7 +1214,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Performs docking-specific initialization for a docked window during Begin().
-    /// (<c>ThirdParty/imgui/imgui.cpp:21436-21564</c>)
     /// </summary>
     /// <param name="window">Window being processed.</param>
     /// <param name="pOpen">Reference to open boolean.</param>
@@ -1415,7 +1325,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Initiates a drag and drop payload representing a movable dockable window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21566-21596</c>)
     /// </summary>
     /// <param name="window">Window being dragged.</param>
     public static void BeginDockableDragDropSource(ImGuiWindow window)
@@ -1443,7 +1352,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Handles drag and drop hover and target preview for dockable windows.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21598-21703</c>)
     /// </summary>
     /// <param name="window">Target window.</param>
     public static void BeginDockableDragDropTarget(ImGuiWindow window)
@@ -1534,7 +1442,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Assigns a window name to a dock node ID in advance.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20958-20982</c>)
     /// </summary>
     /// <param name="window_name">Window name.</param>
     /// <param name="node_id">Node identifier.</param>
@@ -1562,7 +1469,7 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Looks up a dock node by its identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20984-20988</c>, <c>imgui_internal.h:3925</c>)
+    /// (, )
     /// </summary>
     /// <param name="node_id">Node identifier.</param>
     /// <returns>The dock node, or <see langword="null"/> if not found.</returns>
@@ -1574,7 +1481,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Looks up the central dock node in the hierarchy containing the specified node.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3926</c>)
     /// </summary>
     /// <param name="node_id">Node identifier.</param>
     /// <returns>The central dock node, or <see langword="null"/> if not found.</returns>
@@ -1588,7 +1494,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Adds a dock node by ID or creates a new ID.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21018-21039</c>)
     /// </summary>
     /// <param name="node_id">Node ID, or 0 to auto-generate.</param>
     /// <param name="flags">Dock node flags.</param>
@@ -1618,7 +1523,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Removes a dock node and its children.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21041-21059</c>)
     /// </summary>
     /// <param name="node_id">Node identifier.</param>
     public static void DockBuilderRemoveNode(uint node_id)
@@ -1643,7 +1547,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Removes child nodes of a dock node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21060-21130</c>)
     /// </summary>
     /// <param name="node_id">Root node identifier, or 0 for all nodes.</param>
     public static void DockBuilderRemoveNodeChildNodes(uint node_id)
@@ -1685,7 +1588,7 @@ public static unsafe partial class ImGui
         }
 
         // Point any window settings that referenced a removed node at the placeholder root, mirroring
-        // canonical (ThirdParty/imgui/imgui.cpp:21103-21111). When the whole hierarchy is cleared
+        // canonical. When the whole hierarchy is cleared
         // (node_id == 0) no root node survives, so those settings follow it to zero.
         for (int n = 0; n < g.SettingsWindows.Count; n++)
         {
@@ -1703,7 +1606,7 @@ public static unsafe partial class ImGui
         }
 
         // Remove the deepest nodes first so a parent is never destroyed while it still owns children;
-        // DockContextRemoveNode requires a leaf (ThirdParty/imgui/imgui.cpp:21113-21117).
+        // DockContextRemoveNode requires a leaf.
         if (nodesToRemove.Count > 1)
             nodesToRemove.Sort(static (left, right) => DockNodeGetDepth(right) - DockNodeGetDepth(left));
 
@@ -1724,7 +1627,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Undocks all windows docked into a node or its children.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21131-21163</c>)
     /// </summary>
     /// <param name="node_id">Root node identifier, or 0 for all windows.</param>
     /// <param name="clear_settings_refs">Whether to clear persistent dock settings references.</param>
@@ -1744,7 +1646,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Sets a dock node's position.
-    /// (<c>ThirdParty/imgui/imgui.cpp:20990-20999</c>)
     /// </summary>
     /// <param name="node_id">Node identifier.</param>
     /// <param name="pos">Screen position.</param>
@@ -1760,7 +1661,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Sets a dock node's size.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21000-21010</c>)
     /// </summary>
     /// <param name="node_id">Node identifier.</param>
     /// <param name="size">Node size.</param>
@@ -1777,11 +1677,10 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Splits an existing dock node into two adjacent nodes along a direction.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21168-21198</c>)
     /// </summary>
     /// <param name="node_id">Node to split.</param>
     /// <param name="split_dir">Split direction.</param>
-    /// <param name="size_ratio_for_node_at_dir">Size ratio allocated to the directed node (0..1).</param>
+    /// <param name="size_ratio_for_node_at_dir">Size ratio allocated to the directed node (0.1).</param>
     /// <param name="out_id_at_dir">Output node ID at the direction.</param>
     /// <param name="out_id_at_opposite_dir">Output node ID opposite to the direction.</param>
     /// <returns>Node ID at the direction.</returns>
@@ -1798,11 +1697,10 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Splits an existing dock node into two adjacent nodes along a direction.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21168-21198</c>)
     /// </summary>
     /// <param name="node_id">Node to split.</param>
     /// <param name="split_dir">Split direction.</param>
-    /// <param name="size_ratio_for_node_at_dir">Size ratio allocated to the directed node (0..1).</param>
+    /// <param name="size_ratio_for_node_at_dir">Size ratio allocated to the directed node (0.1).</param>
     /// <param name="outIdAtDir">Output node ID at the direction.</param>
     /// <param name="outIdAtOppositeDir">Output node ID opposite to the direction.</param>
     /// <returns>Node ID at the direction.</returns>
@@ -1835,7 +1733,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Copies a dock node hierarchy from a source node to a destination node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21227-21244</c>)
     /// </summary>
     /// <param name="src_node_id">Source node ID.</param>
     /// <param name="dst_node_id">Destination node ID.</param>
@@ -1847,7 +1744,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Copies a dock node hierarchy from a source node to a destination node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21227-21244</c>)
     /// </summary>
     /// <param name="src_node_id">Source node ID.</param>
     /// <param name="dst_node_id">Destination node ID.</param>
@@ -1867,6 +1763,13 @@ public static unsafe partial class ImGui
         DockBuilderCopyNodeRec(srcNode, dst_node_id, out_node_remap_pairs);
     }
 
+    /// <summary>
+    /// Recursively copies a dock node hierarchy from a source node to a destination node, recording remapped node identifiers.
+    /// </summary>
+    /// <param name="srcNode">The source node hierarchy to clone.</param>
+    /// <param name="dstNodeIdIfKnown">The explicit destination node identifier, or zero to generate a new identifier.</param>
+    /// <param name="outRemapPairs">List receiving pairs of old and new node identifiers.</param>
+    /// <returns>The root of the newly created dock node hierarchy.</returns>
     private static ImGuiDockNode DockBuilderCopyNodeRec(ImGuiDockNode srcNode, uint dstNodeIdIfKnown, List<uint> outRemapPairs)
     {
         ImGuiContext g = GImGui!;
@@ -1896,7 +1799,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Copies window position and size settings from one window name to another.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21245-21276</c>)
     /// </summary>
     /// <param name="src_name">Source window name.</param>
     /// <param name="dst_name">Destination window name.</param>
@@ -1924,7 +1826,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Duplicates an entire dockspace hierarchy and remaps docked window names.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21279-21356</c>)
     /// </summary>
     /// <param name="src_dockspace_id">Source dockspace ID.</param>
     /// <param name="dst_dockspace_id">Destination dockspace ID.</param>
@@ -1936,7 +1837,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Duplicates an entire dockspace hierarchy and remaps docked window names.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21279-21356</c>)
     /// </summary>
     /// <param name="src_dockspace_id">Source dockspace ID.</param>
     /// <param name="dst_dockspace_id">Destination dockspace ID.</param>
@@ -1975,7 +1875,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finishes building a dock node hierarchy.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21359-21364</c>)
     /// </summary>
     /// <param name="node_id">Root node identifier.</param>
     public static void DockBuilderFinish(uint node_id)
@@ -1989,7 +1888,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Renders the small downward triangle arrow used for dock menu buttons.
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6110-6114</c>)
     /// </summary>
     /// <param name="draw_list">Draw list to render into.</param>
     /// <param name="p_min">Upper-left corner.</param>
@@ -2003,7 +1901,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Renders debug tree inspection for a dock node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23395-23450</c>)
     /// </summary>
     /// <param name="node">Node to inspect.</param>
     /// <param name="label">Display label.</param>
@@ -2042,7 +1939,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Submits the window collapse button, which also doubles as the dock menu button.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:943-970</c>)
     /// </summary>
     /// <param name="id">Item identifier.</param>
     /// <param name="pos">Screen position.</param>
@@ -2078,7 +1974,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Initiates mouse movement for a window or an entire dock node hierarchy.
-    /// (<c>ThirdParty/imgui/imgui.cpp:5473-5493</c>)
     /// </summary>
     /// <param name="window">Target window.</param>
     /// <param name="node">Target dock node.</param>
@@ -2104,7 +1999,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Evaluates whether a window always wants its own tab bar even when single and floating.
-    /// (<c>ThirdParty/imgui/imgui.cpp:21376-21384</c>)
     /// </summary>
     /// <param name="window">Target window.</param>
     /// <returns><c>true</c> if the window requires its own tab bar; otherwise <c>false</c>.</returns>
@@ -2120,7 +2014,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Implements interactive splitter widget behavior for resizing two adjacent panels along an axis.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1811-1865</c>)
     /// </summary>
     /// <param name="bb">Bounding box of the splitter bar.</param>
     /// <param name="id">Widget identifier for the splitter.</param>
@@ -2181,6 +2074,11 @@ public static unsafe partial class ImGui
 
     #region [SECTION] DOCKING: Internal Helpers & Tree Management
 
+    /// <summary>
+    /// Traverses upwards through the dock node hierarchy to find the root node.
+    /// </summary>
+    /// <param name="node">The dock node whose root to locate.</param>
+    /// <returns>The topmost root <see cref="ImGuiDockNode"/> in the hierarchy.</returns>
     internal static ImGuiDockNode DockNodeGetRootNode(ImGuiDockNode node)
     {
         while (node.ParentNode != null)
@@ -2188,6 +2086,12 @@ public static unsafe partial class ImGui
         return node;
     }
 
+    /// <summary>
+    /// Determines whether a dock node is a descendant of the specified ancestor node.
+    /// </summary>
+    /// <param name="node">The node to evaluate.</param>
+    /// <param name="ancestor">The prospective ancestor node.</param>
+    /// <returns><see langword="true"/> if <paramref name="node"/> is within the hierarchy of <paramref name="ancestor"/>; otherwise, <see langword="false"/>.</returns>
     internal static bool DockNodeIsInHierarchyOf(ImGuiDockNode node, ImGuiDockNode ancestor)
     {
         while (node != null)
@@ -2199,6 +2103,11 @@ public static unsafe partial class ImGui
         return false;
     }
 
+    /// <summary>
+    /// Calculates the hierarchy depth of a dock node relative to the root.
+    /// </summary>
+    /// <param name="node">The dock node to inspect.</param>
+    /// <returns>The zero-based depth of the node within its dock tree.</returns>
     internal static int DockNodeGetDepth(ImGuiDockNode node)
     {
         int depth = 0;
@@ -2210,11 +2119,22 @@ public static unsafe partial class ImGui
         return depth;
     }
 
+    /// <summary>
+    /// Generates a unique UI element identifier for the window menu button within a dock node.
+    /// </summary>
+    /// <param name="node">The dock node.</param>
+    /// <returns>The 32-bit hashed identifier for the window menu button.</returns>
     internal static uint DockNodeGetWindowMenuButtonId(ImGuiDockNode node)
     {
         return ImHashStr("#COLLAPSE", 0, node.ID);
     }
 
+    /// <summary>
+    /// Allocates and registers a new dock node with the specified identifier in the context.
+    /// </summary>
+    /// <param name="ctx">The ImGui context owning the dock manager.</param>
+    /// <param name="id">The unique identifier to assign to the new node, or zero to generate one.</param>
+    /// <returns>The newly created <see cref="ImGuiDockNode"/>.</returns>
     internal static ImGuiDockNode DockContextAddNode(ImGuiContext ctx, uint id)
     {
         if (id == 0)
@@ -2227,6 +2147,12 @@ public static unsafe partial class ImGui
         return node;
     }
 
+    /// <summary>
+    /// Removes a dock node from the context, optionally collapsing its sibling into the parent node.
+    /// </summary>
+    /// <param name="ctx">The ImGui context owning the dock manager.</param>
+    /// <param name="node">The dock node to remove.</param>
+    /// <param name="mergeSiblingIntoParent"><see langword="true"/> to merge remaining sibling hierarchy into parent; otherwise, <see langword="false"/>.</param>
     internal static void DockContextRemoveNode(ImGuiContext ctx, ImGuiDockNode node, bool mergeSiblingIntoParent)
     {
         ImAssert.Check(DockContextFindNodeByID(ctx, node.ID) == node);
@@ -2256,12 +2182,22 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Completely removes and frees a dock node and its children from the context.
+    /// </summary>
+    /// <param name="ctx">The ImGui context owning the dock manager.</param>
+    /// <param name="node">The dock node to delete.</param>
     internal static void DockContextDeleteNode(ImGuiContext ctx, ImGuiDockNode node)
     {
         node.TabBar = null;
         ctx.DockContext.Nodes.Remove(node.ID);
     }
 
+    /// <summary>
+    /// Processes a pending docking or undocking request queued on the context.
+    /// </summary>
+    /// <param name="ctx">The ImGui context owning the docking subsystem.</param>
+    /// <param name="req">The docking request to execute.</param>
     internal static void DockContextProcessDock(ImGuiContext ctx, ImGuiDockRequest req)
     {
         ImGuiWindow? payloadWindow = req.DockPayload;
@@ -2370,6 +2306,12 @@ public static unsafe partial class ImGui
         MarkIniSettingsDirty();
     }
 
+    /// <summary>
+    /// Binds a window to its corresponding dock node based on window dock state or settings.
+    /// </summary>
+    /// <param name="ctx">The ImGui context.</param>
+    /// <param name="window">The window to associate with a dock node.</param>
+    /// <returns>The bound <see cref="ImGuiDockNode"/>, or <see langword="null"/> if unassigned.</returns>
     internal static ImGuiDockNode? DockContextBindNodeToWindow(ImGuiContext ctx, ImGuiWindow window)
     {
         ImGuiDockNode? node = DockContextFindNodeByID(ctx, window.DockId);
@@ -2406,6 +2348,12 @@ public static unsafe partial class ImGui
         return node;
     }
 
+    /// <summary>
+    /// Adds a window to a dock node, optionally appending it to the node's tab bar.
+    /// </summary>
+    /// <param name="node">The target dock node.</param>
+    /// <param name="window">The window to add.</param>
+    /// <param name="addToTabBar"><see langword="true"/> to register the window in the node tab bar; otherwise, <see langword="false"/>.</param>
     internal static void DockNodeAddWindow(ImGuiDockNode node, ImGuiWindow window, bool addToTabBar)
     {
         ImAssert.Check(window.DockNode == null);
@@ -2440,6 +2388,12 @@ public static unsafe partial class ImGui
         DockNodeUpdateFlagsAndCollapse(rootNode);
     }
 
+    /// <summary>
+    /// Removes a window from a dock node and updates active tab state.
+    /// </summary>
+    /// <param name="node">The source dock node.</param>
+    /// <param name="window">The window to remove.</param>
+    /// <param name="saveDockId">The identifier to record on the window as its last dock ID.</param>
     internal static void DockNodeRemoveWindow(ImGuiDockNode node, ImGuiWindow window, uint saveDockId)
     {
         ImAssert.Check(window.DockNode == node);
@@ -2464,6 +2418,11 @@ public static unsafe partial class ImGui
         DockNodeUpdateFlagsAndCollapse(rootNode);
     }
 
+    /// <summary>
+    /// Transfers all windows hosted in a source dock node to a destination dock node.
+    /// </summary>
+    /// <param name="dstNode">The destination node receiving windows.</param>
+    /// <param name="srcNode">The source node relinquishing windows.</param>
     internal static void DockNodeMoveWindows(ImGuiDockNode dstNode, ImGuiDockNode srcNode)
     {
         for (int i = 0; i < srcNode.Windows.Count; i++)
@@ -2489,6 +2448,11 @@ public static unsafe partial class ImGui
         srcNode.VisibleWindow = null;
     }
 
+    /// <summary>
+    /// Transfers child split nodes from a source node to a destination node.
+    /// </summary>
+    /// <param name="dstNode">The destination node.</param>
+    /// <param name="srcNode">The source node.</param>
     internal static void DockNodeMoveChildNodes(ImGuiDockNode dstNode, ImGuiDockNode srcNode)
     {
         ImAssert.Check(dstNode.ChildNodes[0] == null && dstNode.ChildNodes[1] == null);
@@ -2502,6 +2466,10 @@ public static unsafe partial class ImGui
         srcNode.SplitAxis = ImGuiAxis.None;
     }
 
+    /// <summary>
+    /// Propagates the dock node's position and size to all member windows.
+    /// </summary>
+    /// <param name="node">The dock node whose dimensions to apply.</param>
     internal static void DockNodeApplyPosSizeToWindows(ImGuiDockNode node)
     {
         for (int i = 0; i < node.Windows.Count; i++)
@@ -2512,6 +2480,10 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Hides the host container window representing the specified dock node.
+    /// </summary>
+    /// <param name="node">The dock node whose host window will be hidden.</param>
     internal static void DockNodeHideHostWindow(ImGuiDockNode node)
     {
         if (node.HostWindow != null)
@@ -2521,12 +2493,25 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Temporarily hides a window while its host docking container is being constructed.
+    /// </summary>
+    /// <param name="window">The window to hide during host creation.</param>
     internal static void DockNodeHideWindowDuringHostWindowCreation(ImGuiWindow window)
     {
         window.Hidden = true;
         window.HiddenFramesCannotSkipItems = 1;
     }
 
+    /// <summary>
+    /// Splits an existing dock node into two child branches along the specified axis.
+    /// </summary>
+    /// <param name="ctx">The ImGui context.</param>
+    /// <param name="parentNode">The node to divide into children.</param>
+    /// <param name="splitAxis">The axis along which to divide the space.</param>
+    /// <param name="splitInheritorChildIdx">Child index inheriting existing windows (0 or 1).</param>
+    /// <param name="splitRatio">The proportional size ratio allocated to the split.</param>
+    /// <param name="newNode">An optional pre-allocated node to install as the sibling child.</param>
     internal static void DockNodeTreeSplit(ImGuiContext ctx, ImGuiDockNode parentNode, ImGuiAxis splitAxis, int splitInheritorChildIdx, float splitRatio, ImGuiDockNode? newNode)
     {
         ImGuiContext g = ctx;
@@ -2570,6 +2555,12 @@ public static unsafe partial class ImGui
             DockNodeGetRootNode(parentNode).CentralNode = childInheritor;
     }
 
+    /// <summary>
+    /// Merges child split nodes back into their parent dock node.
+    /// </summary>
+    /// <param name="ctx">The ImGui context.</param>
+    /// <param name="parentNode">The parent node being collapsed.</param>
+    /// <param name="mergeLeadChild">The remaining child node whose windows and state are promoted.</param>
     internal static void DockNodeTreeMerge(ImGuiContext ctx, ImGuiDockNode parentNode, ImGuiDockNode mergeLeadChild)
     {
         ImGuiDockNode? child0 = parentNode.ChildNodes[0];
@@ -2602,6 +2593,13 @@ public static unsafe partial class ImGui
         if (child1 != null) DockContextDeleteNode(ctx, child1);
     }
 
+    /// <summary>
+    /// Recursively updates the positions and dimensions of a dock node tree based on split ratios.
+    /// </summary>
+    /// <param name="node">The root or branch node to update.</param>
+    /// <param name="pos">The new top-left coordinates.</param>
+    /// <param name="size">The new dimensions.</param>
+    /// <param name="onlyWriteToSingleNode">Optional constraint to update only the specified node.</param>
     internal static void DockNodeTreeUpdatePosSize(ImGuiDockNode node, ImVec2 pos, ImVec2 size, ImGuiDockNode? onlyWriteToSingleNode = null)
     {
         ImGuiContext g = GImGui!;
@@ -2681,6 +2679,13 @@ public static unsafe partial class ImGui
             DockNodeTreeUpdatePosSize(child1, child1Pos, child1Size, onlyWriteToSingleNode);
     }
 
+    /// <summary>
+    /// Locates all leaf dock nodes that share a boundary line with the specified splitter axis.
+    /// </summary>
+    /// <param name="node">The subtree root to search.</param>
+    /// <param name="axis">The orientation axis of the splitter.</param>
+    /// <param name="side">The side index (0 or 1) of the boundary.</param>
+    /// <param name="touchingNodes">The collection receiving touching leaf nodes.</param>
     internal static void DockNodeTreeUpdateSplitterFindTouchingNode(ImGuiDockNode node, ImGuiAxis axis, int side, List<ImGuiDockNode> touchingNodes)
     {
         if (node.IsLeafNode())
@@ -2696,6 +2701,10 @@ public static unsafe partial class ImGui
                 DockNodeTreeUpdateSplitterFindTouchingNode(node.ChildNodes[1]!, axis, side, touchingNodes);
     }
 
+    /// <summary>
+    /// Updates and interacts with resize splitter grips between child dock nodes.
+    /// </summary>
+    /// <param name="node">The branch node containing children divided by a splitter.</param>
     internal static void DockNodeTreeUpdateSplitter(ImGuiDockNode node)
     {
         if (node.IsLeafNode())
@@ -2786,6 +2795,12 @@ public static unsafe partial class ImGui
         if (child1.IsVisible) DockNodeTreeUpdateSplitter(child1);
     }
 
+    /// <summary>
+    /// Locates the topmost visible dock node enclosing the specified screen-space coordinate.
+    /// </summary>
+    /// <param name="node">The root node of the dock tree to query.</param>
+    /// <param name="pos">The screen-space coordinate to test.</param>
+    /// <returns>The visible <see cref="ImGuiDockNode"/> containing <paramref name="pos"/>, or <see langword="null"/> if outside.</returns>
     internal static ImGuiDockNode? DockNodeTreeFindVisibleNodeByPos(ImGuiDockNode node, ImVec2 pos)
     {
         if (!node.IsVisible)
@@ -2804,6 +2819,11 @@ public static unsafe partial class ImGui
         return null;
     }
 
+    /// <summary>
+    /// Finds a default fallback leaf node in a dock tree hierarchy suitable for hosting windows.
+    /// </summary>
+    /// <param name="node">The dock tree node to search.</param>
+    /// <returns>A leaf <see cref="ImGuiDockNode"/> within the hierarchy.</returns>
     internal static ImGuiDockNode DockNodeTreeFindFallbackLeafNode(ImGuiDockNode node)
     {
         if (node.IsLeafNode())
@@ -2815,6 +2835,10 @@ public static unsafe partial class ImGui
         return node;
     }
 
+    /// <summary>
+    /// Updates the cached flag indicating whether any descendant in the subtree is a central node.
+    /// </summary>
+    /// <param name="node">The root or branch node to evaluate.</param>
     internal static void DockNodeUpdateHasCentralNodeChild(ImGuiDockNode node)
     {
         node.HasCentralNodeChild = false;
@@ -2832,6 +2856,10 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Recalculates combined node flags and manages automatic collapse behavior.
+    /// </summary>
+    /// <param name="node">The dock node to update.</param>
     internal static void DockNodeUpdateFlagsAndCollapse(ImGuiDockNode node)
     {
         node.UpdateMergedFlags();
@@ -2839,6 +2867,10 @@ public static unsafe partial class ImGui
         if (node.ChildNodes[1] != null) DockNodeUpdateFlagsAndCollapse(node.ChildNodes[1]!);
     }
 
+    /// <summary>
+    /// Recalculates the visibility status flag for a dock node based on its child hierarchy.
+    /// </summary>
+    /// <param name="node">The dock node whose visibility to evaluate.</param>
     internal static void DockNodeUpdateVisibleFlag(ImGuiDockNode node)
     {
         bool isVisible = false;
@@ -2854,12 +2886,21 @@ public static unsafe partial class ImGui
         node.IsVisible = isVisible;
     }
 
+    /// <summary>
+    /// Configures host window properties, styling, and geometry to align with a dock node.
+    /// </summary>
+    /// <param name="node">The dock node being hosted.</param>
+    /// <param name="hostWindow">The window acting as the host surface.</param>
     internal static void DockNodeSetupHostWindow(ImGuiDockNode node, ImGuiWindow hostWindow)
     {
         node.HostWindow = hostWindow;
         hostWindow.DockNodeAsHost = node;
     }
 
+    /// <summary>
+    /// Performs per-frame lifecycle updates, tab bar maintenance, and rendering for a dock node.
+    /// </summary>
+    /// <param name="node">The dock node to process.</param>
     internal static void DockNodeUpdate(ImGuiDockNode node)
     {
         ImGuiContext g = GImGui!;
@@ -2959,7 +3000,7 @@ public static unsafe partial class ImGui
         else if (node.Windows.Count > 0)
             node.SelectedTabId = node.Windows[0].TabId;
 
-        // Draw payload drop target (ThirdParty/imgui/imgui.cpp:19569-19573)
+        // Draw payload drop target.
         if (hostWindow != null && node.IsVisible)
             if (node.IsRootNode() && (g.MovingWindow == null || g.MovingWindow.RootWindowDockTree != hostWindow))
                 BeginDockableDragDropTarget(hostWindow);
@@ -2977,17 +3018,33 @@ public static unsafe partial class ImGui
             End();
     }
 
+    /// <summary>
+    /// Creates and attaches a tab bar to a leaf dock node.
+    /// </summary>
+    /// <param name="node">The leaf dock node receiving the tab bar.</param>
     internal static void DockNodeAddTabBar(ImGuiDockNode node)
     {
         ImAssert.Check(node.TabBar == null);
         node.TabBar = new ImGuiTabBar { ID = node.ID };
     }
 
+    /// <summary>
+    /// Detaches and destroys the tab bar from a dock node.
+    /// </summary>
+    /// <param name="node">The dock node whose tab bar to remove.</param>
     internal static void DockNodeRemoveTabBar(ImGuiDockNode node)
     {
         node.TabBar = null;
     }
 
+    /// <summary>
+    /// Computes geometric layout coordinates for the tab bar, buttons, and title area within a dock node.
+    /// </summary>
+    /// <param name="node">The dock node to measure.</param>
+    /// <param name="outTitleRect">Receives the screen-space bounding rectangle for the title area.</param>
+    /// <param name="outTabBarRect">Receives the screen-space bounding rectangle for the tab bar.</param>
+    /// <param name="outWindowMenuButtonPos">Receives the top-left position for the window menu button.</param>
+    /// <param name="outCloseButtonPos">Receives the top-left position for the close button.</param>
     internal static void DockNodeCalcTabBarLayout(ImGuiDockNode node, out ImRect outTitleRect, out ImRect outTabBarRect, out ImVec2 outWindowMenuButtonPos, out ImVec2 outCloseButtonPos)
     {
         ImGuiContext g = GImGui!;
@@ -3002,6 +3059,11 @@ public static unsafe partial class ImGui
         outCloseButtonPos = new ImVec2(titleBarRect.Max.X - frameHeight, titleBarRect.Min.Y + style.FramePadding.Y);
     }
 
+    /// <summary>
+    /// Submits and processes tab bar UI interactions for all windows docked in a node.
+    /// </summary>
+    /// <param name="node">The dock node containing the tab bar.</param>
+    /// <param name="hostWindow">The window hosting the dock node rendering.</param>
     internal static void DockNodeUpdateTabBar(ImGuiDockNode node, ImGuiWindow hostWindow)
     {
         ImGuiContext g = GImGui!;
@@ -3069,6 +3131,11 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Determines the zero-based tab ordering position of a window inside its parent dock node.
+    /// </summary>
+    /// <param name="window">The window to locate.</param>
+    /// <returns>The zero-based tab index, or <c>-1</c> if not docked in a tab bar.</returns>
     internal static int DockNodeGetTabOrder(ImGuiWindow window)
     {
         if (window.DockNode?.TabBar is { } tabBar)
@@ -3079,6 +3146,12 @@ public static unsafe partial class ImGui
         return -1;
     }
 
+    /// <summary>
+    /// Evaluates whether dragging a payload window can drop into any part of the host window.
+    /// </summary>
+    /// <param name="hostWindow">The prospective drop target window.</param>
+    /// <param name="rootPayload">The root window of the dragging payload.</param>
+    /// <returns><see langword="true"/> if dropping is permitted; otherwise, <see langword="false"/>.</returns>
     internal static bool DockNodeIsDropAllowed(ImGuiWindow hostWindow, ImGuiWindow rootPayload)
     {
         if (rootPayload.DockNodeAsHost != null && rootPayload.DockNodeAsHost.IsSplitNode())
@@ -3094,6 +3167,12 @@ public static unsafe partial class ImGui
         return false;
     }
 
+    /// <summary>
+    /// Checks compatibility between an individual payload window and a potential dock host window.
+    /// </summary>
+    /// <param name="payload">The payload window to test.</param>
+    /// <param name="hostWindow">The prospective host window.</param>
+    /// <returns><see langword="true"/> if the payload may dock into the host; otherwise, <see langword="false"/>.</returns>
     internal static bool DockNodeIsDropAllowedOne(ImGuiWindow payload, ImGuiWindow hostWindow)
     {
         if ((payload.Flags & ImGuiWindowFlags.NoDocking) != 0)
@@ -3113,6 +3192,16 @@ public static unsafe partial class ImGui
         return true;
     }
 
+    /// <summary>
+    /// Configures geometry, drop rectangles, and directional slot targets for previewing a dock drop.
+    /// </summary>
+    /// <param name="hostWindow">The window being hovered as a target.</param>
+    /// <param name="hostNode">The dock node target, if present.</param>
+    /// <param name="payloadWindow">The window being dragged.</param>
+    /// <param name="payloadNode">The source dock node of the payload, if present.</param>
+    /// <param name="data">The preview data state record to populate.</param>
+    /// <param name="isExplicitTarget">A value indicating whether a specific target was explicitly requested.</param>
+    /// <param name="isOuterDocking">A value indicating whether outer edge dock targets are being evaluated.</param>
     internal static void DockNodePreviewDockSetup(ImGuiWindow? hostWindow, ImGuiDockNode? hostNode, ImGuiWindow? payloadWindow, ImGuiDockNode? payloadNode, ImGuiDockPreviewData data, bool isExplicitTarget, bool isOuterDocking)
     {
         ImGuiContext g = GImGui!;
@@ -3197,6 +3286,15 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Calculates directional drop target rectangles and determines whether the mouse cursor hovers them.
+    /// </summary>
+    /// <param name="parent">The parent boundary rectangle.</param>
+    /// <param name="dir">The directional dock slot to calculate.</param>
+    /// <param name="outDraw">Receives the visual preview highlight rectangle.</param>
+    /// <param name="outerDocking">A value indicating whether outer perimeter docking geometry is evaluated.</param>
+    /// <param name="testMousePos">The mouse position to test, or <see langword="null"/> for current mouse position.</param>
+    /// <returns><see langword="true"/> if the position hovers the drop rectangle; otherwise, <see langword="false"/>.</returns>
     internal static bool DockNodeCalcDropRectsAndTestMousePos(ImRect parent, ImGuiDir dir, out ImRect outDraw, bool outerDocking, ImVec2? testMousePos)
     {
         ImGuiContext g = GImGui!;
@@ -3254,6 +3352,15 @@ public static unsafe partial class ImGui
         return hitR.Contains(testMousePos.Value);
     }
 
+    /// <summary>
+    /// Calculates new position and size bounds when splitting an area along a directional vector.
+    /// </summary>
+    /// <param name="posOld">The initial position of the area.</param>
+    /// <param name="sizeOld">The initial dimensions of the area.</param>
+    /// <param name="posNew">Receives the computed new top-left position.</param>
+    /// <param name="sizeNew">Receives the computed new size dimensions.</param>
+    /// <param name="dir">The split direction.</param>
+    /// <param name="desiredSize">The requested size for the new split region.</param>
     internal static void DockNodeCalcSplitRects(ImVec2 posOld, ImVec2 sizeOld, out ImVec2 posNew, out ImVec2 sizeNew, ImGuiDir dir, ImVec2 desiredSize)
     {
         posNew = posOld;
@@ -3277,6 +3384,13 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Renders preview drop overlays, highlight rectangles, and directional split indicators.
+    /// </summary>
+    /// <param name="hostWindow">The host window being hovered.</param>
+    /// <param name="hostNode">The active dock node, if any.</param>
+    /// <param name="rootPayload">The payload window being dragged.</param>
+    /// <param name="data">The preview geometry data to render.</param>
     internal static void DockNodePreviewDockRender(ImGuiWindow hostWindow, ImGuiDockNode? hostNode, ImGuiWindow rootPayload, ImGuiDockPreviewData data)
     {
         ImGuiContext g = GImGui!;
@@ -3388,6 +3502,12 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Clamps oversized window dimensions when undocking so the window fits comfortably on screen.
+    /// </summary>
+    /// <param name="size">The current window dimensions.</param>
+    /// <param name="refViewport">The reference viewport providing boundary metrics.</param>
+    /// <returns>Clamped dimensions suitable for a floating window.</returns>
     private static ImVec2 FixLargeWindowsWhenUndocking(ImVec2 size, ImGuiViewport? refViewport)
     {
         if (refViewport == null)
@@ -3396,6 +3516,10 @@ public static unsafe partial class ImGui
         return new ImVec2(MathF.Min(size.X, maxSize.X), MathF.Min(size.Y, maxSize.Y));
     }
 
+    /// <summary>
+    /// Preserves current window styling attributes in the window's dock style cache.
+    /// </summary>
+    /// <param name="window">The window whose dock style to capture.</param>
     private static void StoreDockStyleForWindow(ImGuiWindow window)
     {
         ImGuiContext g = GImGui!;
@@ -3403,6 +3527,11 @@ public static unsafe partial class ImGui
             window.DockStyle.Colors[i] = ColorConvertFloat4ToU32(g.Style.Colors[(int)GWindowDockStyleColors[i]]);
     }
 
+    /// <summary>
+    /// Updates persistent settings records by replacing references to an old node ID with a new node ID.
+    /// </summary>
+    /// <param name="oldNodeId">The original node identifier.</param>
+    /// <param name="newNodeId">The replacement node identifier.</param>
     private static void DockSettingsRenameNodeReferences(uint oldNodeId, uint newNodeId)
     {
         ImGuiContext g = GImGui!;
@@ -3413,7 +3542,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Rebuilds the dock node hierarchy from loaded settings.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18431-18460</c>)
     /// </summary>
     /// <param name="ctx">Active ImGui context.</param>
     /// <param name="settings">The settings records to materialize, in parent-before-child order.</param>
@@ -3455,7 +3583,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Returns the stable internal title of a dock node's host window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:18095</c>)
     /// </summary>
     /// <param name="node">The node whose host window title is required.</param>
     /// <returns>The `##DockNode_XX` title, which is hidden by the `##` marker but identifies the window.</returns>
@@ -3464,6 +3591,11 @@ public static unsafe partial class ImGui
         return $"##DockNode_{node.ID:X2}";
     }
 
+    /// <summary>
+    /// Reconnects persisted windows to reconstructed dock nodes following layout deserialization.
+    /// </summary>
+    /// <param name="ctx">The ImGui context.</param>
+    /// <param name="rootId">The root dock node identifier.</param>
     private static void DockContextBuildAddWindowsToNodes(ImGuiContext ctx, uint rootId)
     {
         for (int i = 0; i < ctx.Windows.Count; i++)
@@ -3479,21 +3611,42 @@ public static unsafe partial class ImGui
 
     #endregion
 
-    #region [SECTION] TABS: Canonical Dear ImGui Tab Bar & Tab Item Subsystem (imgui_widgets.cpp:9760-11166)
+    #region [SECTION] TABS: Canonical Dear ImGui Tab Bar & Tab Item Subsystem
 
+    /// <summary>
+    /// Temporary layout metrics for a section (leading, normal, trailing) of a tab bar.
+    /// </summary>
     private sealed class ImGuiTabBarSection
     {
+        /// <summary>Gets or sets the number of tabs in this section.</summary>
         public int TabCount;
+
+        /// <summary>Gets or sets the total width of all tabs in this section.</summary>
         public float Width;
+
+        /// <summary>Gets or sets the section width after shrinking minimum width tabs.</summary>
         public float WidthAfterShrinkMinWidth;
+
+        /// <summary>Gets or sets the spacing between tabs in this section.</summary>
         public float Spacing;
     }
 
+    /// <summary>
+    /// Determines the section layout index (leading, normal, or trailing) of a tab item.
+    /// </summary>
+    /// <param name="tab">The tab item to inspect.</param>
+    /// <returns>The section index (<c>0</c> for leading, <c>1</c> for standard, <c>2</c> for trailing).</returns>
     private static int TabItemGetSectionIdx(ImGuiTabItem tab)
     {
         return (tab.Flags & ImGuiTabItemFlags.Leading) != 0 ? 0 : (tab.Flags & ImGuiTabItemFlags.Trailing) != 0 ? 2 : 1;
     }
 
+    /// <summary>
+    /// Compares two tab items based on their layout section grouping.
+    /// </summary>
+    /// <param name="a">The first tab item.</param>
+    /// <param name="b">The second tab item.</param>
+    /// <returns>A negative integer if <paramref name="a"/> precedes <paramref name="b"/>; zero if equal; positive if greater.</returns>
     private static int TabItemComparerBySection(ImGuiTabItem a, ImGuiTabItem b)
     {
         int aSection = TabItemGetSectionIdx(a);
@@ -3503,6 +3656,12 @@ public static unsafe partial class ImGui
         return a.IndexDuringLayout - b.IndexDuringLayout;
     }
 
+    /// <summary>
+    /// Compares two tab items based on the order in which they were submitted within the frame.
+    /// </summary>
+    /// <param name="a">The first tab item.</param>
+    /// <param name="b">The second tab item.</param>
+    /// <returns>A value indicating relative submission ordering.</returns>
     private static int TabItemComparerByBeginOrder(ImGuiTabItem a, ImGuiTabItem b)
     {
         return a.BeginOrder - b.BeginOrder;
@@ -3510,7 +3669,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins a manual/standalone TabBar layout container.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9865-9881</c>)
     /// </summary>
     /// <param name="str_id">Identifier string for the tab bar.</param>
     /// <param name="flags">Behavior and style flags.</param>
@@ -3534,7 +3692,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins internal submission of an ImGuiTabBar.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9883-9943</c>)
     /// </summary>
     /// <param name="tab_bar">Tab bar to begin.</param>
     /// <param name="tab_bar_bb">Bounding rectangle for the tab bar.</param>
@@ -3599,7 +3756,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Ends an ImGuiTabBar submission.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9945-9980</c>)
     /// </summary>
     public static void EndTabBar()
     {
@@ -3640,7 +3796,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins a tab item within the active tab bar with an optional close button.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10632-10650</c>)
     /// </summary>
     /// <param name="label">Tab display label.</param>
     /// <param name="p_open">Reference tracking whether the tab is open.</param>
@@ -3670,7 +3825,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins a tab item within the active tab bar without a close button.
-    /// (<c>ThirdParty/imgui/imgui.h:964</c>)
     /// </summary>
     /// <param name="label">Tab display label.</param>
     /// <param name="flags">Tab item behavior flags.</param>
@@ -3683,7 +3837,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Ends a tab item submission, popping its ID from the stack.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10652-10665</c>)
     /// </summary>
     public static void EndTabItem()
     {
@@ -3704,7 +3857,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Creates a tab item styled as a button that triggers an action without switching tabs.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10667-10677</c>)
     /// </summary>
     /// <param name="label">Button label.</param>
     /// <param name="flags">Tab item flags.</param>
@@ -3726,7 +3878,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Requests a tab item to be marked as closed by its label.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:11002-11023</c>)
     /// </summary>
     /// <param name="tab_or_docked_window_label">Label of the tab to close.</param>
     public static void SetTabItemClosed(string tab_or_docked_window_label)
@@ -3759,7 +3910,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Reserves horizontal spacing within a tab bar.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10679-10690</c>)
     /// </summary>
     /// <param name="str_id">Identifier for spacing.</param>
     /// <param name="flags">Flags.</param>
@@ -3780,11 +3930,21 @@ public static unsafe partial class ImGui
         TabItemEx(tabBar, str_id, flags | (ImGuiTabItemFlags)ImGuiTabItemFlagsPrivate.ImGuiTabItemFlags_Button | ImGuiTabItemFlags.NoReorder | (ImGuiTabItemFlags)ImGuiTabItemFlagsPrivate.ImGuiTabItemFlags_Invisible, null);
     }
 
+    /// <summary>
+    /// Computes the available horizontal pixel width for scrollable tabs within a tab bar.
+    /// </summary>
+    /// <param name="tabBar">The tab bar being measured.</param>
+    /// <param name="sections">The section array containing tab items.</param>
+    /// <returns>The available scrollable width in pixels.</returns>
     private static float TabBarCalcScrollableWidth(ImGuiTabBar tabBar, ImGuiTabBarSection[] sections)
     {
         return tabBar.BarRect.GetWidth() - sections[0].Width - sections[2].Width - sections[1].Spacing;
     }
 
+    /// <summary>
+    /// Calculates layout positions, tab dimensions, clipping, and scroll bounds for a tab bar.
+    /// </summary>
+    /// <param name="tab_bar">The tab bar to arrange.</param>
     private static void TabBarLayout(ImGuiTabBar tab_bar)
     {
         ImGuiContext g = GImGui!;
@@ -4032,7 +4192,7 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Clamps a tab-bar horizontal scroll position to the valid range between the left edge and the
-    /// rightmost scrollable extent. (<c>ThirdParty/imgui/imgui_widgets.cpp:10390-10394</c>)
+    /// rightmost scrollable extent.
     /// </summary>
     /// <param name="tab_bar">Tab bar whose scroll position is being clamped.</param>
     /// <param name="scrolling">Candidate scroll offset.</param>
@@ -4043,6 +4203,12 @@ public static unsafe partial class ImGui
         return MathF.Max(scrolling, 0.0f);
     }
 
+    /// <summary>
+    /// Adjusts tab bar scrolling targets to bring a specific tab into view.
+    /// </summary>
+    /// <param name="tabBar">The tab bar.</param>
+    /// <param name="tabId">The identifier of the tab to scroll to.</param>
+    /// <param name="sections">The tab bar sections containing tabs.</param>
     private static void TabBarScrollToTab(ImGuiTabBar tabBar, uint tabId, ImGuiTabBarSection[] sections)
     {
         ImGuiTabItem? tab = TabBarFindTabByID(tabBar, tabId);
@@ -4071,6 +4237,11 @@ public static unsafe partial class ImGui
         }
     }
 
+    /// <summary>
+    /// Renders and processes left/right navigation scroll buttons for overflowing tab bars.
+    /// </summary>
+    /// <param name="tabBar">The tab bar.</param>
+    /// <returns>The tab item activated by scroll navigation, if any.</returns>
     private static ImGuiTabItem? TabBarScrollingButtons(ImGuiTabBar tabBar)
     {
         ImGuiContext g = GImGui!;
@@ -4132,6 +4303,11 @@ public static unsafe partial class ImGui
         return tabToScrollTo;
     }
 
+    /// <summary>
+    /// Renders and processes the dropdown tab list popup button when tabs overflow.
+    /// </summary>
+    /// <param name="tabBar">The tab bar.</param>
+    /// <returns>The tab item selected from the dropdown popup, if any.</returns>
     private static ImGuiTabItem? TabBarTabListPopupButton(ImGuiTabBar tabBar)
     {
         ImGuiContext g = GImGui!;
@@ -4171,7 +4347,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Calculates the ID of a tab item based on string label and dock host window identity.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10263-10278</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="label">Tab display label.</param>
@@ -4195,7 +4370,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Calculates the maximum width permitted for any individual tab.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10280-10284</c>)
     /// </summary>
     /// <returns>Maximum tab width in pixels.</returns>
     public static float TabBarCalcMaxTabWidth()
@@ -4206,7 +4380,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finds a tab bar by its identifier from the context pool.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9853-9856</c>)
     /// </summary>
     /// <param name="id">Tab bar identifier.</param>
     /// <returns>Matching tab bar or <c>null</c>.</returns>
@@ -4218,7 +4391,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Removes a tab bar from the context pool.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9859-9863</c>)
     /// </summary>
     /// <param name="tab_bar">Tab bar to remove.</param>
     public static void TabBarRemove(ImGuiTabBar tab_bar)
@@ -4230,7 +4402,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Submits a single tab item within the current tab bar, with a close button whose open state is
     /// tracked by <paramref name="p_open"/>.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10695-10995</c>)
     /// </summary>
     /// <param name="tab_bar">Tab bar containing the item.</param>
     /// <param name="label">Tab display label.</param>
@@ -4244,7 +4415,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Submits a single tab item within the current tab bar without a close button. This is the managed
     /// equivalent of canonical's <c>p_open == NULL</c> call form.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10722-10725</c>)
     /// </summary>
     /// <param name="tab_bar">Tab bar containing the item.</param>
     /// <param name="label">Tab display label.</param>
@@ -4523,7 +4693,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finds a tab item by identifier.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10286-10293</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab_id">Tab ID.</param>
@@ -4540,7 +4709,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finds a tab item by visible order.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10296-10301</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="order">Visible order.</param>
@@ -4554,7 +4722,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Gets the tab currently being processed by BeginTabItem / EndTabItem.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10317-10322</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <returns>Active tab item or <c>null</c>.</returns>
@@ -4567,7 +4734,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Queues focus for a tab item specified by name.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10435-10440</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab_name">Tab name.</param>
@@ -4580,7 +4746,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Queues a tab item reorder operation.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10442-10448</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab">Tab item to move.</param>
@@ -4595,7 +4760,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Queues reorder request from mouse position during drag-and-drop.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10450-10485</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="src_tab">Dragged tab.</param>
@@ -4635,7 +4799,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Processes queued reorder requests for a tab bar.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10487-10516</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <returns><c>true</c> if reordered; otherwise <c>false</c>.</returns>
@@ -4666,7 +4829,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Adds a tab item to a tab bar.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10336-10353</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab_flags">Tab item flags.</param>
@@ -4695,7 +4857,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Removes a tab item by identifier from a tab bar.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10356-10364</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab_id">Tab ID to remove.</param>
@@ -4716,7 +4877,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Marks a tab item for closure.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10366-10388</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab">Tab item to close.</param>
@@ -4747,7 +4907,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Gets the visual index order of a tab within its parent tab bar.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3990</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab">Tab item.</param>
@@ -4760,7 +4919,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Finds the most recently selected tab whose window is still active, which the navigation system
     /// uses to restore focus into a dock node host.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10304-10318</c>)
     /// </summary>
     /// <param name="tab_bar">Tab bar to search.</param>
     /// <returns>The most recently selected active tab, or <c>null</c>.</returns>
@@ -4779,7 +4937,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Gets the screen-space position for a tab item within its tab bar.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10450-10456</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab">Tab item.</param>
@@ -4794,7 +4951,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Gets the display name of a tab item.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10324-10332</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab">Tab item.</param>
@@ -4811,7 +4967,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Queues focus for a tab item.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:10430-10433</c>)
     /// </summary>
     /// <param name="tab_bar">Parent tab bar.</param>
     /// <param name="tab">Tab item.</param>
@@ -4822,7 +4977,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Calculates the size of a tab item.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:11025-11035</c>)
     /// </summary>
     /// <param name="label">Tab label.</param>
     /// <param name="has_close_button_or_unsaved_marker">Whether the tab displays a close button.</param>
@@ -4841,7 +4995,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Calculates the size of a tab item for a window.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:11037-11040</c>)
     /// </summary>
     /// <param name="window">Target window.</param>
     /// <returns>Tab dimensions.</returns>
@@ -4852,7 +5005,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Renders the background shape of a tab item.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:11042-11062</c>)
     /// </summary>
     /// <param name="draw_list">Draw list to render into.</param>
     /// <param name="bb">Bounding box.</param>
@@ -4880,7 +5032,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Renders the label text and optional close button for a tab item.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:11065-11150</c>)
     /// </summary>
     /// <param name="draw_list">Draw list.</param>
     /// <param name="bb">Bounding box.</param>
@@ -4991,11 +5142,10 @@ public static unsafe partial class ImGui
     #endregion
 
     #region [SECTION] DRAG & DROP
-    // Canonical: ThirdParty/imgui/imgui.cpp lines 15718-16110 and imgui.h lines 2856-2878.
 
     /// <summary>
     /// Payload type tag for a three-component floating-point color payload. Ports canonical
-    /// <c>IMGUI_PAYLOAD_TYPE_COLOR_3F</c> (<c>ThirdParty/imgui/imgui.h:1595</c>).
+    /// <c>IMGUI_PAYLOAD_TYPE_COLOR_3F</c>.
     /// </summary>
     /// <remarks>
     /// The payload object is a <see cref="float"/>[] of length three holding red, green, and blue.
@@ -5005,7 +5155,7 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Payload type tag for a four-component floating-point color payload. Ports canonical
-    /// <c>IMGUI_PAYLOAD_TYPE_COLOR_4F</c> (<c>ThirdParty/imgui/imgui.h:1596</c>).
+    /// <c>IMGUI_PAYLOAD_TYPE_COLOR_4F</c>.
     /// </summary>
     /// <remarks>
     /// The payload object is a <see cref="float"/>[] of length four holding red, green, blue, and
@@ -5017,7 +5167,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Returns whether a drag operation is currently active, meaning a source has been started and the
     /// drag has not yet been cleared by delivery, cancellation, or source teardown.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15721-15725</c>)
     /// </summary>
     /// <returns><see langword="true"/> while <see cref="ImGuiContext.DragDropActive"/> is set.</returns>
     internal static bool IsDragDropActive()
@@ -5027,7 +5176,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Returns whether the active drag has a payload that a target accepted on the previous frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16021-16025</c>)
     /// </summary>
     /// <returns><see langword="true"/> when a drag is active and a target identifier was recorded as
     /// previously accepted.</returns>
@@ -5045,7 +5193,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Clears every drag-and-drop state member, discarding the current payload and the target
     /// acceptance bookkeeping.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15727-15741</c>)
     /// </summary>
     /// <remarks>
     /// <para>
@@ -5080,7 +5227,6 @@ public static unsafe partial class ImGui
     /// <see cref="ImGuiDragDropFlags.SourceExtern"/> is set. While this returns <see langword="true"/>
     /// the caller must call <see cref="SetDragDropPayload(string, object, ImGuiCond)"/> exactly once, may render
     /// a preview, and must call <see cref="EndDragDropSource"/>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15758-15875</c>)
     /// </summary>
     /// <param name="flags">Source behavior flags; see <see cref="ImGuiDragDropFlags"/>.</param>
     /// <returns><see langword="true"/> while the item (or external source) is being dragged.</returns>
@@ -5231,7 +5377,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Ends a drag-and-drop source block, closing its preview tooltip and discarding the drag when no
     /// payload was submitted.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15877-15890</c>)
     /// </summary>
     /// <remarks>
     /// The payload is discarded when <see cref="ImGuiPayload.DataFrameCount"/> is still -1, which is
@@ -5255,7 +5400,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Sets the raw-pointer payload carried by the active drag source.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15893-15935</c>)
     /// </summary>
     /// <param name="type">The payload type tag, at most 32 characters.</param>
     /// <param name="data">The payload data pointer, or <see cref="IntPtr.Zero"/> when the size is zero.</param>
@@ -5361,7 +5505,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Truncates a payload type tag to the canonical 32-character field width.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15901</c>)
     /// </summary>
     /// <param name="type">The caller-supplied type tag; must be non-null.</param>
     /// <returns>
@@ -5376,7 +5519,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins a drag-and-drop target for an explicit rectangle and identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15937-15964</c>)
     /// </summary>
     /// <param name="bb">The target rectangle in screen space.</param>
     /// <param name="id">The target identifier; must be non-zero so overlapping targets can be ordered.</param>
@@ -5416,7 +5558,6 @@ public static unsafe partial class ImGui
     /// Begins a drag-and-drop target across a whole viewport, optionally overridden by an explicit
     /// rectangle. Typical use is <c>BeginDragDropTargetViewport(GetMainViewport(), null)</c> guarded
     /// by a caller-side hover test.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15966-15988</c>)
     /// </summary>
     /// <param name="viewport">The target viewport; <see langword="null"/> declines the target.</param>
     /// <param name="p_bb">An optional explicit rectangle; the viewport work rectangle when omitted.</param>
@@ -5449,7 +5590,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Begins a drag-and-drop target for the last submitted item.
-    /// (<c>ThirdParty/imgui/imgui.cpp:15990-16025</c>)
     /// </summary>
     /// <returns><see langword="true"/> when the caller may submit <c>AcceptDragDropPayload()</c>.</returns>
     /// <remarks>
@@ -5505,7 +5645,6 @@ public static unsafe partial class ImGui
     /// Accepts the active payload when its type matches the requested tag, or accepts any payload when
     /// the tag is <see langword="null"/>, returning the payload so the caller can read its data and
     /// preview/delivery state.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16027-16078</c>)
     /// </summary>
     /// <param name="type">
     /// The payload type tag to accept, or <see langword="null"/> to accept any payload type. A
@@ -5596,7 +5735,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Finds a viewport by its identifier, used to resolve the viewport-wide drop highlight.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16883-16891</c>)
     /// </summary>
     /// <param name="id">The viewport identifier to search for.</param>
     /// <returns>The matching viewport, or <see langword="null"/> when none exists.</returns>
@@ -5617,7 +5755,6 @@ public static unsafe partial class ImGui
     /// <summary>
     /// Gets the payload currently being dragged, or <see langword="null"/> when no payload has been
     /// submitted for the active drag.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16102-16106</c>)
     /// </summary>
     /// <returns>The active payload, or <see langword="null"/>.</returns>
     public static ImGuiPayload? GetDragDropPayload()
@@ -5628,7 +5765,6 @@ public static unsafe partial class ImGui
 
     /// <summary>
     /// Ends a drag-and-drop target block and clears the drag immediately after a payload delivery.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16108-16110</c>)
     /// </summary>
     /// <remarks>
     /// Clearing on delivery gives the target one frame with the delivered payload; the source's

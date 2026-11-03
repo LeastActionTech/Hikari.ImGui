@@ -1,10 +1,14 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using NUnit.Framework;
 
 namespace Hikari.ImGui.Test;
 
 /// <summary>
-/// Regression and parity test suite verifying Dear ImGui v1.93.0-docking features ported in
+/// Regression and parity test suite verifying canonical Dear ImGui docking features ported in
 /// Chunks 1-4.
 /// </summary>
 [TestFixture]
@@ -14,7 +18,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.GetVersion"/> and <see cref="ImGui.GetVersionNum"/> match
-    /// canonical Dear ImGui v1.93.0 (<c>ThirdParty/imgui/imgui.h:23-24</c>).
+    /// canonical Dear ImGui.
     /// </summary>
     [Test]
     public void Version_MatchesCanonicalDearImGui193()
@@ -29,7 +33,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.SetNextWindowFlags"/> applies flags to the immediately following
-    /// <see cref="ImGui.Begin"/> and clears them for subsequent windows (<c>ThirdParty/imgui/imgui.cpp:9526</c>).
+    /// <see cref="ImGui.Begin"/> and clears them for subsequent windows.
     /// </summary>
     [Test]
     public void WindowFlags_SetNextWindowFlags_AppliedAndCleared()
@@ -84,7 +88,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImFont.AddRemapCodepoint"/> and <see cref="ImFont.RemapCodepoint"/> correctly remap
-    /// source codepoints (<c>ThirdParty/imgui/imgui_draw.cpp:6040-6079</c>).
+    /// source codepoints.
     /// </summary>
     [Test]
     public void Font_AddRemapCodepoint_TranslatesCharacters()
@@ -106,7 +110,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImDrawList.PushDrawFlag"/> and <see cref="ImDrawList.PopDrawFlag"/> properly scope
-    /// rendering flags (<c>ThirdParty/imgui/imgui_draw.cpp:722-740</c>).
+    /// rendering flags.
     /// </summary>
     [Test]
     public void DrawList_PushPopDrawFlag_Scoping()
@@ -141,8 +145,8 @@ public class ParityV193Tests : ImGuiTestFixture
     }
 
     /// <summary>
-    /// Verifies that whole-pixel horizontal and vertical lines in Dear ImGui v1.93 emit exact 4 vertices
-    /// without anti-aliasing overhead (<c>ThirdParty/imgui/imgui_draw.cpp:2025-2100</c>).
+    /// Verifies that whole-pixel horizontal and vertical lines in canonical Dear ImGui emit exact 4 vertices
+    /// without anti-aliasing overhead.
     /// </summary>
     [Test]
     public void DrawList_AddLineHV_WholePixelFastPath()
@@ -169,7 +173,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiItemFlags.MixedValue"/> updates item flags for widgets and enables mixed
-    /// state rendering (<c>ThirdParty/imgui/imgui_internal.h:1034</c>).
+    /// state rendering.
     /// </summary>
     [Test]
     public void Widgets_MixedValue_CheckboxAndSlider()
@@ -206,7 +210,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiTextFilter"/> evaluates exclusions first and properly handles quoted sequences
-    /// matching Dear ImGui v1.93 (<c>ThirdParty/imgui/imgui.cpp:3235-3275</c>).
+    /// matching canonical Dear ImGui.
     /// </summary>
     [Test]
     public void TextFilter_ExclusionPrecedenceAndQuotes()
@@ -230,7 +234,7 @@ public class ParityV193Tests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiTable.IsNewTable"/> is true on the first frame a table is activated and false
-    /// on subsequent frames (<c>ThirdParty/imgui/imgui_tables.cpp:386</c>).
+    /// on subsequent frames.
     /// </summary>
     [Test]
     public void Table_IsNewTable_Lifecycle()
@@ -259,7 +263,7 @@ public class ParityV193Tests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImDrawList.AddPolyline"/> honors stroke positioning modes (Inside vs Outside)
     /// and cap flags (CapSquare), shifting and expanding geometry by exact thickness amounts
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:1030-1036, 1091-1095</c>).
+    /// (<c>, 1091-1095</c>).
     /// </summary>
     [Test]
     public void DrawList_Polyline_StrokePositioningAndCaps()
@@ -297,6 +301,9 @@ public class ParityV193Tests : ImGuiTestFixture
         Assert.That(drawList.VtxBuffer[2].Pos.X, Is.EqualTo(105.0f)); // 100.0 + 5.0
     }
 
+    /// <summary>
+    /// Verifies numerical accuracy and parity of quadratic and cubic Bézier curve calculation helpers.
+    /// </summary>
     [Test]
     public void GeometryAndMathHelpers_ParityVerification()
     {

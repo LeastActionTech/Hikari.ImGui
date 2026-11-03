@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System.Collections.Generic;
 using NUnit.Framework;
 
@@ -10,9 +14,6 @@ namespace Hikari.ImGui.Test;
 /// </summary>
 /// <remarks>
 /// Each test drives a real <see cref="ImGuiContext"/> created by <see cref="ImGui.CreateContext"/>.
-/// The canonical reference is Dear ImGui <c>v1.92.9b-docking</c> at
-/// <c>ThirdParty/imgui/imgui.cpp</c>; each test cites the canonical line range that defines the
-/// behavior it pins.
 /// </remarks>
 [TestFixture]
 public class ContextTests : ImGuiTestFixture
@@ -42,13 +43,12 @@ public class ContextTests : ImGuiTestFixture
     /// Verifies that a context created by <see cref="ImGui.CreateContext"/> is initialized and
     /// carries the canonical default <see cref="ImGuiIO"/> and <see cref="ImGuiStyle"/> values, and
     /// that the new context is installed when no context was current.
-    /// (<c>ThirdParty/imgui/imgui.cpp:4252-4261</c>, <c>4420-4482</c>)
     /// </summary>
     [Test]
     public void Context_CreateContext_ReturnsCanonicalDefaults()
     {
         ImGuiContext ctx = ImGui.CreateContext();
-        ctx.IO.IniFilename = null; // Tests must never read or write the developer's .ini file.
+        ctx.IO.IniFilename = null; // Tests must never read or write the developer's.ini file.
 
         try
         {
@@ -65,7 +65,7 @@ public class ContextTests : ImGuiTestFixture
             Assert.That(ctx.IO.Fonts, Is.Not.Null);
             Assert.That(ctx.IO.KeysData.Length, Is.EqualTo((int)ImGuiKey.NamedKey_COUNT));
 
-            // Canonical ImGuiStyle::ImGuiStyle() defaults (imgui.cpp:4450-4482).
+            // Canonical ImGuiStyle::ImGuiStyle() defaults.
             Assert.That(ctx.Style.WindowPadding, Is.EqualTo(new ImVec2(8.0f, 8.0f)));
             Assert.That(ctx.Style.WindowMinSize, Is.EqualTo(new ImVec2(32.0f, 32.0f)));
             Assert.That(ctx.Style.ItemSpacing, Is.EqualTo(new ImVec2(8.0f, 4.0f)));
@@ -83,7 +83,6 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetCurrentContext"/> installs and clears the ambient context
     /// and that <see cref="ImGui.DestroyContext"/> removes the destroyed context.
-    /// (<c>ThirdParty/imgui/imgui.cpp:4223-4272</c>)
     /// </summary>
     [Test]
     public void Context_SetAndDestroyCurrentContext_UpdatesAmbientContext()
@@ -108,7 +107,7 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.GetFrameCount"/> advances exactly once per
     /// <see cref="ImGui.NewFrame"/> and that <see cref="ImGui.GetTime"/> accumulates the input
-    /// delta time. (<c>ThirdParty/imgui/imgui.cpp:5798-5802</c>, <c>5395-5403</c>)
+    /// delta time.
     /// </summary>
     [Test]
     public void Frame_NewFrame_AdvancesCountAndTime()
@@ -131,7 +130,7 @@ public class ContextTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.Render"/> finalizes an open frame, exposes draw data, and is
-    /// idempotent within the same frame. (<c>ThirdParty/imgui/imgui.cpp:6443-6450</c>)
+    /// idempotent within the same frame.
     /// </summary>
     [Test]
     public void Frame_RenderAfterEndFrame_IsIdempotent()
@@ -162,7 +161,6 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a queued mouse-position event is floored and applied to the live
     /// <see cref="ImGuiIO.MousePos"/> by the next frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:1998-2024</c>, <c>10860-10866</c>)
     /// </summary>
     [Test]
     public void Input_MousePosEvent_UpdatesMousePos()
@@ -178,7 +176,6 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a queued mouse-button event sets the canonical button state and that
     /// <see cref="ImGui.IsMouseDown"/> reports it.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11203-11209</c>, <c>10632-10644</c>)
     /// </summary>
     [Test]
     public void Input_MouseButtonEvent_SetsMouseDownState()
@@ -196,7 +193,7 @@ public class ContextTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiIO.MouseDelta"/> is the difference between the current and
-    /// previous frame mouse positions. (<c>ThirdParty/imgui/imgui.cpp:10869-10875</c>)
+    /// previous frame mouse positions.
     /// </summary>
     [Test]
     public void Input_MousePosEvent_ProducesMouseDelta()
@@ -213,7 +210,6 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a queued key event makes <see cref="ImGui.IsKeyDown"/> true and that
     /// <see cref="ImGui.IsKeyPressed"/> reports the press edge for exactly one frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11344-11361</c>, <c>10557-10615</c>)
     /// </summary>
     [Test]
     public void Input_KeyEvent_IsPressedOnlyOnThePressEdge()
@@ -247,7 +243,6 @@ public class ContextTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.GetKeyName"/> returns the canonical key and modifier names.
-    /// (<c>ThirdParty/imgui/imgui.cpp:10204-10216</c>)
     /// </summary>
     [Test]
     public void Key_GetKeyName_ReturnsCanonicalNames()
@@ -262,7 +257,7 @@ public class ContextTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.GetKeyChordName"/> builds the canonical modifier-prefixed
-    /// chord name. (<c>ThirdParty/imgui/imgui.cpp:10218-10242</c>)
+    /// chord name.
     /// </summary>
     [Test]
     public void Key_GetKeyChordName_FormatsModifierPrefixes()
@@ -280,7 +275,6 @@ public class ContextTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the canonical key-classification helpers.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:3802-3809</c>)
     /// </summary>
     [Test]
     public void Key_ClassificationHelpers_SeparateKeyRanges()
@@ -317,7 +311,6 @@ public class ContextTests : ImGuiTestFixture
     /// Verifies that a hook registered for each lifecycle event fires exactly once on the
     /// corresponding <see cref="ImGui.NewFrame"/>, <see cref="ImGui.EndFrame"/>, and
     /// <see cref="ImGui.Render"/> transition.
-    /// (<c>ThirdParty/imgui/imgui.cpp:5788</c>, <c>6083</c>, <c>6339</c>, <c>6437</c>, <c>6455</c>, <c>6513</c>)
     /// </summary>
     [Test]
     public void Hooks_RegisteredForLifecycle_FireOnMatchingTransition()
@@ -355,7 +348,7 @@ public class ContextTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.RemoveContextHook"/> stops a hook from firing from the next
-    /// frame onward. (<c>ThirdParty/imgui/imgui.cpp:4739-4746</c>)
+    /// frame onward.
     /// </summary>
     [Test]
     public void Hooks_RemoveContextHook_StopsCallback()
@@ -387,7 +380,7 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.ErrorLog"/> returns the assertion request derived from
     /// <see cref="ImGuiIO.ConfigErrorRecoveryEnableAssert"/> and forwards every message to the
-    /// registered error callback. (<c>ThirdParty/imgui/imgui.cpp:11983-12026</c>)
+    /// registered error callback.
     /// </summary>
     [Test]
     public void Error_ErrorLog_ReturnsAssertionRequestAndNotifiesCallback()
@@ -410,7 +403,6 @@ public class ContextTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical error-tooltip bookkeeping: each ErrorLog call increments
     /// <see cref="ImGuiContext.ErrorCountCurrentFrame"/> while inside a frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12006-12010</c>)
     /// </summary>
     /// <remarks>
     /// The canonical tooltip branch is now implemented, so a recoverable error submitted inside a frame

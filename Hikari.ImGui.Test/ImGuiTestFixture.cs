@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -68,7 +72,7 @@ public abstract class ImGuiTestFixture
     {
         _ctx = ImGui.CreateContext();
         ImGui.SetCurrentContext(_ctx);
-        _ctx.IO.IniFilename = null; // Tests must never read or write the developer's .ini file.
+        _ctx.IO.IniFilename = null; // Tests must never read or write the developer's.ini file.
         _ctx.IO.DisplaySize = new ImVec2(1280.0f, 720.0f);
         _ctx.IO.DeltaTime = 1.0f / 60.0f;
         _ctx.IO.Fonts.AddFontDefault();

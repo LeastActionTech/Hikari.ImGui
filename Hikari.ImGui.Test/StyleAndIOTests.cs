@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using NUnit.Framework;
 
 namespace Hikari.ImGui.Test;
@@ -142,7 +146,7 @@ public class StyleAndIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a queued key event writes the canonical key data entry when the next frame
-    /// consumes the queue. (<c>ThirdParty/imgui/imgui.cpp:11344-11361</c>)
+    /// consumes the queue.
     /// </summary>
     [Test]
     public void IO_AddKeyEvent_WritesCanonicalKeyDataEntry()
@@ -171,7 +175,6 @@ public class StyleAndIOTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a repeated identical key event is filtered against the newest queued event and
     /// therefore does not create a second queue entry.
-    /// (<c>ThirdParty/imgui/imgui.cpp:1926-1961</c>)
     /// </summary>
     [Test]
     public void IO_AddKeyEvent_DuplicateEventIsFiltered()
@@ -193,7 +196,7 @@ public class StyleAndIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that clearing the event queue discards every queued event so a subsequent frame does
-    /// not apply them. (<c>ThirdParty/imgui/imgui.cpp:1857-1863</c>)
+    /// not apply them.
     /// </summary>
     [Test]
     public void IO_ClearEventsQueue_DropsPendingEvents()
@@ -219,7 +222,6 @@ public class StyleAndIOTests : ImGuiTestFixture
     /// Verifies that legacy native key codes are rejected by the producer even while a context is
     /// installed, so no event is queued and no key-state lookup is attempted. Canonical documents the
     /// range below the first named key as legacy native codes that this API does not accept
-    /// (<c>ThirdParty/imgui/imgui.cpp:1931-1933</c>).
     /// </summary>
     [Test]
     public void IO_AddKeyAnalogEvent_WithContext_RejectsLegacyNativeKeyCodesWithoutQueueing()
@@ -242,7 +244,7 @@ public class StyleAndIOTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that legacy native key codes below the named-key range are rejected by the producer
     /// before a context is installed, matching the canonical precondition that only named keys and
-    /// modifiers may be submitted. (<c>ThirdParty/imgui/imgui.cpp:1926-1932</c>)
+    /// modifiers may be submitted.
     /// </summary>
     [Test]
     public void IO_AddKeyAnalogEvent_IgnoresLegacyNativeKeyCodes()
@@ -260,7 +262,6 @@ public class StyleAndIOTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a queued UTF-16 surrogate pair is combined into a single Unicode code point and
     /// appended to the live character queue by the next frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:1809-1841</c>)
     /// </summary>
     [Test]
     public void IO_AddInputCharacterUTF16_CombinesSurrogatePair()
@@ -281,7 +282,6 @@ public class StyleAndIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a string is queued as Unicode code points and consumed by the next frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:1843-1854</c>)
     /// </summary>
     [Test]
     public void IO_AddInputCharactersUTF8_DecodesCodePoints()
@@ -299,7 +299,6 @@ public class StyleAndIOTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that clearing keyboard input immediately releases keys and modifiers and discards
     /// pending character input on the live state.
-    /// (<c>ThirdParty/imgui/imgui.cpp:1865-1879</c>)
     /// </summary>
     [Test]
     public void IO_ClearInputKeys_ReleasesKeysAndModifiers()
@@ -330,7 +329,7 @@ public class StyleAndIOTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that clearing mouse input immediately releases buttons and resets position and wheel
-    /// deltas on the live state. (<c>ThirdParty/imgui/imgui.cpp:1882-1900</c>)
+    /// deltas on the live state.
     /// </summary>
     [Test]
     public void IO_ClearInputMouse_ResetsMouseState()

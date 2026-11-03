@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -10,11 +14,7 @@ namespace Hikari.ImGui.Test;
 /// rather than from a recorded snapshot.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui_widgets.cpp</c>,
-/// <c>ThirdParty/imgui/imgui_draw.cpp</c>, and <c>ThirdParty/imgui/imgui.cpp</c>; each test cites the
-/// canonical line range that defines the behavior it pins.
-/// </remarks>
+/// Each test drives a real <see cref="ImGuiContext"/>. /// </remarks>
 [TestFixture]
 public class TextAndRenderHelperTests : ImGuiTestFixture
 {
@@ -91,7 +91,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TextUnformatted"/> emits exactly one textured quad per visible
     /// glyph (four vertices and six indices each). Canonical walks the glyph range and calls
     /// <c>PrimReserve(6, 4)</c> per visible glyph
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:161-266</c>, <c>ThirdParty/imgui/imgui_draw.cpp:5830-6000</c>).
+    /// (, ).
     /// </summary>
     [Test]
     public void TextUnformatted_EmitsOneQuadPerGlyph()
@@ -108,7 +108,6 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.Text"/>, <see cref="ImGui.TextColored"/>, and
     /// <see cref="ImGui.TextDisabled"/> share the same glyph geometry (color push/pop does not change
     /// the tessellation). Canonical delegates them all to <c>TextV</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:276-333</c>).
     /// </summary>
     [Test]
     public void TextVariants_ShareGlyphGeometry()
@@ -125,7 +124,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.TextWrapped"/> reserves the same glyph geometry as plain text
     /// when the run fits on one line. Canonical pushes a wrap position only to drive line breaking, not
-    /// to change per-glyph tessellation (<c>ThirdParty/imgui/imgui_widgets.cpp:326-343</c>).
+    /// to change per-glyph tessellation.
     /// </summary>
     [Test]
     public void TextWrapped_ShortRun_MatchesPlainTextGeometry()
@@ -140,7 +139,6 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.LabelText"/> renders the value and the label separately: the
     /// value "Bob" (3 glyphs) plus the label "Name" (4 glyphs) is seven glyph quads. Canonical measures
     /// the value and the label with <c>CalcTextSize</c>/<c>FindRenderedTextEnd</c> and renders both
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:385-421</c>).
     /// </summary>
     [Test]
     public void LabelText_DrawsValueAndLabelGlyphs()
@@ -155,7 +153,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.BulletText"/> draws an eight-segment filled disc (the canonical
     /// font-size threshold selects eight segments below 22 px) followed by the text glyphs. Canonical
     /// calls <c>RenderBullet</c> then <c>RenderText</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:432-456</c>, <c>ThirdParty/imgui/imgui_draw.cpp:6073-6078</c>).
+    /// (, ).
     /// The anti-aliased convex fill emits two vertices per point and a fan plus one fringe quad per
     /// edge: 8 points give 16 vertices and (8 - 2) * 3 + 8 * 6 = 66 indices.
     /// </summary>
@@ -176,7 +174,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.FindRenderedTextEnd"/> truncates at the first <c>##</c> marker and
     /// treats a leading <c>##</c> as an empty display run. Canonical scans until a NUL or the first
-    /// <c>"##"</c> pair (<c>ThirdParty/imgui/imgui.cpp:3953-3961</c>).
+    /// <c>"##"</c> pair.
     /// </summary>
     [Test]
     public void FindRenderedTextEnd_StopsAtDoubleHash()
@@ -191,7 +189,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.CalcTextSize(string, bool, float)"/> agrees with the current
     /// font's <c>CalcTextSizeA</c>, differing only by the canonical ceiling of the width. Canonical
     /// <c>CalcTextSize</c> delegates to <c>ImFont::CalcTextSizeA</c> and rounds the width up
-    /// (<c>ThirdParty/imgui/imgui.cpp:6518-6560</c>, <c>ThirdParty/imgui/imgui_draw.cpp:5764-5767</c>).
+    /// (, ).
     /// </summary>
     [Test]
     public void CalcTextSize_AgreesWithFontCalcTextSizeA()
@@ -217,7 +215,6 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.SeparatorText"/> advances the cursor vertically by the label
     /// height plus the style padding (or the border size when larger) plus the item spacing, resets the
     /// horizontal cursor, and submits the item with identifier zero so it is not a navigation target.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1745-1807</c>)
     /// </summary>
     [Test]
     public void SeparatorText_AdvancesCursorAndUsesZeroId()
@@ -245,7 +242,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.RenderArrow"/> emits a single anti-aliased filled triangle:
     /// two vertices per point and three fan indices plus one fringe quad per edge, giving 6 vertices
-    /// and 21 indices. (<c>ThirdParty/imgui/imgui_draw.cpp:6042-6071</c>)
+    /// and 21 indices.
     /// </summary>
     [Test]
     public void RenderArrow_EmitsAntiAliasedTriangle()
@@ -265,7 +262,6 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.RenderBullet"/> emits an eight-segment anti-aliased filled disc at
     /// the default font size: 16 vertices and 66 indices. Canonical selects eight segments below 22 px
     /// and uses a radius of one fifth of the font size
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6073-6078</c>).
     /// </summary>
     [Test]
     public void RenderBullet_EmitsEightSegmentDisc()
@@ -286,7 +282,6 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.RenderCheckMark"/> emits the canonical three-point anti-aliased
     /// stroke. A three-point open path yields two segments; the textured one-pixel path stores two
     /// vertices per point and six indices per segment, so 6 vertices and 12 indices
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6080-6093</c>).
     /// </summary>
     [Test]
     public void RenderCheckMark_EmitsAntiAliasedStroke()
@@ -307,7 +302,7 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// stroke (8 vertices / 24 indices). Canonical draws the shadow rectangle at the offset position
     /// and the border rectangle; the default <c>ImGuiCol_BorderShadow</c> color is fully transparent
     /// (0,0,0,0), so <c>AddRect</c>'s zero-alpha early-out drops it and only the border rectangle is
-    /// emitted (<c>ThirdParty/imgui/imgui.cpp:4105-4128</c>).
+    /// emitted.
     /// </summary>
     [Test]
     public void RenderFrame_AndBorder_FollowFrameBorderSize()
@@ -342,7 +337,6 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
     /// <see cref="ImGui.RenderColorRectWithAlphaCheckerboard"/>. An opaque fill is a single quad; a
     /// translucent 20x20 fill with a 10 px grid emits the base quad plus two alternating cells (one
     /// per row, since the inner loop advances by two grid steps), each a sharp quad
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:6216-6250</c>).
     /// </summary>
     [Test]
     public void RenderColorRectWithAlphaCheckerboard_EmitsBaseAndCells()

@@ -1,47 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-/*================================================================================================
- * LIST CLIPPER
- *================================================================================================
- * ROLE IN ENGINE:
- * Implements the canonical ImGuiListClipper helper that lets a caller submit only the items that
- * intersect a window's visible clip rectangle instead of every item in a long list. The clipper
- * never owns the items themselves: the caller draws the items named by DisplayStart/DisplayEnd on
- * each Step() and the clipper advances the window cursor to the right vertical position so that
- * scrolling, keyboard navigation, tables, legacy columns, and box-selection keep working.
- *
- * SUBSYSTEM CONNECTIONS & DATA FLOW:
- *
- *    ┌───────────────────────────────────────────────────────────────┐
- *    │ ImGuiListClipper (caller-owned)                               │
- *    │ • DisplayStart / DisplayEnd / ItemsCount / ItemsHeight        │
- *    │ • StartPosY / StartSeekOffsetY (double-precision cursor math) │
- *    └───────────────────────────────────────────────────────────────┘
- *          │ Begin() acquires, End() releases                       ▲
- *          ▼                                                        │
- *    ┌───────────────────────────────────────────────────────────────┐
- *    │ ImGuiContext.ClipperTempData (per-frame stacked pool)         │
- *    │ • ImGuiListClipperData: StepNo, ItemsFrozen, Ranges           │
- *    └───────────────────────────────────────────────────────────────┘
- *          │ reads window/table/nav/box-select state                ▲
- *          ▼                                                        │
- *    ┌───────────────────────────────────────────────────────────────┐
- *    │ ImGuiWindow.DC cursor, ImGuiTable rows, legacy columns        │
- *    └───────────────────────────────────────────────────────────────┘
- *
- * STYLIZED USAGE EXAMPLE:
- *
- *   var clipper = new ImGuiListClipper();
- *   clipper.Begin(itemsCount, ImGui.GetTextLineHeightWithSpacing());
- *   while (clipper.Step())
- *       for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
- *           ImGui.Text($"item {i}");
- *
- * THREADING & LIFECYCLE NOTES:
- * - Every clipper operates on the single frame-submitting thread and borrows temporary data from the
- *   context it was begun in. No internal synchronization is provided.
- * - Begin() must be paired with Step() returning false, or with an explicit End(); End() restores the
- *   borrowed temporary data to the context pool.
- *================================================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -54,7 +15,6 @@ namespace Hikari.ImGui;
 /// <summary>
 /// One contiguous range of item indices, or one range of absolute Y positions that still has to be
 /// converted to item indices once the item height is known
-/// (<c>ThirdParty/imgui/imgui_internal.h:1712-1722</c>).
 /// </summary>
 /// <remarks>
 /// <see cref="Max"/> is exclusive. When <see cref="PosToIndexConvert"/> is set, <see cref="Min"/>
@@ -65,38 +25,35 @@ public sealed class ImGuiListClipperRange
 {
     /// <summary>
     /// Gets or sets the inclusive lower bound, or the lower Y position while
-    /// <see cref="PosToIndexConvert"/> is set. (<c>ThirdParty/imgui/imgui_internal.h:1714</c>)
+    /// <see cref="PosToIndexConvert"/> is set.
     /// </summary>
     public int Min { get; set; }
 
     /// <summary>
     /// Gets or sets the exclusive upper bound, or the upper Y position while
-    /// <see cref="PosToIndexConvert"/> is set. (<c>ThirdParty/imgui/imgui_internal.h:1715</c>)
+    /// <see cref="PosToIndexConvert"/> is set.
     /// </summary>
     public int Max { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether <see cref="Min"/> and <see cref="Max"/> are absolute Y
     /// positions that must be converted to item indices, rather than item indices already.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1716</c>)
     /// </summary>
     public bool PosToIndexConvert { get; set; }
 
     /// <summary>
-    /// Gets or sets the amount added to the converted minimum index, in the inclusive range -128..127.
+    /// Gets or sets the amount added to the converted minimum index, in the inclusive range -128.127.
     /// This lets a keyboard navigation request extend the visible range by one item.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1717</c>)
     /// </summary>
     public sbyte PosToIndexOffsetMin { get; set; }
 
     /// <summary>
-    /// Gets or sets the amount added to the converted maximum index, in the inclusive range -128..127.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1718</c>)
+    /// Gets or sets the amount added to the converted maximum index, in the inclusive range -128.127.
     /// </summary>
     public sbyte PosToIndexOffsetMax { get; set; }
 
     /// <summary>
-    /// Creates an index range. (<c>ThirdParty/imgui/imgui_internal.h:1720</c>)
+    /// Creates an index range.
     /// </summary>
     /// <param name="min">Inclusive first item index.</param>
     /// <param name="max">Exclusive last item index.</param>
@@ -108,7 +65,6 @@ public sealed class ImGuiListClipperRange
 
     /// <summary>
     /// Creates a position range that is converted to item indices once the item height is known.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1721</c>)
     /// </summary>
     /// <param name="y1">Lower absolute Y position; truncated toward zero into <see cref="Min"/>.</param>
     /// <param name="y2">Upper absolute Y position; truncated toward zero into <see cref="Max"/>.</param>
@@ -131,7 +87,6 @@ public sealed class ImGuiListClipperRange
 /// <summary>
 /// Scratch data for one active clipper, pooled by <see cref="ImGuiContext"/> so that a frame does not
 /// allocate a new range list per clipper. The pool entry is reused across clippers and frames
-/// (<c>ThirdParty/imgui/imgui_internal.h:1725-1734</c>).
 /// </summary>
 /// <remarks>
 /// A pool entry is owned by the clipper named by <see cref="ListClipper"/> until that clipper calls
@@ -142,38 +97,32 @@ public sealed class ImGuiListClipperData
 {
     /// <summary>
     /// Gets or sets the clipper currently borrowing this entry.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1727</c>)
     /// </summary>
     public ImGuiListClipper? ListClipper { get; set; }
 
     /// <summary>
     /// Gets or sets the horizontal-scroll precision loss of the window cursor at <c>Begin()</c>. It
     /// is subtracted while converting Y positions to indices and added back while seeking.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1728</c>)
     /// </summary>
     public float LossynessOffset { get; set; }
 
     /// <summary>
     /// Gets or sets the index of the next range to submit within <see cref="Ranges"/>.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1729</c>)
     /// </summary>
     public int StepNo { get; set; }
 
     /// <summary>
     /// Gets or sets the number of table frozen rows that have already been submitted unclipped.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1730</c>)
     /// </summary>
     public int ItemsFrozen { get; set; }
 
     /// <summary>
     /// Gets the visible and navigation ranges computed for this clipper, in submission order.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1731</c>)
     /// </summary>
     public List<ImGuiListClipperRange> Ranges { get; } = new();
 
     /// <summary>
     /// Rebinds this pooled entry to a clipper and clears its per-use range state.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1733</c>)
     /// </summary>
     /// <param name="clipper">The clipper that will borrow this entry.</param>
     public void Reset(ImGuiListClipper clipper)
@@ -191,8 +140,7 @@ public sealed class ImGuiListClipperData
 
 /// <summary>
 /// Submits only the items that intersect the visible clip rectangle and keeps the window cursor at the
-/// matching vertical position (<c>ThirdParty/imgui/imgui.h:3028-3068</c>,
-/// <c>ThirdParty/imgui/imgui.cpp:3340-3660</c>).
+/// matching vertical position (,
 /// </summary>
 /// <remarks>
 /// <para>
@@ -221,7 +169,7 @@ public sealed class ImGuiListClipper
     /// <summary>
     /// The float magnitude above which consecutive integers can no longer be represented exactly, so
     /// the clipper must fall back to assuming the previous line height. Mirrors canonical
-    /// <c>ImIsFloatAboveGuaranteedIntegerPrecision</c> (<c>ThirdParty/imgui/imgui_internal.h:557</c>).
+    /// <c>ImIsFloatAboveGuaranteedIntegerPrecision</c>.
     /// </summary>
     private const float GuaranteedIntegerPrecisionLimit = 16777216.0f;
 
@@ -231,60 +179,55 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Gets or sets the first item to display; it is updated by each call to <see cref="Step"/>.
-    /// (<c>ThirdParty/imgui/imgui.h:3030</c>)
     /// </summary>
     public int DisplayStart { get; set; }
 
     /// <summary>
     /// Gets or sets the exclusive end of the items to display.
-    /// (<c>ThirdParty/imgui/imgui.h:3031</c>)
     /// </summary>
     public int DisplayEnd { get; set; }
 
     /// <summary>
     /// Gets or sets caller-owned storage that the clipper never reads.
-    /// (<c>ThirdParty/imgui/imgui.h:3032</c>)
     /// </summary>
     public int UserIndex { get; set; }
 
     /// <summary>
     /// Gets or sets the number of items in the list, or <see cref="int.MaxValue"/> when it is unknown.
-    /// (<c>ThirdParty/imgui/imgui.h:3033</c>)
     /// </summary>
     public int ItemsCount { get; set; }
 
     /// <summary>
     /// Gets or sets the height of one item. A value of zero or less asks the clipper to infer it from
-    /// the first submitted item. (<c>ThirdParty/imgui/imgui.h:3034</c>)
+    /// the first submitted item.
     /// </summary>
     public float ItemsHeight { get; set; }
 
     /// <summary>
-    /// Gets or sets the clipper behavior flags. (<c>ThirdParty/imgui/imgui.h:3035</c>)
+    /// Gets or sets the clipper behavior flags.
     /// </summary>
     public ImGuiListClipperFlags Flags { get; set; }
 
     /// <summary>
     /// Gets or sets the window cursor Y position captured at <c>Begin()</c>, in double precision so
-    /// that seeking stays accurate in very tall windows. (<c>ThirdParty/imgui/imgui.h:3036</c>)
+    /// that seeking stays accurate in very tall windows.
     /// </summary>
     public double StartPosY { get; set; }
 
     /// <summary>
     /// Gets or sets the correction applied while seeking: the window precision loss minus the frozen
-    /// rows already accounted for. (<c>ThirdParty/imgui/imgui.h:3037</c>)
+    /// rows already accounted for.
     /// </summary>
     public double StartSeekOffsetY { get; set; }
 
     /// <summary>
     /// Gets or sets the parent UI context captured at <c>Begin()</c>.
-    /// (<c>ThirdParty/imgui/imgui.h:3038</c>)
     /// </summary>
     public ImGuiContext? Ctx { get; set; }
 
     /// <summary>
     /// Gets or sets the pooled temporary data borrowed from <see cref="Ctx"/>, or <see langword="null"/>
-    /// while the clipper is inactive. (<c>ThirdParty/imgui/imgui.h:3039</c>)
+    /// while the clipper is inactive.
     /// </summary>
     public ImGuiListClipperData? TempData { get; set; }
 
@@ -294,7 +237,6 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Initializes an inactive clipper. Mirrors the canonical constructor that zero-clears the struct
-    /// (<c>ThirdParty/imgui/imgui.cpp:3392-3395</c>).
     /// </summary>
     public ImGuiListClipper()
     {
@@ -316,7 +258,6 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Starts a clipping pass over <paramref name="itemsCount"/> items
-    /// (<c>ThirdParty/imgui/imgui.cpp:3402-3428</c>).
     /// </summary>
     /// <param name="itemsCount">Number of items, or <see cref="int.MaxValue"/> when unknown; in the
     /// unknown case the cursor is not advanced on the final step and the caller must seek manually.</param>
@@ -355,7 +296,7 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Ends the clipping pass, seeks the cursor to the end of the list, and returns the borrowed
-    /// temporary data to the context pool (<c>ThirdParty/imgui/imgui.cpp:3430-3453</c>).
+    /// temporary data to the context pool.
     /// </summary>
     /// <remarks>
     /// Canonical permits calling <c>End()</c> at any point; the cursor is sought to the end rather than
@@ -387,7 +328,6 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Advances to the next visible range. Call until it returns <see langword="false"/>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3648-3660</c>).
     /// </summary>
     /// <returns><see langword="true"/> while a range remains to be submitted.</returns>
     /// <remarks>
@@ -406,7 +346,6 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Marks one item as never clipped regardless of visibility
-    /// (<c>ThirdParty/imgui/imgui.h:3064</c>).
     /// </summary>
     /// <param name="itemIndex">Index of the item to always submit.</param>
     public void IncludeItemByIndex(int itemIndex)
@@ -417,7 +356,6 @@ public sealed class ImGuiListClipper
     /// <summary>
     /// Marks a half-open range of items as never clipped regardless of visibility. Must be called after
     /// <c>Begin()</c> and before the first <c>Step()</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3454-3463</c>).
     /// </summary>
     /// <param name="itemBegin">Inclusive first item index.</param>
     /// <param name="itemEnd">Exclusive last item index.</param>
@@ -432,7 +370,6 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Moves the window cursor to the vertical position of the given item
-    /// (<c>ThirdParty/imgui/imgui.cpp:3466-3473</c>).
     /// </summary>
     /// <param name="itemIndex">Index of the item whose position the cursor should take.</param>
     /// <remarks>
@@ -457,7 +394,6 @@ public sealed class ImGuiListClipper
     /// <summary>
     /// Computes and returns the next visible range, updating the window cursor and the table or legacy
     /// column state as needed. Ports canonical <c>ImGuiListClipper_StepInternal</c> step for step
-    /// (<c>ThirdParty/imgui/imgui.cpp:3475-3646</c>).
     /// </summary>
     /// <param name="clipper">The clipper being stepped.</param>
     /// <returns><see langword="true"/> when a non-empty range is available.</returns>
@@ -627,7 +563,6 @@ public sealed class ImGuiListClipper
     /// Moves the window cursor to <paramref name="posY"/> and repairs the previous-line state so that
     /// <c>SetScrollHereY()</c>, legacy columns, and tables behave as if the skipped items had been
     /// submitted. Mirrors canonical <c>ImGuiListClipper_SeekCursorAndSetupPrevLine</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3357-3389</c>).
     /// </summary>
     /// <param name="posY">Absolute Y position to seek to.</param>
     /// <param name="lineHeight">Height of one item, used for the previous-line fields.</param>
@@ -676,7 +611,6 @@ public sealed class ImGuiListClipper
     /// <summary>
     /// Sorts the ranges beginning at <paramref name="offset"/> by their minimum and fuses overlapping
     /// or touching ranges. Ports canonical <c>ImGuiListClipper_SortAndFuseRanges</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3340-3355</c>).
     /// </summary>
     /// <param name="ranges">Range list to sort and fuse in place.</param>
     /// <param name="offset">Index of the first range to consider; earlier entries are left untouched.</param>
@@ -716,7 +650,6 @@ public sealed class ImGuiListClipper
     /// <summary>
     /// Reports whether item clipping is currently skipped because the host table hides its rows or the
     /// window itself is skipped. Mirrors canonical <c>GetSkipItemForListClipping</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3331-3336</c>).
     /// </summary>
     /// <returns><see langword="true"/> when the clipper must submit nothing.</returns>
     private static bool GetSkipItemForListClipping()
@@ -728,7 +661,6 @@ public sealed class ImGuiListClipper
     /// <summary>
     /// Reports whether a float lies outside the range in which consecutive integers are exactly
     /// representable. Mirrors canonical <c>ImIsFloatAboveGuaranteedIntegerPrecision</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:557</c>).
     /// </summary>
     /// <param name="value">Value to test.</param>
     /// <returns><see langword="true"/> when the value is at or beyond 2^24 in magnitude.</returns>
@@ -739,7 +671,7 @@ public sealed class ImGuiListClipper
 
     /// <summary>
     /// Clamps an integer without throwing when the bounds are inverted, matching canonical
-    /// <c>ImClamp</c> (<c>ThirdParty/imgui/imgui_internal.h</c>). The clipper intentionally produces
+    /// <c>ImClamp</c>. The clipper intentionally produces
     /// inverted bounds in a few corner cases.
     /// </summary>
     /// <param name="value">Value to clamp.</param>

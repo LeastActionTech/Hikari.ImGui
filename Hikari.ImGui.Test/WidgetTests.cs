@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -9,9 +13,7 @@ namespace Hikari.ImGui.Test;
 /// radio buttons, progress bars and bullets, images, selectables, list boxes, and combo boxes.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui_widgets.cpp</c>; each test cites the
-/// canonical line range that defines the behavior it pins. Interaction is driven by queueing mouse
+/// Each test drives a real <see cref="ImGuiContext"/>. Interaction is driven by queueing mouse
 /// position and button events before the frame that must observe them.
 /// </remarks>
 [TestFixture]
@@ -147,7 +149,6 @@ public class WidgetTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.Button"/> reports true only on the release frame inside its
     /// rectangle, after being activated on the press frame. Canonical default behavior is
     /// <c>ImGuiButtonFlags_PressedOnClickRelease</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:786-831</c>).
     /// </summary>
     [Test]
     public void Button_PressReleaseInsideRect_ReturnsTrueOnRelease()
@@ -158,7 +159,7 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.Button"/> reports false when the press and release happen
-    /// outside the item rectangle. (<c>ThirdParty/imgui/imgui_widgets.cpp:828-831</c>)
+    /// outside the item rectangle.
     /// </summary>
     [Test]
     public void Button_PressOutsideRect_ReturnsFalse()
@@ -176,8 +177,7 @@ public class WidgetTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.SmallButton"/> zeroes the vertical frame padding so its height
     /// collapses to one font height while its width keeps the horizontal padding, and that
     /// <see cref="ImGui.ArrowButton"/> is exactly one frame height square. Canonical small-button
-    /// sizing (<c>ThirdParty/imgui/imgui_widgets.cpp:833-842</c>) and arrow-button sizing
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:898-902</c>).
+    /// sizing. and arrow-button sizing
     /// </summary>
     [Test]
     public void SmallButton_And_ArrowButton_UseCanonicalSizes()
@@ -200,7 +200,7 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.InvisibleButton"/> takes the exact requested size and reports a
-    /// full press/release. (<c>ThirdParty/imgui/imgui_widgets.cpp:846-868</c>)
+    /// full press/release.
     /// </summary>
     [Test]
     public void InvisibleButton_ExplicitSizeAndClick()
@@ -222,7 +222,7 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.Checkbox"/> flips the referenced boolean, reports edited on the
-    /// press, and sets the edited item status. (<c>ThirdParty/imgui/imgui_widgets.cpp:1249-1324</c>)
+    /// press, and sets the edited item status.
     /// </summary>
     [Test]
     public void Checkbox_TogglesValueAndReportsEdited()
@@ -245,7 +245,6 @@ public class WidgetTests : ImGuiTestFixture
     /// Verifies the canonical set, clear, and partial-selection ("add") semantics of
     /// <see cref="ImGui.CheckboxFlags(string, ref int, int)"/> for the signed 32-bit, unsigned
     /// 32-bit, signed 64-bit, and unsigned 64-bit overloads
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1326-1371</c>).
     /// </summary>
     [Test]
     public void CheckboxFlags_SetClearAndAddSemantics()
@@ -279,7 +278,6 @@ public class WidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies both radio-button forms: the caller-supplied active flag reports the press, and the
     /// integer-bound form writes the matching value when pressed
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1373-1435</c>).
     /// </summary>
     [Test]
     public void RadioButton_BoolAndRefIntForms()
@@ -308,7 +306,7 @@ public class WidgetTests : ImGuiTestFixture
     /// Verifies the canonical progress-bar geometry at a default zero frame rounding: the frame quad
     /// plus the filled range quad plus the default percentage text for a determinate bar. An
     /// indeterminate bar with a null overlay draws no text, while an explicit overlay adds glyph
-    /// quads. (<c>ThirdParty/imgui/imgui_widgets.cpp:1438-1498</c>)
+    /// quads.
     /// </summary>
     [Test]
     public void ProgressBar_GeometryAndNullOverlay()
@@ -329,7 +327,7 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.Bullet"/> draws the canonical eight-segment filled disc and
-    /// leaves the cursor on the same line. (<c>ThirdParty/imgui/imgui_widgets.cpp:1500-1521</c>)
+    /// leaves the cursor on the same line.
     /// </summary>
     [Test]
     public void Bullet_DrawsDiscAndKeepsSameLine()
@@ -345,7 +343,6 @@ public class WidgetTests : ImGuiTestFixture
     /// count only visible glyphs, so the unsigned overload's ten-digit rendering of
     /// <see cref="uint.MaxValue"/> proves that the canonical signed <c>%d</c> conversion prints the
     /// unsigned value rather than a negative number
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:9118-9145</c>).
     /// </summary>
     [Test]
     public void Value_FormatsEachOverload()
@@ -356,7 +353,7 @@ public class WidgetTests : ImGuiTestFixture
         Assert.That(MeasureVertices(() => ImGui.Value("i", -1)), Is.EqualTo(4 * 4));
         // "u: 4294967295" -> u : plus ten digits = 12 visible glyphs; a signed print would be "u: -1".
         Assert.That(MeasureVertices(() => ImGui.Value("u", uint.MaxValue)), Is.EqualTo(12 * 4));
-        // "f: 1.500" -> f : 1 . 5 0 0 = 7 visible glyphs.
+        // "f: 1.500" -> f : 1. 5 0 0 = 7 visible glyphs.
         Assert.That(MeasureVertices(() => ImGui.Value("f", 1.5f)), Is.EqualTo(7 * 4));
         // "f: 1.5" with the caller format -> 5 visible glyphs.
         Assert.That(MeasureVertices(() => ImGui.Value("f", 1.5f, "%.1f")), Is.EqualTo(5 * 4));
@@ -369,7 +366,6 @@ public class WidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.Image"/> sizes the item to the image plus the border padding
     /// (zero by default) and emits a single textured quad
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1141-1169</c>).
     /// </summary>
     [Test]
     public void Image_ItemSizeAndQuad()
@@ -389,7 +385,6 @@ public class WidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.ImageButton"/> sizes the item to the image plus the frame
     /// padding and returns true on a full press/release
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1184-1225</c>).
     /// </summary>
     [Test]
     public void ImageButton_ItemSizeAndClick()
@@ -420,8 +415,7 @@ public class WidgetTests : ImGuiTestFixture
     /// <c>SpanAvailWidth</c> row fills the available work width, hovering reports hovered, and a
     /// click reports pressed. The toggle-selection status bit is read directly because this port
     /// does not expose the canonical <c>IsItemToggledSelection()</c> accessor
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7403-7603</c>, canonical accessor
-    /// <c>ThirdParty/imgui/imgui.cpp:6684</c>).
+    /// (, canonical accessor
     /// </summary>
     [Test]
     public void Selectable_SelectedSpanHoverAndPress()
@@ -482,7 +476,6 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the <c>ref bool</c> selectable overload toggles the referenced value on press
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:7595-7603</c>).
     /// </summary>
     [Test]
     public void Selectable_RefBoolOverloadToggles()
@@ -497,7 +490,6 @@ public class WidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.ListBox"/> returns the clicked row index and derives its frame
     /// height from <c>heightInItems</c> (a fractional row is included so a partial row stays visible).
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:8838-8942</c>)
     /// </summary>
     [Test]
     public void ListBox_ReturnsClickedIndexAndHonorsHeight()
@@ -558,7 +550,6 @@ public class WidgetTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.BeginCombo"/> opens its popup on the press frame, returns true
     /// so the caller can submit popup content, and pushes exactly one entry onto the begin-popup
     /// stack while the content is submitted
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1962-2088</c>).
     /// </summary>
     [Test]
     public void BeginCombo_OpensOnClickAndSubmitsContent()
@@ -605,7 +596,7 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.BeginCombo"/> returns false when its frame rectangle is clipped
-    /// away, without opening a popup. (<c>ThirdParty/imgui/imgui_widgets.cpp:2024-2088</c>)
+    /// away, without opening a popup.
     /// </summary>
     [Test]
     public void BeginCombo_ReturnsFalseWhenClipped()
@@ -623,7 +614,6 @@ public class WidgetTests : ImGuiTestFixture
     /// Verifies the canonical <c>CustomPreview</c> path: with the private flag set and an empty
     /// preview value, <see cref="ImGui.BeginComboPreview"/> redirects the cursor into the saved
     /// preview rectangle and <see cref="ImGui.EndComboPreview"/> restores it
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2103-2152</c>).
     /// </summary>
     [Test]
     public void BeginCombo_CustomPreviewRedirectsCursor()
@@ -658,7 +648,7 @@ public class WidgetTests : ImGuiTestFixture
             ImGui.EndCombo();
 
         // Canonical calls BeginComboPreview() after the BeginCombo/EndCombo block, while the parent
-        // window is current again (ThirdParty/imgui/imgui_widgets.cpp:2103-2128).
+        // window is current again.
         preview = ImGui.BeginComboPreview();
         if (preview)
         {
@@ -676,7 +666,7 @@ public class WidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the array-backed <see cref="ImGui.Combo"/> returns false while closed and leaves
-    /// the current selection untouched. (<c>ThirdParty/imgui/imgui_widgets.cpp:2178-2230</c>)
+    /// the current selection untouched.
     /// </summary>
     [Test]
     public void Combo_ReturnsFalseWhenClosed()

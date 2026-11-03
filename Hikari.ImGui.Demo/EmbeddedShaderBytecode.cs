@@ -1,8 +1,12 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 namespace Hikari.ImGui.Demo;
 
 /// <summary>
-/// Precompiled canonical SPIR-V bytecode from ocornut/imgui/backends/vulkan/glsl_shader.vert and frag.
-/// Matches imgui_impl_vulkan.cpp canonical reference.
+/// Precompiled canonical SPIR-V bytecode from Vulkan backend shaders.
+/// Matches canonical Vulkan implementation.
 /// </summary>
 public static class EmbeddedShaderBytecode
 {

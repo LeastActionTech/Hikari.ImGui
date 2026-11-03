@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -12,15 +16,6 @@ namespace Hikari.ImGui.Test;
 /// delegations, and the <c>GetIO</c>, <c>Combo</c> and <c>ListBox</c> overloads.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. The white-texel getter is
-/// <c>ThirdParty/imgui/imgui.cpp:9471-9474</c>; the rasterizer density setter is <c>9710-9736</c>; the
-/// mouse-click queries are <c>10705-10723</c> and <c>10746-10779</c>; item key routing is
-/// <c>11506-11528</c>; the storage reference accessors are <c>imgui.cpp:3085-3105</c>; user-texture
-/// registration is <c>9755-9766</c>; the gradient is <c>imgui_draw.cpp:2990-3050</c>; the theme and
-/// measurement helpers are <c>imgui_draw.cpp:187-396</c> and <c>imgui.cpp:9645-9665</c>; and the font
-/// free functions are <c>imgui_draw.cpp:5673-5762</c> and <c>imgui.cpp:2712-2763</c>.
-/// </para>
 /// <para>
 /// Each test drives a real <see cref="ImGuiContext"/> with a default font and deterministic
 /// (non-trickling) input processing. Interaction is driven by queueing mouse position and button
@@ -69,7 +64,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the white-texel getter reports the atlas's reserved texel once a frame has baked
     /// the atlas. Canonical <c>ImGui::GetFontTexUvWhitePixel</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:9471-9474</c>).
     /// </summary>
     [Test]
     public void GetFontTexUvWhitePixel_ReportsTheBuiltAtlasWhiteTexel()
@@ -86,7 +80,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the rasterizer-density setter writes the context density and re-derives the font
     /// size, and that assigning the value already in effect is a no-op. Canonical
-    /// <c>ImGui::SetFontRasterizerDensity</c> (<c>ThirdParty/imgui/imgui.cpp:9710-9736</c>).
+    /// <c>ImGui::SetFontRasterizerDensity</c>.
     /// </summary>
     [Test]
     public void SetFontRasterizerDensity_UpdatesTheContextAndRejectsRedundantAssignments()
@@ -117,8 +111,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the font free functions are owned by <see cref="ImGui"/> and delegate to the
     /// managed <see cref="ImFont"/> implementations. Canonical <c>ImFontCalcTextSizeEx</c>
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5673-5762</c>) and <c>ImTextCharFromUtf8</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2712-2763</c>).
+    ///. and <c>ImTextCharFromUtf8</c>
     /// </summary>
     [Test]
     public void FontFreeFunctions_DelegateToTheFontOwner()
@@ -156,7 +149,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the click-count getter reports the count recorded on the frame that processes the
     /// press. Canonical <c>ImGui::GetMouseClickedCount</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:10718-10723</c>).
     /// </summary>
     [Test]
     public void GetMouseClickedCount_ReportsTheRecordedClick()
@@ -176,7 +168,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the delayed release query exposes exactly the frame on which the elapsed time
     /// first reaches the delay. Canonical <c>ImGui::IsMouseReleasedWithDelay</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:10705-10710</c>).
     /// </summary>
     [Test]
     public void IsMouseReleasedWithDelay_ReportsOnlyTheReleaseFrameForAZeroDelay()
@@ -200,7 +191,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the disambiguated item click count reports zero when no click reached the last
     /// item. Canonical <c>ImGui::GetItemClickedCountWithSingleClickDelay</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:10760-10779</c>).
     /// </summary>
     [Test]
     public void GetItemClickedCountWithSingleClickDelay_ReturnsZeroWithoutAClick()
@@ -218,7 +208,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that item key routing assigns ownership while the last item is hovered and refuses
     /// when no item qualifies. Canonical <c>ImGui::SetItemKeyOwner</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:11506-11528</c>).
     /// </summary>
     [Test]
     public void SetItemKeyOwner_RoutesTheHoveredItemAndRejectsUnqualifiedItems()
@@ -252,7 +241,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the boolean and pointer reference accessors insert a pair and return the stored
     /// instance so later writes are visible to readers of the same key. Canonical
-    /// <c>ImGuiStorage::GetBoolRef</c> and <c>GetVoidPtrRef</c> (<c>ThirdParty/imgui/imgui.cpp:3085-3105</c>).
+    /// <c>ImGuiStorage::GetBoolRef</c> and <c>GetVoidPtrRef</c>.
     /// </summary>
     [Test]
     public void ImGuiStorage_ReferenceAccessors_AliasTheStoredPair()
@@ -278,7 +267,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// Verifies that registering a user texture increments its reference count and adds it to the
     /// context, and that unregistering reverses both effects. Canonical
     /// <c>ImGui::RegisterUserTexture</c> and <c>UnregisterUserTexture</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:9755-9766</c>).
     /// </summary>
     [Test]
     public void RegisterUserTexture_TracksTheReferenceCountAndContextList()
@@ -297,7 +285,7 @@ public class PublicHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the pixel-size mapping for the two canonical texture formats. Canonical
-    /// <c>ImTextureData</c> format table (<c>ThirdParty/imgui/imgui_internal.h:3070-3085</c>).
+    /// <c>ImTextureData</c> format table.
     /// </summary>
     [Test]
     public void ImTextureDataGetFormatBytesPerPixel_ReportsCanonicalSizes()
@@ -313,7 +301,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the gradient helper interpolates the red and blue channels along the gradient
     /// axis while preserving each vertex's existing alpha. Canonical
-    /// <c>ImGui::ShadeVertsLinearColorGradientKeepAlpha</c> (<c>ThirdParty/imgui/imgui_draw.cpp:2990-3050</c>).
+    /// <c>ImGui::ShadeVertsLinearColorGradientKeepAlpha</c>.
     /// </summary>
     [Test]
     public void ShadeVertsLinearColorGradientKeepAlpha_InterpolatesRgbAndKeepsAlpha()
@@ -343,7 +331,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the three canonical theme functions produce distinct palettes and that the
     /// no-argument form targets the current context. Canonical <c>ImGui::StyleColorsDark</c>,
-    /// <c>StyleColorsClassic</c>, and <c>StyleColorsLight</c> (<c>ThirdParty/imgui/imgui_draw.cpp:187-396</c>).
+    /// <c>StyleColorsClassic</c>, and <c>StyleColorsLight</c>.
     /// </summary>
     [Test]
     public void StyleColors_ApplyDistinctPalettes()
@@ -372,7 +360,6 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the style selector submits its combo without changing the style while no entry
     /// is activated. Canonical <c>ImGui::ShowStyleSelector</c>
-    /// (<c>ThirdParty/imgui/imgui_demo.cpp:711-737</c>).
     /// </summary>
     [Test]
     public void ShowStyleSelector_SubmitsWithoutChangingTheStyle()
@@ -390,8 +377,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// Verifies that the line-height, frame-height and keyboard-focus helpers are owned by
     /// <see cref="ImGui"/> and available to a submitted item. Canonical
     /// <c>ImGui::GetTextLineHeight</c> and <c>GetFrameHeightWithSpacing</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:9645-9665</c>) and <c>ImGui::SetKeyboardFocusHere</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:9791-9797</c>).
+    ///. and <c>ImGui::SetKeyboardFocusHere</c>
     /// </summary>
     [Test]
     public void MeasurementAndFocusHelpers_AreOwnedByImGui()
@@ -447,7 +433,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that inserting text shifts the tail, re-terminates the buffer, advances the cursor, and
     /// collapses the selection onto it. Canonical
-    /// <c>ImGuiInputTextCallbackData::InsertChars</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4390-4432</c>).
+    /// <c>ImGuiInputTextCallbackData::InsertChars</c>.
     /// </summary>
     [Test]
     public void ImGuiInputTextCallbackData_InsertChars_ShiftsTheTailAndCollapsesTheSelection()
@@ -471,7 +457,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an insertion that does not fit is truncated at a UTF-8 codepoint boundary unless
     /// the resize contract is enabled. Canonical
-    /// <c>ImGuiInputTextCallbackData::InsertChars</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4404-4408</c>).
+    /// <c>ImGuiInputTextCallbackData::InsertChars</c>.
     /// </summary>
     [Test]
     public void ImGuiInputTextCallbackData_InsertChars_TruncatesOrGrowsAccordingToTheResizeFlag()
@@ -498,7 +484,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that deleting a byte range moves the tail over it, adjusts the cursor inside and past
     /// the range, and collapses the selection. Canonical
-    /// <c>ImGuiInputTextCallbackData::DeleteChars</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:4374-4388</c>).
+    /// <c>ImGuiInputTextCallbackData::DeleteChars</c>.
     /// </summary>
     [Test]
     public void ImGuiInputTextCallbackData_DeleteChars_MovesTheTailAndAdjustsTheCursor()
@@ -534,8 +520,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an edit made through <see cref="ImGuiInputTextCallbackData.InsertChars"/> reaches
     /// the caller's text buffer: the widget layer reconciles the dirty callback buffer after the
-    /// callback returns. Canonical callback dispatch
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4352-4370</c>, <c>4390-4432</c>).
+    /// callback returns. Canonical callback dispatch.
     /// </summary>
     [Test]
     public void InputText_CallbackInsertChars_ReachesTheCallerBuffer()
@@ -576,7 +561,7 @@ public class PublicHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the context overload returns the same input/output record as the context itself.
-    /// Canonical <c>ImGui::GetIO(ImGuiContext*)</c> (<c>ThirdParty/imgui/imgui.cpp:5368-5372</c>).
+    /// Canonical <c>ImGui::GetIO(ImGuiContext*)</c>.
     /// </summary>
     [Test]
     public void GetIO_ContextOverload_ReturnsTheContextRecord()
@@ -587,7 +572,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the getter overload of the combo box materializes every item through the getter
     /// before delegating to the array core, and reports no change while no entry is activated.
-    /// Canonical <c>ImGui::Combo</c> getter overload (<c>ThirdParty/imgui/imgui_widgets.cpp:2681-2712</c>).
+    /// Canonical <c>ImGui::Combo</c> getter overload.
     /// </summary>
     [Test]
     public void Combo_GetterOverload_MaterializesEveryItem()
@@ -606,7 +591,7 @@ public class PublicHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the getter overload of the list box materializes every row through the getter
     /// before delegating to the array core, and reports no change while no row is activated.
-    /// Canonical <c>ImGui::ListBox</c> getter overload (<c>ThirdParty/imgui/imgui_widgets.cpp:6690-6730</c>).
+    /// Canonical <c>ImGui::ListBox</c> getter overload.
     /// </summary>
     [Test]
     public void ListBox_GetterOverload_MaterializesEveryRow()

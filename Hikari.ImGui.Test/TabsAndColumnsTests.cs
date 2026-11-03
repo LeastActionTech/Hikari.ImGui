@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -13,12 +17,7 @@ namespace Hikari.ImGui.Test;
 /// automatic closure of an open columns set by <c>End()</c>.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/> against the canonical reference Dear ImGui
-/// <c>v1.92.9b-docking</c>. The tab subsystem is defined in <c>ThirdParty/imgui/imgui_widgets.cpp</c>
-/// (TOC sections 29-30) with structures in <c>ThirdParty/imgui/imgui_internal.h</c>; the legacy
-/// Columns implementation lives in <c>ThirdParty/imgui/imgui_tables.cpp:4500-4905</c> with its
-/// automatic closure in <c>ThirdParty/imgui/imgui.cpp:8911-8913</c>. Every test cites the canonical
-/// line range that pins the behavior it asserts.
+/// Each test drives a real <see cref="ImGuiContext"/> against canonical Dear ImGui.
 /// </remarks>
 [TestFixture]
 public class TabsAndColumnsTests : ImGuiTestFixture
@@ -66,7 +65,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// The hover frame is required because tab items and the scrolling arrow buttons use the
     /// <see cref="ImGuiButtonFlags.AllowOverlap"/> path, whose hover test only succeeds once the item
     /// was already the hovered identifier on the previous frame
-    /// (<c>ThirdParty/imgui/imgui.cpp:5180-5186</c>).
     /// </remarks>
     private void ClickAt(ImVec2 point, Action body)
     {
@@ -85,7 +83,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.BeginTabBar"/> binds the context's current tab bar, registers it
     /// in the pool, and that <see cref="ImGui.EndTabBar"/> restores the previous (null) current tab bar.
-    /// Canonical: <c>imgui_widgets.cpp:9895-9897</c> and <c>:9960-9970</c>.
     /// </summary>
     [Test]
     public void BeginTabBar_EndTabBar_BindsAndRestoresCurrentTabBar()
@@ -116,7 +113,7 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a newly appearing tab is selected through the canonical deferred
     /// <c>NextSelectedTabId</c> path so its content becomes visible on the second frame.
-    /// Canonical: <c>imgui_widgets.cpp:10752-10756</c> (<c>AutoSelectNewTabs</c>).
+    /// Mirrors canonical <c>AutoSelectNewTabs</c>.
     /// </summary>
     [Test]
     public void BeginTabItem_AutoSelectNewTabs_SelectsFirstTabOnSecondFrame()
@@ -162,7 +159,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TabItemButton"/> is submitted and reports a press, which requires
     /// the canonical <c>p_open == NULL</c> sentinel rather than an early-out. The button is a new tab on
     /// the first frame, so its real rectangle is only available from the second frame.
-    /// Canonical: <c>imgui_widgets.cpp:10667-10677</c> and <c>:10712-10725</c>.
     /// </summary>
     [Test]
     public void TabItemButton_IsSubmittedAndReportsPress()
@@ -196,7 +192,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.TabBarGetTabName"/> resolves a submitted manual tab to its label
     /// and reports <c>"N/A"</c> for a tab whose name has not been recorded this frame.
-    /// Canonical: <c>imgui_widgets.cpp:10324-10332</c>.
     /// </summary>
     [Test]
     public void TabBarGetTabName_ResolvesLabelAndMissingName()
@@ -227,7 +222,7 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// Verifies that closing a normal selected tab defers removal to the next layout pass by setting
     /// <c>WantClose</c>, clearing the selected identifiers, and invalidating the visible frame instead
     /// of erasing the item immediately.
-    /// Canonical: <c>imgui_widgets.cpp:10366-10388</c> (<c>TabBarCloseTab</c>).
+    /// Mirrors canonical <c>TabBarCloseTab</c>.
     /// </summary>
     [Test]
     public void TabBarCloseTab_NormalSelectedTab_DefersRemoval()
@@ -267,7 +262,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that closing an unsaved-document tab does not set <c>WantClose</c>, giving the owner a
     /// chance to confirm the closure.
-    /// Canonical: <c>imgui_widgets.cpp:10371-10373</c>.
     /// </summary>
     [Test]
     public void TabBarCloseTab_UnsavedDocument_DoesNotRequestClose()
@@ -299,7 +293,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical no-close-button width arithmetic, including the one-pixel pad, and the
     /// clamp to <see cref="ImGui.TabBarCalcMaxTabWidth"/>.
-    /// Canonical: <c>imgui_widgets.cpp:11025-11035</c>.
     /// </summary>
     [Test]
     public void TabItemCalcSize_UsesCanonicalPaddingAndClamp()
@@ -330,7 +323,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TabBarAddTab"/> initializes <c>LastFrameVisible</c> so a
     /// pre-registered tab survives the next layout pass, and that the no-close-button flag is derived
     /// from the window.
-    /// Canonical: <c>imgui_widgets.cpp:10342-10352</c>.
     /// </summary>
     [Test]
     public void TabBarAddTab_InitializesVisibleFrameAndCloseFlag()
@@ -361,7 +353,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.TabItemSpacing"/> submits an invisible button tab, which requires
     /// the canonical <c>p_open == NULL</c> sentinel. Before that sentinel was represented, the call was
     /// inert and never registered an item.
-    /// Canonical: <c>imgui_widgets.cpp:10679-10690</c>.
     /// </summary>
     [Test]
     public void TabItemSpacing_RegistersInvisibleButtonTab()
@@ -398,7 +389,7 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies column counting, the initial current index, consecutive advancement, and the wrap back
     /// to the first column after the last one.
-    /// Canonical: <c>imgui_tables.cpp:4501-4505</c>, <c>:4753-4807</c> (<c>NextColumn</c>).
+    /// Mirrors canonical <c>NextColumn</c>.
     /// </summary>
     [Test]
     public void Columns_CountAndNextColumn_WrapsToFirstColumn()
@@ -432,7 +423,7 @@ public class TabsAndColumnsTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies pixel offset and width editing round-trips through the normalized column coordinates.
-    /// Canonical: <c>imgui_tables.cpp:4536-4609</c> (<c>GetColumnOffset</c>, <c>SetColumnOffset</c>,
+    /// Mirrors canonical <c>GetColumnOffset</c>, <c>SetColumnOffset</c>,
     /// <c>GetColumnWidth</c>, <c>SetColumnWidth</c>).
     /// </summary>
     [Test]
@@ -465,7 +456,7 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.End"/> force-closes a columns set the caller left open, so the
     /// current columns pointer does not leak past the window. The set itself remains in window storage
     /// for the next frame.
-    /// Canonical: <c>imgui.cpp:8911-8913</c> (<c>End</c> calls <c>EndColumns</c>).
+    /// Mirrors canonical <c>EndColumns</c>.
     /// </summary>
     [Test]
     public void End_ForceClosesOpenColumnsWithoutDiscardingStorage()
@@ -491,7 +482,7 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a columns set keyed by the same identifier is reused across frames from the
     /// window's columns storage rather than recreated.
-    /// Canonical: <c>imgui_tables.cpp:4648-4659</c> (<c>FindOrCreateColumns</c>).
+    /// Mirrors canonical <c>FindOrCreateColumns</c>.
     /// </summary>
     [Test]
     public void Columns_SameIdentifier_ReusesStoredSetAcrossFrames()
@@ -521,7 +512,6 @@ public class TabsAndColumnsTests : ImGuiTestFixture
     /// Exercises the span-all-columns paths added to the legacy columns subsystem: a horizontal
     /// separator and a <c>SpanAllColumns</c> selectable must switch to the columns background channel
     /// and restore it without unbalancing the draw-list splitter or the window clip stack.
-    /// Canonical: <c>imgui_widgets.cpp:1695-1724</c> and <c>:7475-7571</c>.
     /// </summary>
     [Test]
     public void Columns_SpanAllColumnsItems_RestoreChannelState()

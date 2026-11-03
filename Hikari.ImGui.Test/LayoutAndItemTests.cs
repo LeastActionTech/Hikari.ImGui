@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -9,10 +13,7 @@ namespace Hikari.ImGui.Test;
 /// item state transitions, item flags, next-item data, visibility tests, and scrolling.
 /// </summary>
 /// <remarks>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui.cpp</c> and
-/// <c>ThirdParty/imgui/imgui_widgets.cpp</c>; each test cites the canonical line range that defines
-/// the behavior it pins. Widgets themselves arrive in Chunk 4, so interaction is exercised through
+/// Each test drives a real <see cref="ImGuiContext"/>. Widgets themselves arrive in Chunk 4, so interaction is exercised through
 /// <see cref="ImGui.ButtonBehavior"/> directly.
 /// </remarks>
 [TestFixture]
@@ -72,7 +73,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// Verifies that <see cref="ImGui.SetCursorPos"/> and <see cref="ImGui.GetCursorPos"/> round-trip
     /// in window-local space, and that <see cref="ImGui.SetCursorScreenPos"/> and
     /// <see cref="ImGui.GetCursorScreenPos"/> round-trip in screen space.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12345-12395</c>)
     /// </summary>
     [Test]
     public void Cursor_SetAndGet_RoundTripsInBothSpaces()
@@ -95,7 +95,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.GetCursorStartPos"/> reports the content origin in
     /// window-local coordinates and is unaffected by later cursor moves.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12397-12401</c>, <c>8645-8652</c>)
     /// </summary>
     [Test]
     public void Cursor_GetCursorStartPos_IsContentOrigin()
@@ -114,7 +113,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the canonical <see cref="ImGui.NewLine"/> and <see cref="ImGui.Spacing"/> cursor
-    /// advances. (<c>ThirdParty/imgui/imgui_widgets.cpp:1610-1644</c>)
+    /// advances.
     /// </summary>
     [Test]
     public void Cursor_NewLineAndSpacing_AdvanceByCanonicalAmounts()
@@ -141,7 +140,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.Indent"/> and <see cref="ImGui.Unindent"/> shift the cursor to
-    /// the indented content edge. (<c>ThirdParty/imgui/imgui.cpp:12403-12417</c>)
+    /// the indented content edge.
     /// </summary>
     [Test]
     public void Cursor_IndentAndUnindent_ShiftToContentEdge()
@@ -167,7 +166,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.AlignTextToFramePadding"/> makes the next
     /// <see cref="ImGui.NewLine"/> reserve the framed height.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:1646-1655</c>)
     /// </summary>
     [Test]
     public void Cursor_AlignTextToFramePadding_GrowsLineHeight()
@@ -194,8 +192,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical <see cref="ImGui.ItemSize(ImVec2, float)"/> and
     /// <see cref="ImGui.ItemAdd"/> arithmetic, including the item rectangle and the vertical and
-    /// same-line cursor advances. (<c>ThirdParty/imgui/imgui.cpp:9063-9103</c>, <c>12133-12234</c>,
-    /// <c>12313-12337</c>)
+    /// same-line cursor advances.
     /// </summary>
     [Test]
     public void Item_DummyAndSameLine_AdvanceCursorCanonically()
@@ -226,7 +223,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the canonical <see cref="ImGui.CalcItemSize"/> sentinel semantics: zero substitutes
     /// the default, negative values shrink the available region with a floor of four pixels, and
-    /// explicit values pass through. (<c>ThirdParty/imgui/imgui.cpp:12493-12510</c>)
+    /// explicit values pass through.
     /// </summary>
     [Test]
     public void Item_CalcItemSize_HandlesSentinels()
@@ -265,7 +262,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.CalcItemWidth"/> follows
     /// <see cref="ImGui.PushItemWidth"/>/<see cref="ImGui.PopItemWidth"/> and the queued
-    /// <see cref="ImGui.SetNextItemWidth"/> override. (<c>ThirdParty/imgui/imgui.cpp:12471-12487</c>)
+    /// <see cref="ImGui.SetNextItemWidth"/> override.
     /// </summary>
     [Test]
     public void Item_CalcItemWidth_FollowsStackAndNextItemOverride()
@@ -295,7 +292,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.ItemAdd"/> rejects an item entirely outside the window clip
     /// rectangle, that <see cref="ImGui.IsItemVisible"/> then reports false, and that the rejection
-    /// does not advance <c>CursorMaxPos</c>. (<c>ThirdParty/imgui/imgui.cpp:12208-12222</c>)
+    /// does not advance <c>CursorMaxPos</c>.
     /// </summary>
     [Test]
     public void Item_ItemAdd_ClipRejectedItemDoesNotAdvanceCursorMaxPos()
@@ -316,7 +313,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies <see cref="ImGui.IsRectVisible"/> for rectangles inside and outside the window clip
-    /// rectangle. (<c>ThirdParty/imgui/imgui.cpp:9634-9644</c>)
+    /// rectangle.
     /// </summary>
     [Test]
     public void Item_IsRectVisible_SeparatesInsideFromOutside()
@@ -342,7 +339,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the full press/release sequence through
     /// <see cref="ImGui.ButtonBehavior"/>, covering hover, activation, the click edge, and
-    /// deactivation. (<c>ThirdParty/imgui/imgui_widgets.cpp:550-800</c>, <c>6617-6670</c>)
+    /// deactivation.
     /// </summary>
     [Test]
     public void Item_ButtonBehavior_PressReleaseSequenceUpdatesItemState()
@@ -399,7 +396,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.MarkItemEdited"/> sets the edited item status flag.
-    /// (<c>ThirdParty/imgui/imgui.cpp:4949-4973</c>, <c>6718-6722</c>)
     /// </summary>
     [Test]
     public void Item_MarkItemEdited_SetsEditedStatus()
@@ -425,7 +421,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.PushItemFlag"/> applies an item flag to subsequently
     /// submitted items and <see cref="ImGui.PopItemFlag"/> restores the previous flags.
-    /// (<c>ThirdParty/imgui/imgui.cpp:8955-8974</c>, <c>6782-6786</c>)
     /// </summary>
     [Test]
     public void Item_PushItemFlag_RoundTripsThroughLastItemFlags()
@@ -449,7 +444,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetNextItemOpen"/> is observable through
     /// <see cref="ImGuiContext.NextItemData"/> and that <see cref="ImGui.ItemAdd"/> clears the
-    /// queued state. (<c>ThirdParty/imgui/imgui_widgets.cpp:7325-7333</c>)
+    /// queued state.
     /// </summary>
     [Test]
     public void Item_SetNextItemOpen_IsObservableAndConsumed()
@@ -473,7 +468,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that content taller than the window produces a positive vertical scroll range.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12811-12815</c>, <c>8660-8666</c>)
     /// </summary>
     [Test]
     public void Scroll_ContentExceedingHeight_ProducesScrollMaxY()
@@ -490,7 +484,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetScrollY"/> queues a target that the next Begin resolves
     /// and that <see cref="ImGui.GetScrollY"/> then reports it.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12824-12841</c>, <c>12683-12706</c>)
     /// </summary>
     [Test]
     public void Scroll_SetScrollY_RoundTripsOnNextFrame()
@@ -512,7 +505,6 @@ public class LayoutAndItemTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetScrollHereY"/> targets the current cursor line and that the
     /// resolved scroll position lands within the legal range.
-    /// (<c>ThirdParty/imgui/imgui.cpp:12895-12905</c>)
     /// </summary>
     [Test]
     public void Scroll_SetScrollHereY_TargetsCurrentCursor()
@@ -534,7 +526,7 @@ public class LayoutAndItemTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.ScrollbarEx"/> converts a mouse press outside the grab into a
-    /// canonical page-sized scroll step. (<c>ThirdParty/imgui/imgui_widgets.cpp:1029-1137</c>)
+    /// canonical page-sized scroll step.
     /// </summary>
     [Test]
     public void Scroll_ScrollbarEx_DragOutsideGrabPagesTheView()

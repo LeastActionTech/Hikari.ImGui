@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using System.IO;
 using NUnit.Framework;
@@ -6,19 +10,12 @@ using NUnit.Framework;
 namespace Hikari.ImGui.Test;
 
 /// <summary>
-/// Verifies the 1.92 font-atlas surface with concrete state assertions: the nine canonical glyph-range
+/// Verifies the font-atlas surface with concrete state assertions: the nine canonical glyph-range
 /// tables, file and compressed-stream font loading, the inline <see cref="ImFont"/> members, the
 /// input-data and font clearing paths, the Alpha8 and RGBA32 texture accessors, the custom-rectangle
 /// and custom-glyph APIs, and the texture-data lifecycle fields.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. The glyph-range getters are
-/// <c>ThirdParty/imgui/imgui_draw.cpp:4895-5154</c>; file loading is <c>3248-3297</c>; the inline
-/// <see cref="ImFont"/> members are <c>imgui.h:4090-4091</c> and <c>imgui_draw.cpp:5231-5252</c>;
-/// the clearing paths are <c>2708-2743</c> and <c>3343-3368</c>; the custom-rectangle and custom-glyph
-/// APIs are <c>3369-3462</c>; and the texture accessors are <c>3038-3056</c>.
-/// </para>
 /// <para>
 /// The tests never attach a context: this surface is manipulated directly on an
 /// <see cref="ImFontAtlas"/>, and the file-loading test writes and removes its own temporary face.
@@ -87,7 +84,7 @@ public class FontAtlasTests
         ImFontAtlas atlas = new();
 
         // Chinese Simplified Common: 12 base values + 2500 cumulative offsets as single-codepoint
-        // pairs + the terminator (canonical imgui_draw.cpp:4956-5022).
+        // pairs + the terminator.
         uint[] chinese = atlas.GetGlyphRangesChineseSimplifiedCommon();
         AssertTerminated(chinese);
         Assert.That(chinese.Length, Is.EqualTo(12 + 2500 * 2 + 1));
@@ -98,7 +95,7 @@ public class FontAtlasTests
         Assert.That(chinese[^3], Is.EqualTo(0x9F9Fu));
 
         // Japanese: 10 base values + 2999 cumulative offsets + the terminator
-        // (canonical imgui_draw.cpp:5024-5112).
+        //.
         uint[] japanese = atlas.GetGlyphRangesJapanese();
         AssertTerminated(japanese);
         Assert.That(japanese.Length, Is.EqualTo(10 + 2999 * 2 + 1));
@@ -373,7 +370,6 @@ public class FontAtlasTests
     /// <summary>
     /// Verifies that a locked atlas (a renderer without texture updates) returns the closest existing bake
     /// rather than creating one, and that an unlocked atlas still creates a bake at the requested size
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:5470-5482</c>).
     /// </summary>
     [Test]
     public void GetFontBaked_LockedAtlasUsesClosestExistingBake()
@@ -397,7 +393,7 @@ public class FontAtlasTests
 
     /// <summary>
     /// Verifies that a locked atlas whose font has no bake at all fails rather than creating an upload-less bake,
-    /// and that the same request succeeds once a bake exists (<c>ThirdParty/imgui/imgui_draw.cpp:5474-5478</c>).
+    /// and that the same request succeeds once a bake exists.
     /// </summary>
     [Test]
     public void GetFontBaked_LockedAtlasWithoutAnyBakeThrows()
@@ -413,7 +409,7 @@ public class FontAtlasTests
 
     /// <summary>
     /// Verifies that the bitmap default font snaps horizontally when no configuration template is given, and
-    /// keeps the caller's choice when a template is supplied (<c>ThirdParty/imgui/imgui_draw.cpp:3197-3198</c>).
+    /// keeps the caller's choice when a template is supplied.
     /// </summary>
     [Test]
     public void AddFontDefaultBitmap_SnapsHorizontallyOnlyWithoutTemplate()

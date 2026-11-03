@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -9,7 +13,7 @@ namespace Hikari.ImGui.Test;
 /// dock builder node creation, tree splitting, window-to-node docking, and dockspace submissions.
 /// </summary>
 /// <remarks>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui.cpp:17921-21905</c>.
+/// Tests docking context lifecycle, node operations, and dockspace submissions against a live <see cref="ImGuiContext"/>.
 /// </remarks>
 [TestFixture]
 [NonParallelizable]
@@ -29,7 +33,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that dock context initializes with empty nodes and maps.
-    /// Canonical: <c>imgui.cpp:18047-18055</c> (<c>DockContextInitialize</c>).
+    /// Mirrors canonical <c>DockContextInitialize</c>.
     /// </summary>
     [Test]
     public void DockContext_Initialize_CreatesCleanState()
@@ -41,7 +45,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies node addition, lookup, and removal via DockBuilder APIs.
-    /// Canonical: <c>imgui.cpp:21588-21620</c> (<c>DockBuilderAddNode</c>, <c>DockBuilderRemoveNode</c>).
+    /// Mirrors canonical <c>DockBuilderAddNode</c> and <c>DockBuilderRemoveNode</c>.
     /// </summary>
     [Test]
     public void DockBuilder_AddAndRemoveNode_TracksInContext()
@@ -60,7 +64,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies splitting a dock node horizontally and vertically into child nodes.
-    /// Canonical: <c>imgui.cpp:21670-21760</c> (<c>DockBuilderSplitNode</c>).
+    /// Mirrors canonical <c>DockBuilderSplitNode</c>.
     /// </summary>
     [Test]
     public void DockBuilder_SplitNode_CreatesExpectedChildrenAndSizes()
@@ -102,7 +106,6 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies docking a window into a dock node via <see cref="ImGui.DockBuilderDockWindow"/>.
-    /// Canonical: <c>imgui.cpp:21622-21655</c>.
     /// </summary>
     [Test]
     public void DockBuilder_DockWindow_AssociatesWindowWithNode()
@@ -149,7 +152,6 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies <see cref="ImGui.DockSpace"/> creates a dock node for the given ID within the current window.
-    /// Canonical: <c>imgui.cpp:20888-21040</c>.
     /// </summary>
     [Test]
     public void DockSpace_SubmitsAndCreatesCentralNode()
@@ -176,7 +178,6 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies <see cref="ImGui.DockSpaceOverViewport"/> creates a full-viewport dockspace.
-    /// Canonical: <c>imgui.cpp:21042-21080</c>.
     /// </summary>
     [Test]
     public void DockSpaceOverViewport_CreatesViewportHostWindow()
@@ -193,7 +194,6 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies tree navigation helpers: <c>DockNodeGetRootNode</c> and <c>DockNodeGetDepth</c>.
-    /// Canonical: <c>imgui.cpp:18057-18080</c>.
     /// </summary>
     [Test]
     public void DockNode_HierarchyNavigation_ComputesDepthAndRoot()
@@ -227,7 +227,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that negative size arguments offset from available content region and clamp to minimum 4.0f floor.
-    /// Canonical: <c>imgui.cpp:20833-20839</c> (Bug 6-B7).
+    /// (Bug 6-B7).
     /// </summary>
     [Test]
     public void DockSpace_NegativeSize_AppliesOffsetAndEnforcesFourFloor()
@@ -250,7 +250,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that touching nodes gathering collects leaf nodes along the splitter axis.
-    /// Canonical: <c>imgui.cpp:20569-20582</c> (Bug 6-B2).
+    /// (Bug 6-B2).
     /// </summary>
     [Test]
     public void DockNodeTree_SplitterTouchingNodes_GathersLeafNodes()
@@ -282,7 +282,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that simultaneous double child resize lock preserves split size ratios accurately.
-    /// Canonical: <c>imgui.cpp:20526-20534</c> (Bug 6-B3).
+    /// (Bug 6-B3).
     /// </summary>
     [Test]
     public void DockNodeTree_DoubleLockResize_PreservesRatio()
@@ -314,7 +314,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that dock node host windows split draw list channels into foreground and background.
-    /// Canonical: <c>imgui.cpp:8140-8143</c> (Bug 6-B1, 6-B4).
+    /// (Bug 6-B1, 6-B4).
     /// </summary>
     [Test]
     public void DockNode_HostWindow_ChannelsSplitAndMerge()
@@ -335,7 +335,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies tab item close button and unsaved marker rendering.
-    /// Canonical: <c>imgui_widgets.cpp:11065-11160</c> (Bug 6-B6).
+    /// (Bug 6-B6).
     /// </summary>
     [Test]
     public void TabItemLabelAndCloseButton_CloseButtonInteraction()
@@ -362,7 +362,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies dock settings serialization and deserialization across node hierarchy.
-    /// Canonical: <c>imgui.cpp:18145-18163, 21738-21755</c> (Bug 6-B8).
+    /// (Bug 6-B8).
     /// </summary>
     [Test]
     public void DockSettings_SerializationRoundtrip_PreservesNodeHierarchy()
@@ -404,7 +404,6 @@ public class DockingTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that floating dock nodes with docked windows survive NewFrame lifecycle across consecutive frames
     /// without throwing NullReferenceException in PushOverrideID or DockNodeUpdateTabBar.
-    /// Canonical: <c>imgui.cpp:18265-18268, 19400-19445</c>.
     /// </summary>
     [Test]
     public void DockNode_FloatingNodeWithDockedWindow_UpdatesTabBarAcrossFramesWithoutCrashing()
@@ -441,7 +440,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies canonical calculation of the 5-way docking helper drop boxes (center, left, right, up, down)
-    /// and outer drop boxes matching Dear ImGui v1.92.9b (imgui.cpp:20109-20159).
+    /// and outer drop boxes matching canonical Dear ImGui.
     /// </summary>
     [Test]
     public void DockNodePreview_DropRectsCalculation_MatchesCanonicalLayout()
@@ -482,7 +481,7 @@ public class DockingTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that DockNodePreviewDockSetup populates the drop rects array so preview overlays
-    /// can be rendered even before mouse hovers an explicit direction (canonical imgui.cpp:20163-20249).
+    /// can be rendered even before mouse hovers an explicit direction.
     /// </summary>
     [Test]
     public void DockNodePreviewSetup_PopulatesDropRectsForUnhoveredTarget()

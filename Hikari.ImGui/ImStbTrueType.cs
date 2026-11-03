@@ -1,48 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-// ROLE IN ENGINE
-//   Pure C# port of the subset of imstb_truetype.h that the Dear ImGui default font loader
-//   requires. It parses a TrueType/OpenType font image and produces glyph advance/offset metrics,
-//   glyph bounding boxes, anti-aliased 8-bit glyph bitmaps, and kern pairs, decoding outlines from
-//   either a `glyf` table or a CFF/Type2 charstring program. Hikari.ImGui uses it to bake the
-//   embedded ProggyClean and ProggyForever faces into an ImFontAtlas without any native dependency.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-//
-//   ┌───────────────────────────────────────────┐
-//   │ ImGuiDefaultFontData                      │
-//   │ • stb_compress stream -> TTF              │
-//   └───────────────────────────────────────────┘
-//                          │ byte[] TTF
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImStbTrueTypeFont                         │
-//   │ • directory, cmap, hmetrics, kern table   │
-//   │ • glyf outlines or CFF Type2 charstrings  │
-//   │ • scanline rasterizer                     │
-//   └───────────────────────────────────────────┘
-//                          │ advances, boxes, bitmaps
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImFontAtlas.Build                         │
-//   │ • packs bitmaps and computes UVs          │
-//   └───────────────────────────────────────────┘
-//
-// STYLIZED USAGE EXAMPLE
-//
-//   byte[] ttf = ImGuiDefaultFontData.DecompressProggyClean();
-//   ImStbTrueTypeFont? font = ImStbTrueTypeFont.Init(ttf, 0);
-//   int glyph = font!.FindGlyphIndex('A');
-//   font.GetGlyphHMetrics(glyph, out int advance, out int lsb);
-//   font.MakeGlyphBitmapSubpixel(pixels, w, h, w, scale, scale, 0, 0, glyph);
-//
-// THREADING & LIFECYCLE NOTES
-//   Instances are immutable after Init and are not thread-safe for concurrent building. The port
-//   allocates managed arrays only; there is no unmanaged memory and no finalizer.
-//
-// CANONICAL REFERENCE
-//   ThirdParty/imgui/imstb_truetype.h (STBTT_RASTERIZER_VERSION == 2). Every routine cites the
-//   canonical line range it ports. The CFF path follows the byte-buffer, dictionary, and Type2
-//   charstring interpreter at imstb_truetype.h:1138-1265, 1359-1370, 1414-1458, and 1912-2296.
 
 using System;
 using System.Collections.Generic;
@@ -51,7 +11,7 @@ namespace Hikari.ImGui;
 
 /// <summary>
 /// Pure C# port of the TrueType parsing, glyph-outline, and scanline rasterization routines from
-/// <c>imstb_truetype.h</c> that the default ImGui font loader uses.
+/// stb_truetype that the default ImGui font loader uses.
 /// </summary>
 /// <remarks>
 /// The port covers the canonical <c>glyf</c> path and the CFF/Type2 charstring path, including the
@@ -77,7 +37,7 @@ internal sealed class ImStbTrueTypeFont
     private const byte VertexCubic = 4;
 
     /// <summary>
-    /// Outline vertex, mirroring <c>stbtt_vertex</c> (<c>imstb_truetype.h:1050-1059</c>).
+    /// Outline vertex, mirroring <c>stbtt_vertex</c>.
     /// </summary>
     /// <remarks>
     /// The coordinate fields are 16-bit in the canonical struct because the TrueType <c>glyf</c>
@@ -108,7 +68,7 @@ internal sealed class ImStbTrueTypeFont
         public short Cy1;
     }
 
-    /// <summary>Flattened outline point, mirroring <c>stbtt__point</c> (<c>imstb_truetype.h:3494-3497</c>).</summary>
+    /// <summary>Flattened outline point, mirroring <c>stbtt__point</c>.</summary>
     private struct Point
     {
         /// <summary>Point X coordinate in font units.</summary>
@@ -118,7 +78,7 @@ internal sealed class ImStbTrueTypeFont
         public float Y;
     }
 
-    /// <summary>Rasterization edge, mirroring <c>stbtt__edge</c> (<c>imstb_truetype.h:2818-2821</c>).</summary>
+    /// <summary>Rasterization edge, mirroring <c>stbtt__edge</c>.</summary>
     private struct Edge
     {
         /// <summary>Top endpoint X coordinate in scaled pixel space.</summary>
@@ -138,8 +98,7 @@ internal sealed class ImStbTrueTypeFont
     }
 
     /// <summary>
-    /// Active edge list node, mirroring <c>stbtt__active_edge</c> for rasterizer version 2
-    /// (<c>imstb_truetype.h:2823-2835</c>, <c>2862-2883</c>).
+    /// Active edge list node, mirroring <c>stbtt__active_edge</c> for rasterizer version 2.
     /// </summary>
     private sealed class ActiveEdge
     {
@@ -165,7 +124,7 @@ internal sealed class ImStbTrueTypeFont
         public float Ey;
     }
 
-    /// <summary>Single-channel destination bitmap, mirroring <c>stbtt__bitmap</c> (<c>imstb_truetype.h:929-934</c>).</summary>
+    /// <summary>Single-channel destination bitmap, mirroring <c>stbtt__bitmap</c>.</summary>
     private struct Bitmap
     {
         /// <summary>Destination pixel buffer, one byte per pixel.</summary>
@@ -251,7 +210,6 @@ internal sealed class ImStbTrueTypeFont
     /// <summary>
     /// Returns the byte offset of the font at <paramref name="index"/> within a plain TTF or a
     /// TrueType collection. Ported from <c>stbtt_GetFontOffsetForIndex_internal</c>
-    /// (<c>imstb_truetype.h:1324-1341</c>).
     /// </summary>
     /// <param name="data">Complete font file image.</param>
     /// <param name="index">Zero-based font index inside a collection; use zero for a plain TTF.</param>
@@ -282,8 +240,8 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Parses the font directory and prepares glyph lookup. Ported from <c>stbtt_InitFont_internal</c>
-    /// (<c>imstb_truetype.h:1388-1499</c>), including the CFF/Type2 initialization branch
-    /// (<c>imstb_truetype.h:1414-1458</c>) used by OpenType faces that carry a <c>CFF </c> table.
+    ///., including the CFF/Type2 initialization branch
+    ///. used by OpenType faces that carry a <c>CFF </c> table.
     /// </summary>
     /// <param name="data">Complete font file image.</param>
     /// <param name="offset">Font offset returned by <see cref="GetFontOffsetForIndex"/>.</param>
@@ -315,7 +273,6 @@ internal sealed class ImStbTrueTypeFont
         else
         {
             // OpenType with CFF outlines. Ported from the else branch of stbtt_InitFont_internal
-            // (imstb_truetype.h:1420-1458).
             int cff = (int)FindTable(data, offset, "CFF ");
             if (cff == 0)
                 return null;
@@ -400,7 +357,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Maps a Unicode codepoint to a glyph index through the selected cmap subtable. Ported from
-    /// <c>stbtt_FindGlyphIndex</c> (<c>imstb_truetype.h:1501-1592</c>); formats 0, 4, 6, 12 and 13
+    /// <c>stbtt_FindGlyphIndex</c>.; formats 0, 4, 6, 12 and 13
     /// are supported, matching the canonical routine.
     /// </summary>
     /// <param name="codepoint">Unicode scalar value to look up.</param>
@@ -499,7 +456,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Reads horizontal advance width and left side bearing for a glyph. Ported from
-    /// <c>stbtt_GetGlyphHMetrics</c> (<c>imstb_truetype.h:2310-2320</c>).
+    /// <c>stbtt_GetGlyphHMetrics</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index to query.</param>
     /// <param name="advanceWidth">Receives the advance width in font units.</param>
@@ -528,7 +485,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Reads the font-wide vertical metrics. Ported from <c>stbtt_GetFontVMetrics</c>
-    /// (<c>imstb_truetype.h:2639-2644</c>).
     /// </summary>
     /// <param name="ascent">Receives the typographic ascent in font units.</param>
     /// <param name="descent">Receives the typographic descent in font units (typically negative).</param>
@@ -542,7 +498,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Computes the scale factor that maps font units to a requested pixel height. Ported from
-    /// <c>stbtt_ScaleForPixelHeight</c> (<c>imstb_truetype.h:2665-2669</c>).
+    /// <c>stbtt_ScaleForPixelHeight</c>.
     /// </summary>
     /// <param name="pixels">Requested ascent-to-descent height in pixels.</param>
     /// <returns>The multiplicative scale, or zero when the font reports a zero height.</returns>
@@ -559,7 +515,7 @@ internal sealed class ImStbTrueTypeFont
     /// <summary>
     /// Reads a glyph's bounding box from the <c>glyf</c> table or, for a CFF face, from the bounds
     /// accumulated by the Type2 charstring interpreter. Ported from <c>stbtt_GetGlyphBox</c> and
-    /// <c>stbtt__GetGlyfOffset</c> (<c>imstb_truetype.h:1628-1645</c>).
+    /// <c>stbtt__GetGlyfOffset</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index to query.</param>
     /// <param name="x0">Receives the minimum X in font units.</param>
@@ -591,7 +547,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Converts a glyph bounding box into the integer pixel box touched by the rasterized glyph.
-    /// Ported from <c>stbtt_GetGlyphBitmapBoxSubpixel</c> (<c>imstb_truetype.h:2726-2743</c>).
+    /// Ported from <c>stbtt_GetGlyphBitmapBoxSubpixel</c>.
     /// </summary>
     /// <param name="glyph">Glyph index to query.</param>
     /// <param name="scaleX">Horizontal font-unit-to-pixel scale.</param>
@@ -625,7 +581,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Resolves the <c>glyf</c> table offset of a glyph, or -1 when the glyph is empty or invalid.
-    /// Ported from <c>stbtt__GetGlyfOffset</c> (<c>imstb_truetype.h:1608-1626</c>).
+    /// Ported from <c>stbtt__GetGlyfOffset</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index to resolve.</param>
     /// <returns>The glyph record offset, or -1.</returns>
@@ -654,8 +610,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Decodes a glyph outline into vertices. Ported from <c>stbtt_GetGlyphShape</c>, which selects
-    /// <c>stbtt__GetGlyphShapeT2</c> for a CFF face and <c>stbtt__GetGlyphShapeTT</c> otherwise
-    /// (<c>imstb_truetype.h:1679-1915</c>, <c>2274-2308</c>).
+    /// <c>stbtt__GetGlyphShapeT2</c> for a CFF face and <c>stbtt__GetGlyphShapeTT</c> otherwise.
     /// </summary>
     /// <param name="glyphIndex">Glyph index to decode.</param>
     /// <param name="depth">Recursion depth for compound glyphs; bounds malformed fonts.</param>
@@ -687,7 +642,6 @@ internal sealed class ImStbTrueTypeFont
     /// <summary>
     /// Reads a simple (single-contour-set) glyph, decoding flags and coordinate deltas. Ported from
     /// the <c>numberOfContours &gt; 0</c> branch of <c>stbtt__GetGlyphShapeTT</c>
-    /// (<c>imstb_truetype.h:1687-1806</c>).
     /// </summary>
     /// <param name="g">Offset of the glyph record.</param>
     /// <param name="numberOfContours">Contour count read from the glyph header.</param>
@@ -832,7 +786,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Appends the vertices that close the current contour. Ported from <c>stbtt__close_shape</c>
-    /// (<c>imstb_truetype.h:1663-1677</c>).
     /// </summary>
     /// <param name="vertices">Destination vertex list.</param>
     /// <param name="wasOff">Non-zero when the previous point was a control point.</param>
@@ -865,7 +818,7 @@ internal sealed class ImStbTrueTypeFont
     /// <summary>
     /// Reads a compound glyph, recursively decoding and transforming each component. Ported from the
     /// <c>numberOfContours &lt; 0</c> branch of <c>stbtt__GetGlyphShapeTT</c>
-    /// (<c>imstb_truetype.h:1807-1905</c>). The canonical <c>WE_HAVE_INSTRUCTIONS</c> hinting
+    ///. The canonical <c>WE_HAVE_INSTRUCTIONS</c> hinting
     /// program is ignored, as it is by the canonical reader used here.
     /// </summary>
     /// <param name="g">Offset of the glyph record.</param>
@@ -949,7 +902,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Applies a compound-glyph 2x3 affine transform to one vertex. Ported from the transform loop
-    /// inside <c>stbtt__GetGlyphShapeTT</c> (<c>imstb_truetype.h:1873-1885</c>).
+    /// inside <c>stbtt__GetGlyphShapeTT</c>.
     /// </summary>
     /// <param name="v">Vertex to transform in place.</param>
     /// <param name="m0">Transform column 0 scale.</param>
@@ -982,7 +935,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Cursor over a byte range of a font image, mirroring <c>stbtt__buf</c>
-    /// (<c>imstb_truetype.h:1120-1132</c>).
     /// </summary>
     /// <remarks>
     /// The canonical structure is passed by pointer or by value; a reference type reproduces the
@@ -1025,7 +977,7 @@ internal sealed class ImStbTrueTypeFont
         /// <returns>An independent cursor over the same range, positioned identically.</returns>
         public CffBuffer Clone() => new(Data, Offset, Size) { Cursor = Cursor };
 
-        /// <summary>Reads one byte and advances. Ported from <c>stbtt__buf_get8</c> (<c>imstb_truetype.h:1138-1143</c>).</summary>
+        /// <summary>Reads one byte and advances. Ported from <c>stbtt__buf_get8</c>.</summary>
         /// <returns>The byte value, or zero at or past the end of the range.</returns>
         public byte Get8()
         {
@@ -1034,7 +986,7 @@ internal sealed class ImStbTrueTypeFont
             return Data[Offset + Cursor++];
         }
 
-        /// <summary>Reads one byte without advancing. Ported from <c>stbtt__buf_peek8</c> (<c>imstb_truetype.h:1145-1150</c>).</summary>
+        /// <summary>Reads one byte without advancing. Ported from <c>stbtt__buf_peek8</c>.</summary>
         /// <returns>The byte value, or zero at or past the end of the range.</returns>
         public byte Peek8()
         {
@@ -1043,15 +995,15 @@ internal sealed class ImStbTrueTypeFont
             return Data[Offset + Cursor];
         }
 
-        /// <summary>Moves the cursor to an absolute position. Ported from <c>stbtt__buf_seek</c> (<c>imstb_truetype.h:1152-1157</c>).</summary>
+        /// <summary>Moves the cursor to an absolute position. Ported from <c>stbtt__buf_seek</c>.</summary>
         /// <param name="o">Position relative to the range start; negative or oversized values clamp to the end.</param>
         public void Seek(int o) => Cursor = (o > Size || o < 0) ? Size : o;
 
-        /// <summary>Moves the cursor by a signed delta. Ported from <c>stbtt__buf_skip</c> (<c>imstb_truetype.h:1159-1162</c>).</summary>
+        /// <summary>Moves the cursor by a signed delta. Ported from <c>stbtt__buf_skip</c>.</summary>
         /// <param name="o">Signed number of bytes to advance; negative values rewind.</param>
         public void Skip(int o) => Seek(Cursor + o);
 
-        /// <summary>Reads a big-endian integer of one to four bytes. Ported from <c>stbtt__buf_get</c> (<c>imstb_truetype.h:1164-1171</c>).</summary>
+        /// <summary>Reads a big-endian integer of one to four bytes. Ported from <c>stbtt__buf_get</c>.</summary>
         /// <param name="n">Number of bytes to read.</param>
         /// <returns>The assembled value.</returns>
         public uint Get(int n)
@@ -1064,7 +1016,7 @@ internal sealed class ImStbTrueTypeFont
 
         /// <summary>
         /// Creates a sub-range of this buffer without moving the cursor. Ported from
-        /// <c>stbtt__buf_range</c> (<c>imstb_truetype.h:1178-1185</c>).
+        /// <c>stbtt__buf_range</c>.
         /// </summary>
         /// <param name="o">Sub-range start relative to this range start.</param>
         /// <param name="s">Sub-range length in bytes.</param>
@@ -1078,7 +1030,7 @@ internal sealed class ImStbTrueTypeFont
 
         /// <summary>
         /// Reads a CFF INDEX and returns its complete byte range, advancing the cursor past it.
-        /// Ported from <c>stbtt__cff_get_index</c> (<c>imstb_truetype.h:1187-1198</c>).
+        /// Ported from <c>stbtt__cff_get_index</c>.
         /// </summary>
         /// <returns>The INDEX range, including its count and offset array.</returns>
         public CffBuffer GetIndex()
@@ -1095,7 +1047,7 @@ internal sealed class ImStbTrueTypeFont
         }
 
         /// <summary>
-        /// Reads one CFF operand, matching <c>stbtt__cff_int</c> (<c>imstb_truetype.h:1200-1211</c>).
+        /// Reads one CFF operand, matching <c>stbtt__cff_int</c>.
         /// </summary>
         /// <returns>The operand value; a reserved leading byte yields zero rather than the canonical assertion.</returns>
         public int GetInt()
@@ -1116,7 +1068,7 @@ internal sealed class ImStbTrueTypeFont
 
         /// <summary>
         /// Skips one operand, including the packed real-number form. Ported from
-        /// <c>stbtt__cff_skip_operand</c> (<c>imstb_truetype.h:1213-1227</c>).
+        /// <c>stbtt__cff_skip_operand</c>.
         /// </summary>
         public void SkipOperand()
         {
@@ -1140,7 +1092,7 @@ internal sealed class ImStbTrueTypeFont
 
         /// <summary>
         /// Returns the operand bytes of the dictionary entry with the given operator. Ported from
-        /// <c>stbtt__dict_get</c> (<c>imstb_truetype.h:1229-1243</c>).
+        /// <c>stbtt__dict_get</c>.
         /// </summary>
         /// <param name="key">Dictionary operator; two-byte operators arrive as <c>0x100 | op</c>.</param>
         /// <returns>The operand byte range, or the empty buffer when the key is absent.</returns>
@@ -1164,7 +1116,7 @@ internal sealed class ImStbTrueTypeFont
 
         /// <summary>
         /// Reads up to <paramref name="outCount"/> operands of a dictionary entry. Ported from
-        /// <c>stbtt__dict_get_ints</c> (<c>imstb_truetype.h:1245-1251</c>).
+        /// <c>stbtt__dict_get_ints</c>.
         /// </summary>
         /// <param name="key">Dictionary operator; two-byte operators arrive as <c>0x100 | op</c>.</param>
         /// <param name="outCount">Maximum operand count to read.</param>
@@ -1178,7 +1130,6 @@ internal sealed class ImStbTrueTypeFont
 
         /// <summary>
         /// Returns the item count of an INDEX. Ported from <c>stbtt__cff_index_count</c>
-        /// (<c>imstb_truetype.h:1253-1257</c>).
         /// </summary>
         /// <returns>The declared item count.</returns>
         public int IndexCount()
@@ -1190,7 +1141,6 @@ internal sealed class ImStbTrueTypeFont
         /// <summary>
         /// Returns one item of an INDEX without disturbing the source cursor, matching the canonical
         /// by-value buffer parameter. Ported from <c>stbtt__cff_index_get</c>
-        /// (<c>imstb_truetype.h:1259-1269</c>).
         /// </summary>
         /// <param name="source">The INDEX range.</param>
         /// <param name="i">Zero-based item index.</param>
@@ -1212,7 +1162,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Resolves the local subroutine INDEX of a CFF font dictionary. Ported from
-    /// <c>stbtt__get_subrs</c> (<c>imstb_truetype.h:1359-1370</c>).
+    /// <c>stbtt__get_subrs</c>.
     /// </summary>
     /// <param name="cff">CFF table range that the dictionary offsets are relative to.</param>
     /// <param name="fontDict">Top dictionary of the font.</param>
@@ -1239,7 +1189,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Returns one subroutine of a subroutine INDEX, applying the count-dependent Type2 bias.
-    /// Ported from <c>stbtt__get_subr</c> (<c>imstb_truetype.h:1972-1983</c>).
+    /// Ported from <c>stbtt__get_subr</c>.
     /// </summary>
     /// <param name="index">Subroutine INDEX.</param>
     /// <param name="n">Subroutine number pushed by the charstring, before biasing.</param>
@@ -1262,7 +1212,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Selects the local subroutines of one glyph in a CID-keyed font. Ported from
-    /// <c>stbtt__cid_get_glyph_subrs</c> (<c>imstb_truetype.h:1985-2012</c>).
+    /// <c>stbtt__cid_get_glyph_subrs</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index whose FDSelect entry names the font dictionary.</param>
     /// <returns>The selected local subroutines, or the empty buffer when FDSelect has no entry.</returns>
@@ -1308,7 +1258,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Accumulator threaded through the Type2 charstring interpreter, mirroring <c>stbtt__csctx</c>
-    /// (<c>imstb_truetype.h:1912-1923</c>).
     /// </summary>
     /// <remarks>
     /// A charstring runs twice: once in bounds mode to count vertices and accumulate the glyph box,
@@ -1356,7 +1305,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Expands the Type2 charstring of one glyph into vertices or bounds. Ported from
-    /// <c>stbtt__run_charstring</c> (<c>imstb_truetype.h:2015-2270</c>).
+    /// <c>stbtt__run_charstring</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index whose charstring is interpreted.</param>
     /// <param name="c">Accumulator receiving vertices in output mode or bounds in bounds mode.</param>
@@ -1642,7 +1591,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Records a point so the glyph box includes it. Ported from <c>stbtt__track_vertex</c>
-    /// (<c>imstb_truetype.h:1916-1923</c>).
     /// </summary>
     /// <param name="c">Accumulator whose bounds are updated.</param>
     /// <param name="x">Point X in font units.</param>
@@ -1662,8 +1610,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Emits one outline vertex, either tracking its bounds or writing it to the output array.
-    /// Ported from <c>stbtt__csctx_v</c> and <c>stbtt_setvertex</c>
-    /// (<c>imstb_truetype.h:1599-1602</c>, <c>1925-1939</c>).
+    /// Ported from <c>stbtt__csctx_v</c> and <c>stbtt_setvertex</c>.
     /// </summary>
     /// <param name="c">Accumulator receiving the vertex.</param>
     /// <param name="type">Vertex kind: move, line, quadratic, or cubic.</param>
@@ -1702,7 +1649,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Closes the current contour with a line back to its start when the pen moved away from it.
-    /// Ported from <c>stbtt__csctx_close_shape</c> (<c>imstb_truetype.h:1941-1945</c>).
+    /// Ported from <c>stbtt__csctx_close_shape</c>.
     /// </summary>
     /// <param name="ctx">Accumulator whose contour is closed.</param>
     private static void CloseShape(CharstringContext ctx)
@@ -1713,7 +1660,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Starts a new contour at a relative offset. Ported from <c>stbtt__csctx_rmove_to</c>
-    /// (<c>imstb_truetype.h:1947-1953</c>).
     /// </summary>
     /// <param name="ctx">Accumulator receiving the move vertex.</param>
     /// <param name="dx">Relative X offset in font units.</param>
@@ -1728,7 +1674,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Adds a relative line segment. Ported from <c>stbtt__csctx_rline_to</c>
-    /// (<c>imstb_truetype.h:1955-1960</c>).
     /// </summary>
     /// <param name="ctx">Accumulator receiving the line vertex.</param>
     /// <param name="dx">Relative X offset in font units.</param>
@@ -1742,7 +1687,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Adds a relative cubic bezier segment. Ported from <c>stbtt__csctx_rccurve_to</c>
-    /// (<c>imstb_truetype.h:1962-1970</c>).
     /// </summary>
     /// <param name="ctx">Accumulator receiving the cubic vertex.</param>
     /// <param name="dx1">First control point relative X offset.</param>
@@ -1764,7 +1708,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Runs a charstring twice to produce an exactly sized vertex array. Ported from
-    /// <c>stbtt__GetGlyphShapeT2</c> (<c>imstb_truetype.h:2274-2289</c>).
+    /// <c>stbtt__GetGlyphShapeT2</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index to decode.</param>
     /// <returns>The outline vertices, or an empty array when the charstring did not terminate.</returns>
@@ -1783,7 +1727,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Computes a glyph's outline bounds and vertex count without materializing the vertices.
-    /// Ported from <c>stbtt__GetGlyphInfoT2</c> (<c>imstb_truetype.h:2291-2301</c>).
+    /// Ported from <c>stbtt__GetGlyphInfoT2</c>.
     /// </summary>
     /// <param name="glyphIndex">Glyph index to measure.</param>
     /// <param name="x0">Receives the minimum X in font units.</param>
@@ -1808,7 +1752,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Flattens outline vertices into one closed point list per contour. Ported from
-    /// <c>stbtt_FlattenCurves</c> (<c>imstb_truetype.h:3652-3695</c>).
+    /// <c>stbtt_FlattenCurves</c>.
     /// </summary>
     /// <param name="vertices">Outline vertices.</param>
     /// <param name="flatness">Maximum pixel deviation allowed when approximating curves.</param>
@@ -1880,7 +1824,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Recursively subdivides a quadratic bezier until it is flat enough. Ported from
-    /// <c>stbtt__tesselate_curve</c> (<c>imstb_truetype.h:3563-3581</c>).
+    /// <c>stbtt__tesselate_curve</c>.
     /// </summary>
     /// <param name="points">Destination point list.</param>
     /// <param name="x0">Start point X.</param>
@@ -1914,7 +1858,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Recursively subdivides a cubic bezier until it is flat enough. Ported from
-    /// <c>stbtt__tesselate_cubic</c> (<c>imstb_truetype.h:3583-3621</c>).
+    /// <c>stbtt__tesselate_cubic</c>.
     /// </summary>
     /// <param name="points">Destination point list.</param>
     /// <param name="x0">Start point X.</param>
@@ -1963,8 +1907,8 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Rasterizes a glyph's outline into an 8-bit coverage bitmap. Ported from
-    /// <c>stbtt_MakeGlyphBitmapSubpixel</c> (<c>imstb_truetype.h:3766-3785</c>) and
-    /// <c>stbtt_Rasterize</c> (<c>imstb_truetype.h:3703-3712</c>).
+    /// <c>stbtt_MakeGlyphBitmapSubpixel</c>. and
+    /// <c>stbtt_Rasterize</c>.
     /// </summary>
     /// <param name="output">Destination pixel buffer, one byte per pixel.</param>
     /// <param name="outW">Bitmap width in pixels.</param>
@@ -1994,7 +1938,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Rasterizes with a box prefilter over supersampled coverage. Ported from
-    /// <c>stbtt_MakeGlyphBitmapSubpixelPrefilter</c> (<c>imstb_truetype.h:4192-4207</c>).
+    /// <c>stbtt_MakeGlyphBitmapSubpixelPrefilter</c>.
     /// </summary>
     /// <param name="output">Destination pixel buffer, one byte per pixel.</param>
     /// <param name="outW">Bitmap width in pixels, including oversampling.</param>
@@ -2027,7 +1971,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Returns the pixel phase correction introduced by box-prefiltering oversampled coverage.
-    /// Ported from <c>stbtt__oversample_shift</c> (<c>imstb_truetype.h:4143-4152</c>).
+    /// Ported from <c>stbtt__oversample_shift</c>.
     /// </summary>
     /// <param name="oversample">Oversampling factor.</param>
     /// <returns>The opposite-direction phase shift in pixels.</returns>
@@ -2040,7 +1984,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Builds, sorts, and scan-converts edges for one glyph outline. Ported from
-    /// <c>stbtt__rasterize</c> (<c>imstb_truetype.h:3498-3553</c>).
+    /// <c>stbtt__rasterize</c>.
     /// </summary>
     /// <param name="result">Destination bitmap.</param>
     /// <param name="flatness">Pixel flatness threshold passed to curve flattening.</param>
@@ -2068,7 +2012,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Expands windings into sorted edges and runs the scanline filler. Ported from
-    /// <c>stbtt__rasterize</c> body (<c>imstb_truetype.h:3509-3550</c>).
+    /// <c>stbtt__rasterize</c> body.
     /// </summary>
     /// <param name="result">Destination bitmap.</param>
     /// <param name="points">Flattened contour points.</param>
@@ -2128,7 +2072,6 @@ internal sealed class ImStbTrueTypeFont
     /// <summary>
     /// Sorts edges by their top Y coordinate using the canonical quicksort plus insertion sort.
     /// Ported from <c>stbtt__sort_edges_quicksort</c> and <c>stbtt__sort_edges_ins_sort</c>
-    /// (<c>imstb_truetype.h:3407-3491</c>).
     /// </summary>
     /// <param name="p">Edge array.</param>
     /// <param name="start">First edge index in the range.</param>
@@ -2141,7 +2084,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Returns whether edge <paramref name="a"/> sorts before edge <paramref name="b"/> by top Y.
-    /// Ports the <c>STBTT__COMPARE</c> macro (<c>imstb_truetype.h:3405</c>).
+    /// Ports the <c>STBTT__COMPARE</c> macro.
     /// </summary>
     /// <param name="a">Left edge.</param>
     /// <param name="b">Right edge.</param>
@@ -2149,7 +2092,7 @@ internal sealed class ImStbTrueTypeFont
     private static bool CompareEdges(in Edge a, in Edge b) => a.Y0 < b.Y0;
 
     /// <summary>
-    /// Ports <c>stbtt__sort_edges_quicksort</c> (<c>imstb_truetype.h:3425-3481</c>) with explicit
+    /// Ports <c>stbtt__sort_edges_quicksort</c>. with explicit
     /// range offsets in place of pointer arithmetic.
     /// </summary>
     /// <param name="p">Edge array.</param>
@@ -2202,7 +2145,7 @@ internal sealed class ImStbTrueTypeFont
     }
 
     /// <summary>
-    /// Ports <c>stbtt__sort_edges_ins_sort</c> (<c>imstb_truetype.h:3409-3423</c>).
+    /// Ports <c>stbtt__sort_edges_ins_sort</c>.
     /// </summary>
     /// <param name="p">Edge array.</param>
     /// <param name="start">First edge index in the range.</param>
@@ -2228,7 +2171,6 @@ internal sealed class ImStbTrueTypeFont
     /// <summary>
     /// Walks sorted edges scanline by scanline, accumulating coverage. Ported from
     /// <c>stbtt__rasterize_sorted_edges</c> rasterizer-version-2 path
-    /// (<c>imstb_truetype.h:3305-3403</c>).
     /// </summary>
     /// <param name="result">Destination bitmap.</param>
     /// <param name="e">Sorted edge array with one trailing sentinel slot.</param>
@@ -2313,7 +2255,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Creates an active edge from a sorted edge at a scanline start. Ported from
-    /// <c>stbtt__new_active</c> version 2 (<c>imstb_truetype.h:2862-2883</c>).
+    /// <c>stbtt__new_active</c> version 2.
     /// </summary>
     /// <param name="e">Sorted edge to activate.</param>
     /// <param name="offX">Destination X origin in pixels.</param>
@@ -2336,7 +2278,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Accumulates coverage from all active edges for one scanline. Ported from
-    /// <c>stbtt__fill_active_edges_new</c> (<c>imstb_truetype.h:3087-3303</c>).
+    /// <c>stbtt__fill_active_edges_new</c>.
     /// </summary>
     /// <param name="scanline">Per-pixel trapezoid coverage for this scanline.</param>
     /// <param name="fill">
@@ -2514,7 +2456,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Adds the coverage of one clipped edge segment to a scanline pixel. Ported from
-    /// <c>stbtt__handle_clipped_edge</c> (<c>imstb_truetype.h:3033-3085</c>).
+    /// <c>stbtt__handle_clipped_edge</c>.
     /// </summary>
     /// <param name="scanline">Coverage array to accumulate into.</param>
     /// <param name="x">Pixel column to accumulate.</param>
@@ -2554,7 +2496,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Returns the area of a trapezoid. Ported from <c>stbtt__sized_trapezoid_area</c>
-    /// (<c>imstb_truetype.h:3062-3067</c>).
     /// </summary>
     /// <param name="height">Trapezoid height.</param>
     /// <param name="topWidth">Width at the top.</param>
@@ -2565,7 +2506,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Returns the area of a trapezoid defined by top and bottom edge positions. Ported from
-    /// <c>stbtt__position_trapezoid_area</c> (<c>imstb_truetype.h:3069-3072</c>).
+    /// <c>stbtt__position_trapezoid_area</c>.
     /// </summary>
     /// <param name="height">Trapezoid height.</param>
     /// <param name="tx0">Top-left position.</param>
@@ -2578,7 +2519,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Returns the area of a triangle. Ported from <c>stbtt__sized_triangle_area</c>
-    /// (<c>imstb_truetype.h:3074-3077</c>).
     /// </summary>
     /// <param name="height">Triangle height.</param>
     /// <param name="width">Triangle base width.</param>
@@ -2587,7 +2527,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Box-prefilters the bitmap horizontally over the oversample kernel. Ported from
-    /// <c>stbtt__h_prefilter</c> (<c>imstb_truetype.h:4020-4080</c>).
+    /// <c>stbtt__h_prefilter</c>.
     /// </summary>
     /// <param name="pixels">Pixel buffer.</param>
     /// <param name="w">Bitmap width in pixels.</param>
@@ -2633,7 +2573,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Box-prefilters the bitmap vertically over the oversample kernel. Ported from
-    /// <c>stbtt__v_prefilter</c> (<c>imstb_truetype.h:4082-4141</c>).
+    /// <c>stbtt__v_prefilter</c>.
     /// </summary>
     /// <param name="pixels">Pixel buffer.</param>
     /// <param name="w">Bitmap width in pixels.</param>
@@ -2670,8 +2610,8 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Reads the horizontal kern adjustment for a glyph pair from the legacy <c>kern</c> table.
-    /// Ported from <c>stbtt__GetGlyphKernInfoAdvance</c> and <c>stbtt_GetGlyphKernAdvance</c>
-    /// (<c>imstb_truetype.h:2364-2392</c>, <c>2615-2625</c>). The GPOS path is not ported; the
+    /// Ported from <c>stbtt__GetGlyphKernInfoAdvance</c> and <c>stbtt_GetGlyphKernAdvance</c>.
+    /// The GPOS path is not ported; the
     /// canonical loader for this repository's embedded font uses the legacy table only.
     /// </summary>
     /// <param name="glyph1">Left glyph index.</param>
@@ -2714,24 +2654,23 @@ internal sealed class ImStbTrueTypeFont
     /// <returns>The byte value.</returns>
     private byte ByteAt(long i) => i >= 0 && i < Data.Length ? Data[i] : (byte)0;
 
-    /// <summary>Reads a big-endian unsigned 16-bit value, matching <c>ttUSHORT</c> (<c>imstb_truetype.h:1291</c>).</summary>
+    /// <summary>Reads a big-endian unsigned 16-bit value, matching <c>ttUSHORT</c>.</summary>
     /// <param name="i">Byte offset into <see cref="Data"/>.</param>
     /// <returns>The value, or zero when out of range.</returns>
     private ushort U16(long i) => (ushort)((ByteAt(i) << 8) | ByteAt(i + 1));
 
-    /// <summary>Reads a big-endian signed 16-bit value, matching <c>ttSHORT</c> (<c>imstb_truetype.h:1292</c>).</summary>
+    /// <summary>Reads a big-endian signed 16-bit value, matching <c>ttSHORT</c>.</summary>
     /// <param name="i">Byte offset into <see cref="Data"/>.</param>
     /// <returns>The value, or zero when out of range.</returns>
     private short S16(long i) => (short)U16(i);
 
-    /// <summary>Reads a big-endian unsigned 32-bit value, matching <c>ttULONG</c> (<c>imstb_truetype.h:1293</c>).</summary>
+    /// <summary>Reads a big-endian unsigned 32-bit value, matching <c>ttULONG</c>.</summary>
     /// <param name="i">Byte offset into <see cref="Data"/>.</param>
     /// <returns>The value, or zero when out of range.</returns>
     private uint U32(long i) => ((uint)ByteAt(i) << 24) | ((uint)ByteAt(i + 1) << 16) | ((uint)ByteAt(i + 2) << 8) | ByteAt(i + 3);
 
     /// <summary>
     /// Tests a four-byte tag at an offset, matching the <c>stbtt_tag4</c> macro
-    /// (<c>imstb_truetype.h:1296</c>).
     /// </summary>
     /// <param name="data">Font file image.</param>
     /// <param name="i">Offset of the tag.</param>
@@ -2755,7 +2694,7 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Tests the sfnt version signatures, matching <c>stbtt__isfont</c>
-    /// (<c>imstb_truetype.h:1299-1309</c>). OpenType-with-CFF is accepted here; <see cref="Init"/>
+    ///. OpenType-with-CFF is accepted here; <see cref="Init"/>
     /// then parses the CFF table when no <c>glyf</c> table exists.
     /// </summary>
     /// <param name="data">Font file image.</param>
@@ -2778,7 +2717,6 @@ internal sealed class ImStbTrueTypeFont
 
     /// <summary>
     /// Finds a table offset in the sfnt directory, matching <c>stbtt__find_table</c>
-    /// (<c>imstb_truetype.h:1311-1322</c>).
     /// </summary>
     /// <param name="data">Font file image.</param>
     /// <param name="fontStart">Offset of the font within the file.</param>

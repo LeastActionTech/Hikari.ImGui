@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -15,8 +19,6 @@ namespace Hikari.ImGui.Test;
 /// </summary>
 /// <remarks>
 /// Every test drives a real <see cref="ImGuiContext"/> with queued mouse position and button events.
-/// Canonical reference: <c>ThirdParty/imgui/imgui_widgets.cpp:7798-8830</c> for the algorithms and
-/// <c>ThirdParty/imgui/imgui.h:3197-3314</c> plus <c>imgui_internal.h:1930-2018</c> for the types.
 /// </remarks>
 [TestFixture]
 public class MultiSelectTests : ImGuiTestFixture
@@ -104,7 +106,7 @@ public class MultiSelectTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <c>BeginMultiSelect()</c> binds the scope identifier, storage and item count,
     /// that an unqualified flag word defaults to window scope, and that <c>EndMultiSelect()</c>
-    /// restores the parent scope. Canonical: <c>imgui_widgets.cpp:8053-8120</c> and <c>:8268-8280</c>.
+    /// restores the parent scope.
     /// </summary>
     [Test]
     public void BeginMultiSelect_BindsScopeAndNormalizesFlags()
@@ -142,7 +144,7 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the single-select flag drops both box-selection flags, mirroring canonical
-    /// normalization. Canonical: <c>imgui_widgets.cpp:8066-8070</c>.
+    /// normalization.
     /// </summary>
     [Test]
     public void BeginMultiSelect_SingleSelect_RemovesBoxSelectFlags()
@@ -166,8 +168,7 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that pressing an unselected item emits a clear-all request followed by a single-item
-    /// range request, and that the item reports a toggled selection. Canonical:
-    /// <c>imgui_widgets.cpp:8466-8560</c>.
+    /// range request, and that the item reports a toggled selection.
     /// </summary>
     [Test]
     public void Selectable_Press_EmitsClearAndSingleItemRange()
@@ -211,8 +212,7 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a Shift press extends the selection from the stored range source to the pressed
-    /// item, producing endpoints in ascending order and a positive direction. Canonical:
-    /// <c>imgui_widgets.cpp:8526-8560</c>.
+    /// item, producing endpoints in ascending order and a positive direction.
     /// </summary>
     [Test]
     public void ShiftPress_EmitsRangeAcrossItems()
@@ -229,7 +229,7 @@ public class MultiSelectTests : ImGuiTestFixture
         _ctx.IO.AddMouseButtonEvent(0, false);
         MultiSelectFrame(ImGuiMultiSelectFlags.None, () => SubmitItems(selected, null));
 
-        // Shift-press item 2: the range spans 0..2 with a positive direction.
+        // Shift-press item 2: the range spans 0.2 with a positive direction.
         _ctx.IO.AddKeyEvent(ImGuiKey.ImGuiMod_Shift, true);
         _ctx.IO.AddMousePosEvent(centers[2].X, centers[2].Y);
         MultiSelectFrame(ImGuiMultiSelectFlags.None, () => SubmitItems(selected, null));
@@ -280,7 +280,7 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that the clear-on-click-void flag emits a single clear-all request when empty space
-    /// in the scope is released without dragging. Canonical: <c>imgui_widgets.cpp:8228-8252</c>.
+    /// in the scope is released without dragging.
     /// </summary>
     [Test]
     public void ClearOnClickVoid_Release_EmitsClearAll()
@@ -317,8 +317,8 @@ public class MultiSelectTests : ImGuiTestFixture
     /// Verifies that a <c>TreeNode</c> submitted inside a multi-select scope becomes a multi-select item:
     /// its open behavior is promoted to open-on-arrow and open-on-double-click, clicking the label
     /// selects the node instead of toggling it open, and the scope emits the canonical clear-all request
-    /// followed by a single-item range request. Canonical:
-    /// <c>imgui_widgets.cpp:7040-7043, 7067-7077, 7124-7131</c>.
+    /// followed by a single-item range request.
+    /// <c>, 7067-7077, 7124-7131</c>.
     /// </summary>
     [Test]
     public void TreeNode_PressOnLabel_SelectsInsteadOfTogglingOpen()
@@ -405,8 +405,8 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies <c>ImGuiSelectionBasicStorage.ApplyRequests</c> for a select-all followed by a range
-    /// clear, together with concrete <c>Size</c>, <c>Contains</c> and iteration results. Canonical:
-    /// <c>imgui_widgets.cpp:8730-8800</c> and <c>:8678-8701</c>.
+    /// clear, together with concrete <c>Size</c>, <c>Contains</c> and iteration results.
+    ///  and <c>:8678-8701</c>.
     /// </summary>
     [Test]
     public void SelectionBasicStorage_ApplySelectAllAndRangeClear_UpdatesSelection()
@@ -455,7 +455,7 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>PreserveOrder</c> returns items in selection order and restores the
-    /// identifier ordering when the iteration completes. Canonical: <c>imgui_widgets.cpp:8681-8700</c>.
+    /// identifier ordering when the iteration completes.
     /// </summary>
     [Test]
     public void SelectionBasicStorage_PreserveOrder_IteratesInSelectionOrder()
@@ -477,7 +477,6 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>Swap</c> exchanges the two selections, including stores of different sizes.
-    /// Canonical: <c>imgui_widgets.cpp:8657-8662</c>.
     /// </summary>
     [Test]
     public void SelectionBasicStorage_Swap_ExchangesContents()
@@ -501,8 +500,7 @@ public class MultiSelectTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <c>ImGuiSelectionExternalStorage.ApplyRequests</c> invokes the adapter for every
-    /// item of a select-all request and for each endpoint of a range request. Canonical:
-    /// <c>imgui_widgets.cpp:8810-8829</c>.
+    /// item of a select-all request and for each endpoint of a range request.
     /// </summary>
     [Test]
     public void SelectionExternalStorage_ApplyRequests_InvokesAdapter()
@@ -545,8 +543,7 @@ public class MultiSelectTests : ImGuiTestFixture
     /// <summary>
     /// Verifies the box-selection state transitions from a synthesized drag: a press in void space
     /// marks the drag as starting, moving past the drag threshold activates it and computes the
-    /// clip-unlock rectangle, and releasing deactivates it. Canonical:
-    /// <c>imgui_widgets.cpp:7877-8006</c>.
+    /// clip-unlock rectangle, and releasing deactivates it.
     /// </summary>
     [Test]
     public void BoxSelect_PressDragRelease_TransitionsAndComputesUnclipRect()

@@ -1,44 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-// ROLE IN ENGINE
-//   Pure C# port of the text-editing state machine that Dear ImGui bundles as imstb_textedit.h.
-//   It maps mouse and keyboard input onto insertions, deletions, cursor movement, selection changes,
-//   and undo/redo records for one active InputText() field. The port carries no display or rendering
-//   logic: the host draws from the cursor and selection offsets it maintains here.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-//
-//   ┌───────────────────────────────────────────────┐
-//   │ ImGuiInputTextState / ImStbTexteditState      │
-//   │ • UTF-8 byte buffer, cursor, selection, undo  │
-//   └───────────────────────────────────────────────┘
-//                          │ key / click / drag / text
-//                          ▼
-//   ┌───────────────────────────────────────────────┐
-//   │ ImStbTextedit                                 │
-//   │ • key, drag and undo state machine            │
-//   │ • layout and word-boundary hooks              │
-//   └───────────────────────────────────────────────┘
-//                          │ mutated buffer and offsets
-//                          ▼
-//   ┌───────────────────────────────────────────────┐
-//   │ InputText() host (cursor drawing, scrolling)  │
-//   └───────────────────────────────────────────────┘
-//
-// STYLIZED USAGE EXAMPLE
-//
-//   var state = new ImGuiInputTextState { Ctx = ctx, BufCapacity = 64 };
-//   state.TextA.AddRange("hello"u8.ToArray());
-//   state.TextA.Add(0);
-//   state.TextLen = 5;
-//   ImStbTextedit.InitializeState(state.Stb, isSingleLine: true);
-//   ImStbTextedit.Click(state, 12.0f, 0.0f);
-//   ImStbTextedit.Key(state, ImStbTextedit.KeyRight);
-//   ImStbTextedit.Text(state, "!"u8);
-//
-// THREADING & LIFECYCLE NOTES
-//   The state machine is not thread-safe. The owning context drives it from the UI thread, and exactly
-//   one ImGuiInputTextState is edited at a time. No method allocates on the heap except when the host
-//   buffer is resized for a resizable field, so the key and drag paths stay allocation-free.
 
 using System;
 using System.Collections.Generic;
@@ -63,98 +27,93 @@ namespace Hikari.ImGui;
 /// <para>
 /// <b>Host configuration deviations.</b> The task briefing assumed
 /// <c>#define STB_TEXTEDIT_KEYTYPE ImGuiKey</c>; the definitive checkout does not define it, so the
-/// key type is the canonical <c>int</c> (<c>imstb_textedit.h:792-794</c>,
-/// <c>imgui_internal.h:1304</c> <c>OnKeyPressed(int)</c>). The key constants are the exact
-/// <c>0x200000</c>-based values from <c>imgui_widgets.cpp:4271-4287</c>. Dear ImGui deliberately
+/// key type is the canonical <c>int</c> (,
+///  <c>OnKeyPressed(int)</c>). The key constants are the exact
+/// <c>0x200000</c>-based values. Dear ImGui deliberately
 /// leaves <c>STB_TEXTEDIT_KEYTOTEXT</c> undefined and does not use <c>STB_TEXTEDIT_IS_SPACE</c>
-/// (<c>imgui_widgets.cpp:4042-4044</c>); character input arrives through <see cref="Text"/>, which
+///.; character input arrives through <see cref="Text"/>, which
 /// corresponds to canonical <c>stb_textedit_text</c>. The optional hooks are provided for interface
 /// completeness and documented as inert in this configuration. Word movement likewise follows the
 /// Dear ImGui overrides <c>STB_TEXTEDIT_MOVEWORDLEFT_IMPL</c>/<c>STB_TEXTEDIT_MOVEWORDRIGHT_IMPL</c>
-/// (<c>imgui_widgets.cpp:4130-4155</c>) rather than the canonical optional default handlers, so it is
+///. rather than the canonical optional default handlers, so it is
 /// separator-aware and platform-dependent.
 /// </para>
 /// <para>
 /// <b>Layout hooks.</b> Canonical's <c>InputTextCalcTextSize</c> measures the UTF-8 buffer directly
-/// (<c>imgui_widgets.cpp:4032-4062</c>). This port's <see cref="ImFont.CalcTextSizeA"/> is UTF-16
+///. This port's <see cref="ImFont.CalcTextSizeA"/> is UTF-16
 /// based, so <see cref="LayoutRow"/> and <see cref="GetWidth"/> measure the UTF-8 bytes through
 /// <see cref="ImFontBaked.GetCharAdvance"/> using the same advance scaling and word-wrap classifier
-/// as canonical <c>ImFontCalcTextSizeEx</c> (<c>imgui_draw.cpp:5673-5762</c>) and
-/// <c>ImFontCalcWordWrapPositionEx</c> (<c>imgui_draw.cpp:5553-5666</c>). The wrap width used is the
+/// as canonical <c>ImFontCalcTextSizeEx</c>. and
+/// <c>ImFontCalcWordWrapPositionEx</c>. The wrap width used is the
 /// host-provided <see cref="ImGuiInputTextState.WrapWidth"/>, which the canonical host computes with
 /// <c>ImGui.CalcWrapWidthForPos</c> before entering the state machine.
-/// </para>
-/// <para>
-/// The canonical header is <c>ThirdParty/imgui/imstb_textedit.h</c> at commit <c>b48d1af</c>, and the
-/// host integration is <c>ThirdParty/imgui/imgui_widgets.cpp:3998-4600</c>. Every member cites the
-/// canonical line range it ports.
 /// </para>
 /// </remarks>
 internal static class ImStbTextedit
 {
     #region Key constants and undo limits
 
-    /// <summary>Key input moving the cursor one character left (<c>imgui_widgets.cpp:4271</c>).</summary>
+    /// <summary>Key input moving the cursor one character left.</summary>
     public const int KeyLeft = 0x200000;
 
-    /// <summary>Key input moving the cursor one character right (<c>imgui_widgets.cpp:4272</c>).</summary>
+    /// <summary>Key input moving the cursor one character right.</summary>
     public const int KeyRight = 0x200001;
 
-    /// <summary>Key input moving the cursor one row up (<c>imgui_widgets.cpp:4273</c>).</summary>
+    /// <summary>Key input moving the cursor one row up.</summary>
     public const int KeyUp = 0x200002;
 
-    /// <summary>Key input moving the cursor one row down (<c>imgui_widgets.cpp:4274</c>).</summary>
+    /// <summary>Key input moving the cursor one row down.</summary>
     public const int KeyDown = 0x200003;
 
-    /// <summary>Key input moving the cursor to the start of its visual line (<c>imgui_widgets.cpp:4275</c>).</summary>
+    /// <summary>Key input moving the cursor to the start of its visual line.</summary>
     public const int KeyLineStart = 0x200004;
 
-    /// <summary>Key input moving the cursor to the end of its visual line (<c>imgui_widgets.cpp:4276</c>).</summary>
+    /// <summary>Key input moving the cursor to the end of its visual line.</summary>
     public const int KeyLineEnd = 0x200005;
 
-    /// <summary>Key input moving the cursor to the start of the whole text (<c>imgui_widgets.cpp:4277</c>).</summary>
+    /// <summary>Key input moving the cursor to the start of the whole text.</summary>
     public const int KeyTextStart = 0x200006;
 
-    /// <summary>Key input moving the cursor to the end of the whole text (<c>imgui_widgets.cpp:4278</c>).</summary>
+    /// <summary>Key input moving the cursor to the end of the whole text.</summary>
     public const int KeyTextEnd = 0x200007;
 
-    /// <summary>Key input deleting the selection or the character under the cursor (<c>imgui_widgets.cpp:4279</c>).</summary>
+    /// <summary>Key input deleting the selection or the character under the cursor.</summary>
     public const int KeyDelete = 0x200008;
 
-    /// <summary>Key input deleting the selection or the character left of the cursor (<c>imgui_widgets.cpp:4280</c>).</summary>
+    /// <summary>Key input deleting the selection or the character left of the cursor.</summary>
     public const int KeyBackspace = 0x200009;
 
-    /// <summary>Key input performing one undo step (<c>imgui_widgets.cpp:4281</c>).</summary>
+    /// <summary>Key input performing one undo step.</summary>
     public const int KeyUndo = 0x20000A;
 
-    /// <summary>Key input performing one redo step (<c>imgui_widgets.cpp:4282</c>).</summary>
+    /// <summary>Key input performing one redo step.</summary>
     public const int KeyRedo = 0x20000B;
 
-    /// <summary>Key input moving the cursor one word left (<c>imgui_widgets.cpp:4283</c>).</summary>
+    /// <summary>Key input moving the cursor one word left.</summary>
     public const int KeyWordLeft = 0x20000C;
 
-    /// <summary>Key input moving the cursor one word right (<c>imgui_widgets.cpp:4284</c>).</summary>
+    /// <summary>Key input moving the cursor one word right.</summary>
     public const int KeyWordRight = 0x20000D;
 
-    /// <summary>Key input moving the cursor one page up (<c>imgui_widgets.cpp:4285</c>).</summary>
+    /// <summary>Key input moving the cursor one page up.</summary>
     public const int KeyPageUp = 0x20000E;
 
-    /// <summary>Key input moving the cursor one page down (<c>imgui_widgets.cpp:4286</c>).</summary>
+    /// <summary>Key input moving the cursor one page down.</summary>
     public const int KeyPageDown = 0x20000F;
 
-    /// <summary>Bit or-ed into a movement key to extend the selection (<c>imgui_widgets.cpp:4287</c>).</summary>
+    /// <summary>Bit or-ed into a movement key to extend the selection.</summary>
     public const int KeyShift = 0x400000;
 
-    /// <summary>Number of undo records, matching <c>IMSTB_TEXTEDIT_UNDOSTATECOUNT</c> (<c>imstb_textedit.h:312</c>).</summary>
+    /// <summary>Number of undo records, matching <c>IMSTB_TEXTEDIT_UNDOSTATECOUNT</c>.</summary>
     private const int UndoStateCount = 99;
 
-    /// <summary>Number of characters stored by the undo system, matching <c>IMSTB_TEXTEDIT_UNDOCHARCOUNT</c> (<c>imstb_textedit.h:315</c>).</summary>
+    /// <summary>Number of characters stored by the undo system, matching <c>IMSTB_TEXTEDIT_UNDOCHARCOUNT</c>.</summary>
     private const int UndoCharCount = 999;
 
-    /// <summary>Width returned for a newline so up/down movement stops at the row break (<c>imgui_internal.h:1265</c>).</summary>
+    /// <summary>Width returned for a newline so up/down movement stops at the row break.</summary>
     private const float GetWidthNewline = -1.0f;
 
-    /// <summary>Sentinel meaning "no valid undo record or character storage" (<c>imstb_textedit.h:1273</c>).</summary>
+    /// <summary>Sentinel meaning "no valid undo record or character storage".</summary>
     private const int NoUndoRecord = -1;
 
     #endregion
@@ -163,7 +122,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// One laid-out row of characters; mirrors canonical <c>StbTexteditRow</c>
-    /// (<c>imstb_textedit.h:389-395</c>).
     /// </summary>
     private struct TexteditRow
     {
@@ -188,7 +146,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Character location plus previous-row bookkeeping; mirrors canonical <c>StbFindState</c>
-    /// (<c>imstb_textedit.h:553-559</c>).
     /// </summary>
     private struct FindState
     {
@@ -217,7 +174,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the UTF-8 byte length of the edited text; the <c>STB_TEXTEDIT_STRINGLEN</c> hook
-    /// (<c>imgui_widgets.cpp:4047</c>).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <returns>The number of UTF-8 bytes in <see cref="ImGuiInputTextState.TextA"/>.</returns>
@@ -228,7 +184,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the byte at a position, or zero at and beyond the end; the <c>STB_TEXTEDIT_GETCHAR</c>
-    /// hook (<c>imgui_widgets.cpp:4048</c>). Canonical asserts <c>idx &lt;= TextLen</c> and reads the
+    /// hook. Canonical asserts <c>idx &lt;= TextLen</c> and reads the
     /// zero terminator at <c>TextLen</c>; this port returns zero rather than reading past the buffer.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -241,7 +197,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Deletes <paramref name="count"/> bytes at <paramref name="pos"/> and marks the field edited;
-    /// the <c>STB_TEXTEDIT_DELETECHARS</c> hook (<c>imgui_widgets.cpp:4226-4235</c>). The canonical
+    /// the <c>STB_TEXTEDIT_DELETECHARS</c> hook. The canonical
     /// <c>memmove</c> also copies the zero terminator; this port copies the remaining bytes and then
     /// re-writes the terminator.
     /// </summary>
@@ -273,7 +229,7 @@ internal static class ImStbTextedit
     /// <summary>
     /// Inserts the leading bytes of <paramref name="newText"/> at <paramref name="pos"/> and returns
     /// how many bytes were inserted; the <c>STB_TEXTEDIT_INSERTCHARS</c> hook
-    /// (<c>imgui_widgets.cpp:4237-4268</c>). A non-resizable field truncates the insertion to the
+    ///. A non-resizable field truncates the insertion to the
     /// closest UTF-8 codepoint boundary within the user buffer capacity.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -286,7 +242,7 @@ internal static class ImStbTextedit
         int textLen = obj.TextLen;
         int newTextLen = newText.Length;
 
-        // We support partial insertion (with a mod in stb_textedit.h).
+        // We support partial insertion.
         int avail = obj.BufCapacity - 1 - textLen;
         if (!isResizable && newTextLen > avail)
         {
@@ -341,7 +297,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the state backing the edited text; canonical accesses <c>str-&gt;Stb</c> directly in
-    /// several hooks (<c>imstb_textedit.h:588</c>, <c>imgui_widgets.cpp:4332-4336</c>).
+    /// several hooks (, ).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <returns>The embedded editor state.</returns>
@@ -356,8 +312,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Decodes the codepoint starting at a byte offset. Canonical uses
-    /// <c>ImTextCharFromUtf8</c> over the UTF-8 buffer (<c>imgui_widgets.cpp:4049</c>,
-    /// <c>4083-4153</c>); this port reuses <see cref="ImFont.ImTextCharFromUtf8"/>.
+    /// <c>ImTextCharFromUtf8</c> over the UTF-8 buffer; this port reuses <see cref="ImFont.ImTextCharFromUtf8"/>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="idx">Byte offset of the codepoint; at or beyond the length the terminator decodes as zero.</param>
@@ -377,7 +332,6 @@ internal static class ImStbTextedit
     /// <summary>
     /// Returns the number of UTF-8 bytes consumed by the codepoint starting at a byte offset.
     /// Canonical <c>IMSTB_TEXTEDIT_GETNEXTCHARINDEX_IMPL</c> uses the same decode
-    /// (<c>imgui_widgets.cpp:4067-4073</c>).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="idx">Byte offset of the codepoint.</param>
@@ -391,7 +345,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the byte offset after the codepoint at <paramref name="idx"/>; canonical
-    /// <c>IMSTB_TEXTEDIT_GETNEXTCHARINDEX_IMPL</c> (<c>imgui_widgets.cpp:4067-4073</c>). Positions at
+    /// <c>IMSTB_TEXTEDIT_GETNEXTCHARINDEX_IMPL</c>. Positions at
     /// or beyond the end return <c>TextLen + 1</c>, which callers clamp.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -411,7 +365,7 @@ internal static class ImStbTextedit
     /// <summary>
     /// Returns the start of the codepoint before <paramref name="idx"/>; canonical
     /// <c>IMSTB_TEXTEDIT_GETPREVCHARINDEX_IMPL</c> and <c>ImTextFindPreviousUtf8Codepoint</c>
-    /// (<c>imgui_widgets.cpp:4075-4081</c>, <c>imgui.cpp:2882-2891</c>). Returns -1 at or before the
+    /// (, ). Returns -1 at or before the
     /// start of the text.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -439,8 +393,8 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Truncates a byte range to the closest valid UTF-8 codepoint boundary; ports
-    /// <c>ImTextFindValidUtf8CodepointEnd</c> (<c>imgui.cpp:2893-2903</c>, used by
-    /// <c>imgui_widgets.cpp:4246</c>). A limit inside a codepoint backs up to that codepoint's start.
+    /// <c>ImTextFindValidUtf8CodepointEnd</c> (, used by
+    /// ). A limit inside a codepoint backs up to that codepoint's start.
     /// </summary>
     /// <param name="text">Candidate insertion bytes.</param>
     /// <param name="at">Requested byte limit.</param>
@@ -484,7 +438,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the baked font the host measures with; canonical reads <c>g.FontBaked</c>
-    /// (<c>imgui_widgets.cpp:4049</c>).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <returns>The baked font, or null when no frame has resolved one.</returns>
@@ -506,7 +459,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the scale from baked-font units to pixels; canonical multiplies by
-    /// <c>g.FontBakedScale</c> (<c>imgui_widgets.cpp:4049</c>, <c>imgui.cpp:1288</c>).
+    /// <c>g.FontBakedScale</c> (, ).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="baked">Baked font the advance is read from.</param>
@@ -523,7 +476,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Lays out one row and reports its width, height, and byte length; the
-    /// <c>STB_TEXTEDIT_LAYOUTROW</c> hook (<c>imgui_widgets.cpp:4051-4062</c>).
+    /// <c>STB_TEXTEDIT_LAYOUTROW</c> hook.
     /// </summary>
     /// <param name="row">Receives the laid-out row.</param>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -546,7 +499,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the pixel advance from one character to the next on a row; the
-    /// <c>STB_TEXTEDIT_GETWIDTH</c> hook (<c>imgui_widgets.cpp:4049</c>). A newline reports
+    /// <c>STB_TEXTEDIT_GETWIDTH</c> hook. A newline reports
     /// <see cref="GetWidthNewline"/> so row-walking loops stop at the break.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -568,7 +521,7 @@ internal static class ImStbTextedit
     /// <summary>
     /// Measures a UTF-8 byte run with a hard width limit, reporting how many bytes were consumed;
     /// ports <c>ImFontCalcTextSizeEx</c> as invoked by <c>InputTextCalcTextSize</c>
-    /// (<c>imgui_draw.cpp:5673-5762</c>, <c>imgui_widgets.cpp:4032-4038</c>). The port's own
+    /// (, ). The port's own
     /// <see cref="ImFont.CalcTextSizeA"/> is UTF-16 based, so this hook walks the UTF-8 bytes directly.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -669,7 +622,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Advances past trailing blanks and a newline at a wrap boundary; ports
-    /// <c>ImTextCalcWordWrapNextLineStart</c> (<c>imgui_draw.cpp:5491-5499</c>).
+    /// <c>ImTextCalcWordWrapNextLineStart</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="at">Current byte offset.</param>
@@ -696,8 +649,8 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the byte offset where wrapping should break; ports
-    /// <c>ImFontCalcWordWrapPositionEx</c> (<c>imgui_draw.cpp:5553-5666</c>), including its separator
-    /// classification (<c>imgui_draw.cpp:5533-5548</c>).
+    /// <c>ImFontCalcWordWrapPositionEx</c>., including its separator
+    /// classification.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="start">First byte offset of the candidate line.</param>
@@ -808,7 +761,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Classifies a codepoint for word wrapping; reproduces the canonical classifier tables
-    /// (<c>imgui_draw.cpp:5529-5548</c>).
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns>One of <see cref="WcharClassBlank"/>, <see cref="WcharClassPunct"/>, or <see cref="WcharClassOther"/>.</returns>
@@ -833,8 +785,8 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reports whether a codepoint is whitespace; the optional <c>STB_TEXTEDIT_IS_SPACE</c> hook
-    /// (<c>imstb_textedit.h:174</c>). Dear ImGui does not use this hook because it overrides word
-    /// movement with separator-aware handlers (<c>imgui_widgets.cpp:4042-4044</c>); it is retained so
+    ///. Dear ImGui does not use this hook because it overrides word
+    /// movement with separator-aware handlers.; it is retained so
     /// the port exposes the complete canonical interface.
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
@@ -846,9 +798,9 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Maps a key input to an insertable character; the optional <c>STB_TEXTEDIT_KEYTOTEXT</c> hook
-    /// (<c>imstb_textedit.h:144-146</c>). Dear ImGui deliberately leaves it undefined for UTF-8 and
-    /// routes characters through <see cref="Text"/> instead (<c>imstb_textedit.h:185-190</c>,
-    /// <c>imgui_widgets.cpp:4339-4348</c>); this port therefore maps no keys and returns -1.
+    ///. Dear ImGui deliberately leaves it undefined for UTF-8 and
+    /// routes characters through <see cref="Text"/> instead (,
+    /// ); this port therefore maps no keys and returns -1.
     /// </summary>
     /// <param name="key">Key input value.</param>
     /// <returns>Always -1 in this configuration.</returns>
@@ -857,7 +809,7 @@ internal static class ImStbTextedit
         return -1;
     }
 
-    /// <summary>Separator codepoints used by the word-boundary handlers (<c>imgui_widgets.cpp:4083-4095</c>).</summary>
+    /// <summary>Separator codepoints used by the word-boundary handlers.</summary>
     private static readonly uint[] SeparatorList =
     {
         ',', 0x3001, '.', 0x3002, ';', 0xFF1B, '(', 0xFF08, ')', 0xFF09, '{', 0xFF5B, '}', 0xFF5D,
@@ -867,7 +819,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reports whether a codepoint is one of the hard-coded word separators; ports
-    /// <c>ImCharIsSeparatorW</c> (<c>imgui_widgets.cpp:4083-4095</c>).
+    /// <c>ImCharIsSeparatorW</c>.
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns><see langword="true"/> when the codepoint is a separator.</returns>
@@ -886,7 +838,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reports whether a codepoint is a blank; ports <c>ImCharIsBlankW</c>
-    /// (<c>imgui_internal.h:422</c>).
     /// </summary>
     /// <param name="c">Unicode codepoint.</param>
     /// <returns><see langword="true"/> for space, tab, and the CJK ideographic space.</returns>
@@ -897,7 +848,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reports whether <paramref name="idx"/> is a word boundary when scanning right; ports
-    /// <c>is_word_boundary_from_right</c> (<c>imgui_widgets.cpp:4097-4113</c>). Password fields never
+    /// <c>is_word_boundary_from_right</c>. Password fields never
     /// report a boundary so the shortcut cannot leak the underlying separators.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -923,7 +874,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reports whether <paramref name="idx"/> is a word boundary when scanning left; ports
-    /// <c>is_word_boundary_from_left</c> (<c>imgui_widgets.cpp:4114-4129</c>), including its
+    /// <c>is_word_boundary_from_left</c>., including its
     /// intentionally swapped current/previous decode.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -950,7 +901,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the previous word start; ports <c>STB_TEXTEDIT_MOVEWORDLEFT_IMPL</c>
-    /// (<c>imgui_widgets.cpp:4130-4136</c>).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="idx">Current byte offset.</param>
@@ -968,7 +918,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the next word start for Windows-style word movement; ports
-    /// <c>STB_TEXTEDIT_MOVEWORDRIGHT_WIN</c> (<c>imgui_widgets.cpp:4145-4152</c>).
+    /// <c>STB_TEXTEDIT_MOVEWORDRIGHT_WIN</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="idx">Current byte offset.</param>
@@ -987,7 +937,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the next word start for macOS-style word movement; ports
-    /// <c>STB_TEXTEDIT_MOVEWORDRIGHT_MAC</c> (<c>imgui_widgets.cpp:4137-4144</c>).
+    /// <c>STB_TEXTEDIT_MOVEWORDRIGHT_MAC</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="idx">Current byte offset.</param>
@@ -1006,7 +956,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the next word start, selecting the platform behavior; ports
-    /// <c>STB_TEXTEDIT_MOVEWORDRIGHT_IMPL</c> (<c>imgui_widgets.cpp:4153</c>).
+    /// <c>STB_TEXTEDIT_MOVEWORDRIGHT_IMPL</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="idx">Current byte offset.</param>
@@ -1023,7 +973,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the start of its visual line, honoring word wrap; ports
-    /// <c>STB_TEXTEDIT_MOVELINESTART_IMPL</c> (<c>imgui_widgets.cpp:4158-4192</c>).
+    /// <c>STB_TEXTEDIT_MOVELINESTART_IMPL</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; single-line fields always return zero.</param>
@@ -1080,7 +1030,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the end of its visual line, honoring word wrap; ports
-    /// <c>STB_TEXTEDIT_MOVELINEEND_IMPL</c> (<c>imgui_widgets.cpp:4194-4221</c>).
+    /// <c>STB_TEXTEDIT_MOVELINEEND_IMPL</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; single-line fields always return the text end.</param>
@@ -1128,7 +1078,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Returns the byte offset of the start of the hard line containing <paramref name="cursor"/>;
-    /// ports <c>ImStrbol</c> (<c>imgui.cpp:2337-2343</c>).
+    /// ports <c>ImStrbol</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="cursor">Byte offset within the line.</param>
@@ -1150,7 +1100,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Finds the nearest character to a display position and reports which side of it the point
-    /// falls on; ports <c>stb_text_locate_coord</c> (<c>imstb_textedit.h:433-496</c>).
+    /// falls on; ports <c>stb_text_locate_coord</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="x">Widget-relative x coordinate.</param>
@@ -1231,7 +1181,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to a clicked position and resets the selection; the <c>stb_textedit_click</c>
-    /// entry point (<c>imstb_textedit.h:499-516</c>).
+    /// entry point.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="x">Widget-relative x coordinate.</param>
@@ -1257,7 +1207,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor and the selection endpoint to a dragged position; the <c>stb_textedit_drag</c>
-    /// entry point (<c>imstb_textedit.h:519-539</c>).
+    /// entry point.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="x">Widget-relative x coordinate.</param>
@@ -1290,7 +1240,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reports whether the editor currently holds a selection; the canonical
-    /// <c>STB_TEXT_HAS_SELECTION</c> macro (<c>imstb_textedit.h:613</c>).
+    /// <c>STB_TEXT_HAS_SELECTION</c> macro.
     /// </summary>
     /// <param name="state">Editor state; must not be null.</param>
     /// <returns><see langword="true"/> when the selection endpoints differ.</returns>
@@ -1301,7 +1251,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Canonicalizes a selection so that the start is not greater than the end; ports
-    /// <c>stb_textedit_sortselection</c> (<c>imstb_textedit.h:654-661</c>).
+    /// <c>stb_textedit_sortselection</c>.
     /// </summary>
     /// <param name="state">Editor state; must not be null.</param>
     private static void SortSelection(ImStbTexteditState state)
@@ -1316,7 +1266,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Clamps the cursor and selection to the current text length; ports
-    /// <c>stb_textedit_clamp</c> (<c>imstb_textedit.h:616-627</c>).
+    /// <c>stb_textedit_clamp</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -1349,7 +1299,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Updates the selection and cursor to match each other; ports
-    /// <c>stb_textedit_prep_selection_at_cursor</c> (<c>imstb_textedit.h:755-761</c>).
+    /// <c>stb_textedit_prep_selection_at_cursor</c>.
     /// </summary>
     /// <param name="state">Editor state; must not be null.</param>
     public static void PrepSelectionAtCursor(ImStbTexteditState state)
@@ -1366,7 +1316,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the first character of the selection; ports
-    /// <c>stb_textedit_move_to_first</c> (<c>imstb_textedit.h:664-672</c>).
+    /// <c>stb_textedit_move_to_first</c>.
     /// </summary>
     /// <param name="state">Editor state; must not be null.</param>
     public static void MoveToFirst(ImStbTexteditState state)
@@ -1382,7 +1332,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Moves the cursor to the last character of the selection; ports
-    /// <c>stb_textedit_move_to_last</c> (<c>imstb_textedit.h:675-684</c>).
+    /// <c>stb_textedit_move_to_last</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -1400,7 +1350,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Deletes a byte range while recording the deletion for undo; ports
-    /// <c>stb_textedit_delete</c> (<c>imstb_textedit.h:630-635</c>).
+    /// <c>stb_textedit_delete</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -1415,7 +1365,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Deletes the current selection and collapses the cursor to the deletion point; ports
-    /// <c>stb_textedit_delete_selection</c> (<c>imstb_textedit.h:638-651</c>).
+    /// <c>stb_textedit_delete_selection</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -1445,9 +1395,8 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Processes one character input and inserts it, replacing the selection or, in insert mode, the
-    /// character under the cursor; ports <c>stb_textedit_text</c> (<c>imstb_textedit.h:798-821</c>).
+    /// character under the cursor; ports <c>stb_textedit_text</c>.
     /// Dear ImGui delivers characters here through <c>OnCharPressed</c>
-    /// (<c>imgui_widgets.cpp:4339-4348</c>).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="text">One UTF-8 encoded character; an empty span is ignored.</param>
@@ -1491,7 +1440,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Processes one keyboard input; the <c>stb_textedit_key</c> entry point
-    /// (<c>imstb_textedit.h:824-1192</c>). Movement, selection, deletion, and undo/redo are all
+    ///. Movement, selection, deletion, and undo/redo are all
     /// driven from this switch.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -1904,8 +1853,8 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Finds the x/y location of a character and remembers the previous row for up movement; ports
-    /// <c>stb_textedit_find_charpos</c> (<c>imstb_textedit.h:563-611</c>), including the Dear ImGui
-    /// wrap-point and last-line special cases (<c>imstb_textedit.h:588-599</c>).
+    /// <c>stb_textedit_find_charpos</c>., including the Dear ImGui
+    /// wrap-point and last-line special cases.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -1985,7 +1934,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Drops the entire redo list, which happens whenever a new undo record is created; ports
-    /// <c>stb_textedit_flush_redo</c> (<c>imstb_textedit.h:1200-1204</c>).
+    /// <c>stb_textedit_flush_redo</c>.
     /// </summary>
     /// <param name="state">Undo storage; must not be null.</param>
     private static void FlushRedo(StbUndoState state)
@@ -1996,7 +1945,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Discards the oldest undo record and shifts the remaining records down; ports
-    /// <c>stb_textedit_discard_undo</c> (<c>imstb_textedit.h:1207-1223</c>). The canonical
+    /// <c>stb_textedit_discard_undo</c>. The canonical
     /// <c>memmove</c> calls become array shifts because the records are references.
     /// </summary>
     /// <param name="state">Undo storage; must not be null.</param>
@@ -2026,7 +1975,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Discards the oldest redo record and shifts the remaining records up; ports
-    /// <c>stb_textedit_discard_redo</c> (<c>imstb_textedit.h:1229-1257</c>) including the Dear ImGui
+    /// <c>stb_textedit_discard_redo</c>. including the Dear ImGui
     /// record-move fix. The canonical <c>memmove</c> calls become array shifts.
     /// </summary>
     /// <param name="state">Undo storage; must not be null.</param>
@@ -2057,7 +2006,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Reserves an undo record with space for <paramref name="numChars"/> characters; ports
-    /// <c>stb_text_create_undo_record</c> (<c>imstb_textedit.h:1259-1281</c>). Returns -1 when the
+    /// <c>stb_text_create_undo_record</c>. Returns -1 when the
     /// characters cannot fit and undo must be abandoned.
     /// </summary>
     /// <param name="state">Undo storage; must not be null.</param>
@@ -2093,7 +2042,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Creates one undo record and reserves character storage for it; ports
-    /// <c>stb_text_createundo</c> (<c>imstb_textedit.h:1283-1301</c>).
+    /// <c>stb_text_createundo</c>.
     /// </summary>
     /// <param name="state">Undo storage; must not be null.</param>
     /// <param name="pos">Byte position of the edit.</param>
@@ -2126,7 +2075,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Applies one undo step and derives the matching redo record; ports <c>stb_text_undo</c>
-    /// (<c>imstb_textedit.h:1303-1369</c>). Record fields are copied into locals first because the
+    ///. Record fields are copied into locals first because the
     /// canonical value copy of <c>StbUndoRecord</c> must not alias the redo record being written.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -2198,7 +2147,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Applies one redo step and derives the matching undo record; ports <c>stb_text_redo</c>
-    /// (<c>imstb_textedit.h:1371-1420</c>). The canonical redo record value copy becomes explicit
+    ///. The canonical redo record value copy becomes explicit
     /// locals so the undo record being written cannot alias it.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -2259,8 +2208,8 @@ internal static class ImStbTextedit
     }
 
     /// <summary>
-    /// Returns a slice of the undo character buffer. Canonical passes a raw pointer plus a length
-    /// (<c>imstb_textedit.h:1361</c>, <c>1412</c>); this helper keeps the same byte range.
+    /// Returns a slice of the undo character buffer. Canonical passes a raw pointer plus a length;
+    /// this helper keeps the same byte range.
     /// </summary>
     /// <param name="buffer">Undo character buffer.</param>
     /// <param name="start">First index of the range.</param>
@@ -2278,7 +2227,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Records an insertion so that undoing it deletes the inserted characters; ports
-    /// <c>stb_text_makeundo_insert</c> (<c>imstb_textedit.h:1422-1425</c>).
+    /// <c>stb_text_makeundo_insert</c>.
     /// </summary>
     /// <param name="state">Editor state; must not be null.</param>
     /// <param name="where">Byte position of the insertion.</param>
@@ -2290,7 +2239,6 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Records a deletion and stores the deleted characters; ports <c>stb_text_makeundo_delete</c>
-    /// (<c>imstb_textedit.h:1427-1435</c>).
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -2310,7 +2258,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Records a replacement and stores the replaced characters; ports
-    /// <c>stb_text_makeundo_replace</c> (<c>imstb_textedit.h:1437-1445</c>).
+    /// <c>stb_text_makeundo_replace</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="state">Editor state; must not be null.</param>
@@ -2335,7 +2283,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Resets the editor state to a known-good default; ports <c>stb_textedit_clear_state</c> and
-    /// <c>stb_textedit_initialize_state</c> (<c>imstb_textedit.h:1448-1469</c>).
+    /// <c>stb_textedit_initialize_state</c>.
     /// </summary>
     /// <param name="state">Editor state to reset; must not be null.</param>
     /// <param name="isSingleLine">Whether the field suppresses newlines and page movement.</param>
@@ -2358,7 +2306,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Replaces the entire text and records a single undo entry; ports the ImGui helper
-    /// <c>stb_textedit_replace</c> (<c>imgui_widgets.cpp:4295-4310</c>). The canonical assert that the
+    /// <c>stb_textedit_replace</c>. The canonical assert that the
     /// insertion cannot fail is represented by the no-op branch below.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -2384,7 +2332,7 @@ internal static class ImStbTextedit
 
     /// <summary>
     /// Deletes the current selection; the <c>stb_textedit_cut</c> entry point
-    /// (<c>imstb_textedit.h:764-772</c>). The caller is responsible for copying the selection to the
+    ///. The caller is responsible for copying the selection to the
     /// system clipboard first.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
@@ -2403,8 +2351,8 @@ internal static class ImStbTextedit
     }
 
     /// <summary>
-    /// Replaces the selection, or inserts at the cursor, with the supplied text; the
-    /// <c>stb_textedit_paste</c> entry point (<c>imstb_textedit.h:775-790</c>, <c>1476-1479</c>).
+    /// Replaces the selection, or inserts at the cursor, with the supplied text; mirrors canonical
+    /// <c>stb_textedit_paste</c>.
     /// </summary>
     /// <param name="obj">Edited text field; must not be null.</param>
     /// <param name="text">UTF-8 bytes to paste.</param>

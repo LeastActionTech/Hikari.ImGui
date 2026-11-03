@@ -1,66 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-/*================================================================================================
- * DEBUG TOOLS: LOGGING, DEBUG LOG, AND DIAGNOSTIC HELPERS
- *================================================================================================
- * ROLE IN ENGINE:
- * Provides the canonical Dear ImGui debug instrumentation: the text-capture facility that mirrors
- * every rendered string into a TTY, a file, the clipboard, or a buffer; the debug log that records
- * internal event traces so a maintainer can see why a frame behaved as it did; and the small
- * diagnostic draw and locate helpers used by the metrics window and the item picker. It also provides
- * the Metrics/Debugger window itself, which reports the frame's windows, draw lists, viewports, popups,
- * tab bars, tables, docking state, settings, allocations, and input state, and draws the requested
- * debug overlays.
- *
- * These facilities observe the engine and never change its layout or interaction results, with one
- * documented exception: while capture is active the canonical clipper stops clipping items
- * (ItemUnclipByLog) and window clipping is suppressed, because otherwise the captured text would
- * omit anything scrolled out of view.
- *
- * SUBSYSTEM CONNECTIONS & DATA FLOW:
- *
- *    ┌──────────────────────────────────────────────────────────────────┐
- *    │ Widgets and core render helpers                                  │
- *    │ • RenderText / RenderTextClipped / Checkbox / TreeNode / tables  │
- *    └──────────────────────────────────────────────────────────────────┘
- *          │ LogRenderedText(text, pos) when g.LogEnabled                │
- *          ▼                                                            │
- *    ┌──────────────────────────────────────────────────────────────────┐
- *    │ Capture state on ImGuiContext                                    │
- *    │ • LogEnabled / LogFlags / LogFile / LogBuffer / LogLinePosY      │
- *    │ • LogDepthRef / LogDepthToExpand / LogLineFirstItem              │
- *    └──────────────────────────────────────────────────────────────────┘
- *          │ LogTextV(formatted)                                        │
- *          ├──────────────► TTY (Console.Out) or file (TextWriter)      │
- *          └──────────────► g.LogBuffer, flushed by LogFinish           │
- *
- *    ┌──────────────────────────────────────────────────────────────────┐
- *    │ Debug log                                                        │
- *    │ • DebugLog / DebugLogV append into DebugLogBuf + DebugLogIndex   │
- *    │ • per-event gating through DebugLogFlags                         │
- *    └──────────────────────────────────────────────────────────────────┘
- *          │ read by ShowDebugLogWindow, drained by its Clear button
- *          ▼
- *
- * STYLIZED USAGE EXAMPLE:
- *
- *   ImGui.LogToBuffer();                 // start capturing
- *   ImGui.Begin("Captured");
- *   ImGui.Text("this line is captured");
- *   ImGui.End();
- *   ImGui.LogFinish();                   // stop; the text is now in the context log buffer
- *
- *   ImGui.DebugLog("frame {0}: {1} items", ImGui.GetFrameCount(), itemCount);
- *   bool open = true;
- *   ImGui.ShowDebugLogWindow(ref open);
- *
- * THREADING & LIFECYCLE NOTES:
- * - All capture and debug-log state lives on the current ImGuiContext and is only valid while
- *   logging is active. Begin()/LogFinish() must be balanced by the caller; finishing is idempotent.
- * - LogToFile owns the file handle it opens and closes it in LogFinish; LogToTTY borrows Console.Out
- *   and never closes it. A capture left running when the context is destroyed leaks nothing managed
- *   but leaves the file handle to the finalizer, so callers should always finish.
- * - No internal synchronization is provided. Every method runs on the frame-submitting thread.
- *================================================================================================*/
 
 using System;
 using System.Diagnostics;
@@ -69,13 +11,16 @@ using System.Numerics;
 
 namespace Hikari.ImGui;
 
+/// <summary>
+/// Provides immediate-mode GUI operations, context and frame lifecycle management, windowing,
+/// layout, input routing, styling, widgets, tables, and docking facilities.
+/// </summary>
 public static partial class ImGui
 {
-    #region SECTION: LOGGING/CAPTURING (imgui.cpp:16120-16366)
+    #region SECTION: LOGGING/CAPTURING
 
     /// <summary>
     /// Appends already-formatted text to the current capture destination.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16128-16140</c>)
     /// </summary>
     /// <param name="g">The context whose capture state receives the text.</param>
     /// <param name="formatted">The text to append.</param>
@@ -104,7 +49,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Writes text straight to the active capture destination without rendering it.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16142-16152</c>, declared <c>ThirdParty/imgui/imgui.h:1006</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="format">A composite format string using the managed <c>{0}</c> placeholder syntax.</param>
     /// <param name="args">The objects to format into <paramref name="format"/>.</param>
@@ -121,7 +66,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Writes text straight to the active capture destination, taking the argument array directly.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16154-16161</c>, declared <c>ThirdParty/imgui/imgui.h:1007</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="format">A composite format string using the managed <c>{0}</c> placeholder syntax.</param>
     /// <param name="args">The objects to format into <paramref name="format"/>.</param>
@@ -129,7 +74,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Captures a rendered text run, splitting it into lines and indenting it to the current tree depth.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16166-16222</c>, declared <c>ThirdParty/imgui/imgui_internal.h:3735</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="refPos">
     /// The screen position the run was emitted at, or <see langword="null"/> when the caller has no
@@ -226,7 +171,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Arms the capture facility for one of the four output destinations.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16225-16241</c>, declared <c>ThirdParty/imgui/imgui_internal.h:3733</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="flags">Exactly one of the <see cref="ImGuiLogFlags"/> output bits.</param>
     /// <param name="autoOpenDepth">
@@ -263,7 +208,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts capturing rendered text to standard output.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16251-16261</c>, declared <c>ThirdParty/imgui/imgui.h:1001</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="autoOpenDepth">The tree depth at which nodes open themselves during capture.</param>
     /// <remarks>
@@ -280,7 +225,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts capturing rendered text to a file opened for appending.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16264-16286</c>, declared <c>ThirdParty/imgui/imgui.h:1002</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="autoOpenDepth">The tree depth at which nodes open themselves during capture.</param>
     /// <param name="filename">
@@ -318,7 +263,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts capturing rendered text to the clipboard.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16289-16295</c>, declared <c>ThirdParty/imgui/imgui.h:1003</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="autoOpenDepth">The tree depth at which nodes open themselves during capture.</param>
     /// <remarks>
@@ -334,7 +279,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts capturing rendered text into <see cref="ImGuiContext.LogBuffer"/>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16297-16303</c>, declared <c>ThirdParty/imgui/imgui_internal.h:3734</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="autoOpenDepth">The tree depth at which nodes open themselves during capture.</param>
     internal static void LogToBuffer(int autoOpenDepth = -1)
@@ -347,7 +292,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Ends capture and delivers the result to the destination selected by <see cref="LogBegin"/>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16305-16337</c>, declared <c>ThirdParty/imgui/imgui.h:1004</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// A trailing newline is always appended so the last captured line is terminated. Standard output is
@@ -390,7 +335,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits the canonical row of capture buttons plus the default auto-open depth slider.
-    /// (<c>ThirdParty/imgui/imgui.cpp:16341-16366</c>, declared <c>ThirdParty/imgui/imgui.h:1005</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// Capture starts only after the buttons are submitted, so the buttons themselves are never part of
@@ -440,11 +385,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: DEBUG LOG WINDOW (imgui.cpp:24031-24201)
+    #region SECTION: DEBUG LOG WINDOW
 
     /// <summary>
     /// Appends a formatted line to the debug log buffer and mirrors it to the enabled outputs.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24034-24041</c>, declared <c>ThirdParty/imgui/imgui.h:1186</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="format">A composite format string using the managed <c>{0}</c> placeholder syntax.</param>
     /// <param name="args">The objects to format into <paramref name="format"/>.</param>
@@ -456,7 +401,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Appends a formatted line to the debug log buffer, taking the argument array directly.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24042-24072</c>, declared <c>ThirdParty/imgui/imgui.h:1187</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="format">A composite format string using the managed <c>{0}</c> placeholder syntax.</param>
     /// <param name="args">The objects to format into <paramref name="format"/>.</param>
@@ -498,7 +443,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Appends a debug-log line only when its event category is enabled.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:256-267</c>)
     /// </summary>
     /// <param name="eventFlag">The single event flag the message belongs to.</param>
     /// <param name="format">A composite format string using the managed <c>{0}</c> placeholder syntax.</param>
@@ -516,7 +460,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Appends an error line to the debug log, or counts it as skipped when error logging is disabled.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:255</c>)
     /// </summary>
     /// <param name="format">A composite format string using the managed <c>{0}</c> placeholder syntax.</param>
     /// <param name="args">The objects to format into <paramref name="format"/>.</param>
@@ -535,7 +478,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Lays out the following item on the same line when it still fits, otherwise leaves it on a new line.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24073-24081</c>)
     /// </summary>
     /// <param name="size">The size of the item that is about to be submitted.</param>
     /// <remarks>
@@ -553,7 +495,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits one debug-log event checkbox, with the two-frame auto-disable and skipped-error highlight.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24082-24106</c>)
     /// </summary>
     /// <param name="name">The checkbox label, which is also the canonical short event name.</param>
     /// <param name="flags">The single event flag this checkbox toggles.</param>
@@ -596,7 +537,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a debug-log output checkbox that only needs to toggle a single flag bit.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24150-24155</c>)
     /// </summary>
     /// <param name="name">The checkbox label, which is also the canonical flag name.</param>
     /// <param name="flags">The single output flag this checkbox toggles.</param>
@@ -610,7 +550,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits the canonical Debug Log window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24107-24178</c>, declared <c>ThirdParty/imgui/imgui.h:416</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="pOpen">Tracks whether the window is open; cleared when the user closes it.</param>
     /// <remarks>
@@ -717,7 +657,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws one debug-log line and offers to locate any identifier it contains.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24181-24200</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4141</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="line">The log line to draw.</param>
     /// <remarks>
@@ -787,11 +727,10 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: OTHER DEBUG TOOLS (imgui.cpp:24203-24544)
+    #region SECTION: OTHER DEBUG TOOLS
 
     /// <summary>
     /// The colour used by every locate-item and item-picker highlight.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24238</c>)
     /// </summary>
     /// <remarks>
     /// Canonical <c>IM_COL32(0, 255, 0, 255)</c>; this port stores colours as packed <c>ABGR</c> in a
@@ -801,7 +740,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a small cross at the current cursor position in the current window's draw list.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24207-24214</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4138</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="col">The highlight colour.</param>
     internal static void DebugDrawCursorPos(uint col = 0xFF0000FF)
@@ -815,7 +754,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a ten-pixel bracket around the cursor column across the current line's height.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24217-24227</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4139</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="col">The highlight colour.</param>
     /// <remarks>
@@ -836,7 +775,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the last item's rectangle into the foreground draw list so it stays visible.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24230-24235</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4140</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="col">The highlight colour.</param>
     internal static void DebugDrawItemRect(uint col = 0xFF0000FF)
@@ -847,7 +786,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Requests that the item with the given identifier be highlighted for the next two frames.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24240-24246</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4142</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="targetId">The identifier of the item to locate.</param>
     /// <remarks>
@@ -864,7 +803,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Highlights a rectangle around the currently hovered item and offers to break into its call site.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24249-24264</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4143</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="targetId">The identifier to locate when the just-submitted item is hovered.</param>
     /// <remarks>
@@ -897,7 +836,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the locate highlight for the item that was last submitted, and consumes the pending request.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24266-24283</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4144</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// The rectangle is expanded by three pixels and a line is drawn from the mouse to the nearest point on
@@ -929,7 +868,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts the interactive item picker.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24285-24289</c>, declared <c>ThirdParty/imgui/imgui.h:1183</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// The picker is advanced once per frame by <see cref="UpdateDebugToolItemPicker"/>, which the frame
@@ -939,7 +878,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Advances the interactive item picker and reports the hovered identifier.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24292-24323</c>)
     /// </summary>
     /// <remarks>
     /// <para>
@@ -995,7 +933,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Clears the one-shot debug-break requests after they have been armed for a frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23296-23303</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4145</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// The three request fields live in the hot data of their own subsystems rather than beside the other
@@ -1011,7 +949,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Shows the tooltip that explains how to trigger a debugger break.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23305-23315</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4147</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="keyboardOnly">
     /// Whether only the keyboard route is offered, which is used when a click would disturb the state being
@@ -1034,7 +972,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits a button that arms a debugger break without taking focus or input ownership.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23319-23352</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4146</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="label">The button label.</param>
     /// <param name="descriptionOfLocation">A description of where the break will occur.</param>
@@ -1079,11 +1017,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: METRICS WINDOW SUPPORT (imgui.cpp:5317-5340, 11651-11662)
+    #region SECTION: METRICS WINDOW SUPPORT
 
     /// <summary>
     /// Records one allocation or release against the per-frame allocation audit.
-    /// (<c>ThirdParty/imgui/imgui.cpp:5317-5340</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4137</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="info">The record that receives the accounting.</param>
     /// <param name="frameCount">The frame the operation belongs to.</param>
@@ -1131,7 +1069,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Verifies that the caller was compiled against the same version and type layout as this library.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11651-11662</c>, declared <c>ThirdParty/imgui/imgui.h:1184</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="version">The version string the caller compiled against.</param>
     /// <param name="szIo">The caller's size of <see cref="ImGuiIO"/>.</param>
@@ -1176,7 +1114,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits the standard "(?)" help marker used throughout the metrics window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22169-22183</c>)
     /// </summary>
     /// <param name="desc">The explanation shown in the tooltip.</param>
     /// <remarks>
@@ -1197,7 +1134,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reports one platform monitor's bounds and DPI scale.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23904-23911</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4168</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="monitor">The monitor to report.</param>
     /// <param name="label">The label prefix, for example <c>"Monitor"</c>.</param>
@@ -1229,7 +1166,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lists the entries of a state storage, offering to locate the identifier each entry was stored under.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23814-23824</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4152</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="storage">The storage to list.</param>
     /// <param name="label">The tree-node label.</param>
@@ -1260,7 +1197,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lists a legacy columns set: its identifier, column count, flags, extent, and per-column offsets.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23355-23363</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4148</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="columns">The columns set to list.</param>
     /// <remarks>
@@ -1299,7 +1236,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reports one persisted window settings record.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23989-23998</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4165</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="settings">The settings record to report.</param>
     /// <remarks>
@@ -1325,7 +1262,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Converts a backend texture identifier into an unsigned value suitable for display.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22370-22376</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4150</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="texId">The backend texture identifier to convert.</param>
     /// <returns>The identifier reinterpreted as an unsigned 64-bit value.</returns>
@@ -1333,7 +1270,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Formats a texture reference for display in the metrics window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22377-22391</c>)
     /// </summary>
     /// <param name="texRef">The texture reference to format.</param>
     /// <returns>
@@ -1352,7 +1288,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the wireframe mesh and/or the bounding boxes of one draw command into another draw list.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23549-23576</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4157</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="outDrawList">The draw list that receives the overlay.</param>
     /// <param name="drawList">The draw list the command belongs to.</param>
@@ -1417,7 +1353,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lists a draw list's commands, offering per-command mesh, bounding-box, and vertex inspection.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23454-23546</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4155</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="window">The owning window, or <see langword="null"/> for a viewport-owned list.</param>
     /// <param name="viewport">The viewport whose foreground list receives the overlay, or <see langword="null"/>.</param>
@@ -1578,7 +1514,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the area of a triangle.
-    /// (<c>ThirdParty/imgui/imgui_internal.h:1075-1078</c>)
     /// </summary>
     /// <param name="a">The first vertex.</param>
     /// <param name="b">The second vertex.</param>
@@ -1594,7 +1529,7 @@ public static partial class ImGui
     /// <summary>
     /// Reports one window: its identity, flags, geometry, scroll state, navigation state, docking state,
     /// and its child, parent, root, draw-list, columns, and storage relationships.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23912-23988</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4162</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="window">The window to report, or <see langword="null"/> to report a missing window.</param>
     /// <param name="label">The tree-node label.</param>
@@ -1754,7 +1689,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lists a set of windows under a tree node.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23999-24010</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4166</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="windows">The windows to list.</param>
     /// <param name="label">The tree-node label.</param>
@@ -1777,7 +1712,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lists a set of windows grouped by the window they were most recently begun underneath.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24013-24028</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4167</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="windows">The windows to inspect.</param>
     /// <param name="windowsStart">
@@ -1815,7 +1750,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Shows how a string is encoded as UTF-8 and which of its characters the current font can render.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22303-22339</c>, declared <c>ThirdParty/imgui/imgui.h:1181</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="text">The string to inspect.</param>
     /// <remarks>
@@ -1882,7 +1817,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Restores the style colour that <see cref="DebugFlashStyleColor"/> temporarily replaced.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22341-22347</c>)
     /// </summary>
     /// <remarks>
     /// Restoring is idempotent: when no flash is in progress the index is already
@@ -1898,7 +1832,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Starts flashing one style colour for half a second so a maintainer can find every widget that uses it.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22350-22357</c>, declared <c>ThirdParty/imgui/imgui.h:1182</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="idx">The style colour to flash.</param>
     /// <remarks>
@@ -1917,7 +1851,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Animates the flashing style colour and restores the original when the flash expires.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22359-22368</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4149</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// The colour cycles through the hue circle once per second by driving the HSV hue with a cosine, so the
@@ -1951,7 +1885,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Lists a tab bar's tabs, offering the manual reorder arrows canonical exposes for debugging.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23827-23865</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4153</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="tabBar">The tab bar to inspect.</param>
     /// <param name="label">The tree-node label.</param>
@@ -2029,7 +1963,7 @@ public static partial class ImGui
 
     /// <summary>
     /// One key of the keyboard preview board: its row and column, the label drawn on the key cap, and the
-    /// engine key it reports. (<c>ThirdParty/imgui/imgui.cpp:22269-22275</c>)
+    /// engine key it reports.
     /// </summary>
     /// <param name="Row">The board row.</param>
     /// <param name="Col">The board column.</param>
@@ -2039,7 +1973,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws a small keyboard board that highlights the keys currently held down.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22253-22300</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4171</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="drawList">The draw list that receives the board.</param>
     /// <remarks>
@@ -2120,7 +2054,7 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: METRICS WINDOW (imgui.cpp:22184-23295)
+    #region SECTION: METRICS WINDOW
 
     /// <summary>
     /// The smallest positive normal single-precision value, negated, which the metrics window passes
@@ -2135,19 +2069,16 @@ public static partial class ImGui
 
     /// <summary>
     /// The display names of the input sources, indexed by <see cref="ImGuiInputSource"/>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11246</c>)
     /// </summary>
     private static readonly string[] InputSourceNames = { "None", "Mouse", "Keyboard", "Gamepad" };
 
     /// <summary>
     /// The display names of the mouse sources, indexed by <see cref="ImGuiMouseSource"/>.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11253</c>)
     /// </summary>
     private static readonly string[] MouseSourceNames = { "Mouse", "TouchScreen", "Pen" };
 
     /// <summary>
     /// The window-rectangle preset names listed by the metrics window's window-rectangle combo.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22614</c>)
     /// </summary>
     private static readonly string[] WrtRectsNames =
     {
@@ -2156,7 +2087,6 @@ public static partial class ImGui
 
     /// <summary>
     /// The table-rectangle preset names listed by the metrics window's table-rectangle combo.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22616</c>)
     /// </summary>
     private static readonly string[] TrtRectsNames =
     {
@@ -2168,27 +2098,25 @@ public static partial class ImGui
     /// <summary>
     /// Scratch viewport list reused by the metrics window's inferred-z-order node so the per-frame sort
     /// does not allocate once the list has grown.
-    /// <c>ThirdParty/imgui/imgui.cpp:22844</c> uses a function-static vector for the same reason.
+    ///  uses a function-static vector for the same reason.
     /// </summary>
     private static readonly List<ImGuiViewportP> ViewportsByInferredZOrder = new();
 
     /// <summary>
     /// Scratch text for the metrics window's UTF-8 encoding viewer. Canonical keeps a function-static
     /// <c>char[64]</c> so the typed text survives between frames; the managed port keeps the equivalent
-    /// managed string instead. (<c>ThirdParty/imgui/imgui.cpp:22759</c>)
+    /// managed string instead.
     /// </summary>
     private static string DebugTextEncodingBuffer = string.Empty;
 
     /// <summary>
     /// Whether the metrics window's docking node lists only root dock nodes. Canonical keeps this as a
     /// function-static flag so the choice survives between frames.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22939</c>)
     /// </summary>
     private static bool DebugDockRootNodesOnly = true;
 
     /// <summary>
     /// Returns the display name of an input source.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11244-11250</c>)
     /// </summary>
     /// <param name="source">The input source to name.</param>
     /// <returns>The source name, or <c>"Unknown"</c> when the value is outside the enumeration.</returns>
@@ -2201,7 +2129,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the display name of a mouse source.
-    /// (<c>ThirdParty/imgui/imgui.cpp:11251-11261</c>)
     /// </summary>
     /// <param name="source">The mouse source to name.</param>
     /// <returns>The source name, or <c>"Unknown"</c> when the value is outside the enumeration.</returns>
@@ -2214,7 +2141,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Compares two windows by the order in which they were begun within the context.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22783</c>)
     /// </summary>
     /// <param name="lhs">The left window.</param>
     /// <param name="rhs">The right window.</param>
@@ -2224,7 +2150,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Compares two viewports by descending last-focused stamp, so the most recently focused viewport
-    /// sorts first. (<c>ThirdParty/imgui/imgui.cpp:22245-22250</c>)
+    /// sorts first.
     /// </summary>
     /// <param name="lhs">The left viewport.</param>
     /// <param name="rhs">The right viewport.</param>
@@ -2246,7 +2172,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the scaled thumbnail of every window hosted by one viewport, plus the viewport outline.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22184-22215</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4169</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="drawList">The draw list that receives the viewport outline.</param>
     /// <param name="viewport">The viewport being thumbnailed.</param>
@@ -2302,7 +2228,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Draws the monitor boundaries and every viewport thumbnail that make up the metrics window's
-    /// Windows Minimap. (<c>ThirdParty/imgui/imgui.cpp:22217-22243</c>)
+    /// Windows Minimap.
     /// </summary>
     /// <remarks>
     /// Every monitor is laid out in the same scaled space as the viewport thumbnails, and the highlighted
@@ -2345,7 +2271,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Reports one viewport: its identity, geometry, monitor binding, flags, and draw lists.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23867-23902</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4169</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="viewport">The viewport to report.</param>
     /// <remarks>
@@ -2422,7 +2348,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits the canonical Dear ImGui Metrics/Debugger window.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22578-23294</c>, declared <c>ThirdParty/imgui/imgui.h:1185</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="pOpen">Tracks whether the window is open; cleared when the user closes it.</param>
     /// <remarks>
@@ -3437,12 +3363,11 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: ITEM-PATH QUERY (imgui.cpp:24327-24433)
+    #region SECTION: ITEM-PATH QUERY
 
     /// <summary>
     /// Advances the item-path query by one step and returns the identifier the caller should register as
     /// the hook, or zero when the hook should be cleared.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24327-24361</c>)
     /// </summary>
     /// <param name="query">The query state to advance.</param>
     /// <param name="id">The identifier being queried, or zero to idle the hook.</param>
@@ -3497,7 +3422,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Publishes the identifier the item-path query wants hooked for this frame.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24364-24371</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4179</c>)
+    /// (, declared )
     /// </summary>
     /// <remarks>
     /// The query only considers an identifier while the identifier-stack tool has been active on the previous
@@ -3516,7 +3441,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Records how one identifier was produced, so the identifier-stack tool can explain its provenance.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24374-24432</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4151</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="id">The identifier that was just computed.</param>
     /// <param name="dataType">
@@ -3609,7 +3534,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the part of a label that contributes to its hash, dropping every <c>###</c> prefix.
-    /// (<c>ThirdParty/imgui/imgui.cpp:2614-2621</c>, declared <c>imgui_internal.h:387</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="label">The label to trim.</param>
     /// <returns>The label from just past the last <c>###</c> marker, or the whole label when there is none.</returns>
@@ -3655,7 +3580,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Describes one level of an item path, either for display or for the copyable path string.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24434-24449</c>)
     /// </summary>
     /// <param name="query">The query holding the level.</param>
     /// <param name="n">The level index.</param>
@@ -3700,7 +3624,6 @@ public static partial class ImGui
     /// <summary>
     /// Renders a completed item path as a single copyable string, escaping separators and optionally
     /// hex-encoding non-ASCII characters.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24451-24474</c>)
     /// </summary>
     /// <param name="query">The query holding the results.</param>
     /// <param name="hexEncodeNonAsciiChars">Whether non-ASCII characters are written as <c>\xNN</c> escapes.</param>
@@ -3734,12 +3657,12 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: ID STACK TOOL WINDOW (imgui.cpp:24476-24544)
+    #region SECTION: ID STACK TOOL WINDOW
 
     /// <summary>
     /// Submits the identifier-stack tool window, which explains how the identifier of the hovered item was
     /// assembled from the pushes on the current identifier stack.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24476-24544</c>, declared <c>ThirdParty/imgui/imgui.h:417</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="pOpen">Whether the window is open; cleared when the user closes it.</param>
     /// <remarks>
@@ -3834,7 +3757,7 @@ public static partial class ImGui
 
     #endregion
 
-    #region SECTION: FONT ATLAS SHOWCASE (imgui.cpp:22392-22580, 23560-23810, 24569-24597)
+    #region SECTION: FONT ATLAS SHOWCASE
 
     // Divergences from canonical, all forced by the port's single-atlas font system:
     // - The port has no ImFontAtlasBuilder. The "Rects Index" tree node, the packed and discarded
@@ -3853,7 +3776,7 @@ public static partial class ImGui
 
     /// <summary>
     /// The largest Unicode codepoint the port represents, matching canonical
-    /// <c>IM_UNICODE_CODEPOINT_MAX</c> (<c>ThirdParty/imgui/imgui.h:3623</c>).
+    /// <c>IM_UNICODE_CODEPOINT_MAX</c>.
     /// </summary>
     /// <remarks>
     /// The constant is repeated here because the equivalent member on <see cref="ImFont"/> is private.
@@ -3864,7 +3787,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the display name of a texture upload status.
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2476-2487</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4376</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="status">The texture status to name.</param>
     /// <returns>The canonical name, or <c>"N/A"</c> when the value is outside the enumeration.</returns>
@@ -3893,7 +3816,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Returns the display name of a texture pixel format.
-    /// (<c>ThirdParty/imgui/imgui_draw.cpp:2489-2497</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4377</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="format">The texture format to name.</param>
     /// <returns>The canonical name, or <c>"N/A"</c> when the value is outside the enumeration.</returns>
@@ -3916,7 +3839,6 @@ public static partial class ImGui
 
     /// <summary>
     /// Encodes one codepoint as a UTF-8 string for the font debug nodes.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23643-23647</c>)
     /// </summary>
     /// <param name="codepoint">The codepoint to encode.</param>
     /// <returns>The UTF-8 text for the codepoint, or <c>"?"</c> when it lies outside the Unicode range.</returns>
@@ -3934,7 +3856,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Computes the mask of font inputs that contain a codepoint, or zero when only one input contains
-    /// it. (<c>ThirdParty/imgui/imgui.cpp:23578-23591</c>)
+    /// it.
     /// </summary>
     /// <param name="atlas">The atlas that owns the font.</param>
     /// <param name="font">The font whose inputs are tested.</param>
@@ -3965,7 +3887,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits the font atlas showcase: the font-selection controls, the font list with one
     /// <see cref="DebugNodeFont"/> per loaded font, and the atlas texture report.
-    /// (<c>ThirdParty/imgui/imgui.cpp:22392-22543</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4137</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="atlas">The atlas to report, or <see langword="null"/> to show only the controls that
     /// do not need font data.</param>
@@ -4069,7 +3991,7 @@ public static partial class ImGui
 
     /// <summary>
     /// Submits one texture as a collapsible node showing its pixels, used rectangle, and lifecycle
-    /// state. (<c>ThirdParty/imgui/imgui.cpp:22545-22576</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4144</c>)
+    /// state. (, declared )
     /// </summary>
     /// <param name="tex">The texture data to report.</param>
     /// <param name="intId">Integer identifier that scopes the node, standing in for the canonical
@@ -4146,7 +4068,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits one loaded font as a collapsible node: its preview text, its atlas-mutating actions, its
     /// metrics, its inputs, the input-overlap detection tool, and one glyph page per baked size.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23594-23744</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4145</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="font">The font to report.</param>
     /// <remarks>
@@ -4323,7 +4245,7 @@ public static partial class ImGui
     /// <summary>
     /// Draws up to 256 glyphs of one baked font size as a 16-by-16 grid, one collapsible page per
     /// 256-codepoint block, filtered by the source mask. Hovering a cell shows its glyph details.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23746-23795</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4146</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="font">The font that provides the drawing.</param>
     /// <param name="baked">The baked glyph set to draw from.</param>
@@ -4400,7 +4322,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits the tooltip contents for one glyph: its codepoint, visibility, advance, quad, texture
     /// coordinates, packed rectangle, and originating input.
-    /// (<c>ThirdParty/imgui/imgui.cpp:23797-23811</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4147</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="font">The font that owns the glyph, used to resolve its packed rectangle.</param>
     /// <param name="glyph">The glyph to report; the port's glyph structure is passed by value.</param>
@@ -4430,7 +4352,7 @@ public static partial class ImGui
     /// <summary>
     /// Submits the font-selection combo and its explanatory marker, letting the user choose the default
     /// font from the loaded atlas.
-    /// (<c>ThirdParty/imgui/imgui.cpp:24569-24597</c>, declared <c>ThirdParty/imgui/imgui_internal.h:4343</c>)
+    /// (, declared )
     /// </summary>
     /// <param name="label">The combo label and identifier seed.</param>
     /// <remarks>

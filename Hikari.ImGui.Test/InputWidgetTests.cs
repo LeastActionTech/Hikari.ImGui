@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -12,12 +16,7 @@ namespace Hikari.ImGui.Test;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Each test drives a real <see cref="ImGuiContext"/>. The canonical reference is Dear ImGui
-/// <c>v1.92.9b-docking</c> at <c>ThirdParty/imgui/imgui_widgets.cpp</c>; every test cites the
-/// canonical line range that defines the behavior it pins.
-/// </para>
-/// <para>
-/// The slider and drag *mathematics* is exercised directly through the port's internal
+/// Each test drives a real <see cref="ImGuiContext"/>. /// The slider and drag *mathematics* is exercised directly through the port's internal
 /// <c>SliderBehaviorT</c> and <c>DragBehaviorT</c> entry points, because those routines hold the
 /// value through a <c>ref</c> parameter and can be driven without a host window. The public
 /// one-line overloads are exercised through their real item submission, which is where the port
@@ -176,8 +175,7 @@ public class InputWidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.VSliderFloat"/> consumes exactly the requested rectangle when
-    /// the label renders empty. Canonical vertical-slider sizing
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3503-3563</c>, wrapper at <c>3565-3568</c>).
+    /// the label renders empty. Canonical vertical-slider sizing.
     /// </summary>
     [Test]
     public void VSliderFloat_ItemRectMatchesRequestedSize()
@@ -194,7 +192,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that a horizontal <see cref="ImGui.SliderFloat"/> frame is one
     /// <see cref="ImGui.CalcItemWidth"/> wide and one font height plus the frame padding tall, as
     /// canonical <c>SliderScalar</c> computes its frame.
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3323-3412</c>)
     /// </summary>
     [Test]
     public void SliderFloat_ItemRectMatchesCalcItemWidth()
@@ -222,7 +219,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that a mouse click past the right end of the slider track stores the upper bound and
     /// a click past the left end stores the lower bound, and that both report a change. Canonical
     /// <c>SliderBehaviorT</c> saturates the clicked parametric position
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3109-3280</c>).
     /// </summary>
     [Test]
     public void SliderBehaviorT_MousePositionClampsToBounds()
@@ -252,7 +248,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the logarithmic slider places the geometric mean of its bounds at the middle of
     /// the track. Canonical converts through <c>ScaleRatioFromValueT</c>/<c>ScaleValueFromRatioT</c>
-    /// with the logarithmic branch (<c>ThirdParty/imgui/imgui_widgets.cpp:3109-3280</c>); the
+    /// with the logarithmic branch.; the
     /// geometric mean of <c>1</c> and <c>100</c> is <c>10</c>.
     /// </summary>
     [Test]
@@ -274,7 +270,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the vertical slider maps the bottom of its track to the lower bound and the top
     /// to the upper bound. Canonical inverts the grabbed ratio for the vertical axis
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3109-3280</c>).
     /// </summary>
     [Test]
     public void SliderBehaviorT_VerticalAxisMapsTopAndBottom()
@@ -301,7 +296,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the reported grab rectangle centres on the position implied by the stored value
     /// and is <c>style.GrabMinSize</c> wide. Canonical grab-rectangle layout
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3109-3280</c>).
     /// </summary>
     [Test]
     public void SliderBehaviorT_GrabRectCentersOnValue()
@@ -334,7 +328,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that each pixel of horizontal mouse travel moves the value by
     /// <c>vSpeed</c>. Canonical accumulates <c>MouseDelta * v_speed</c> into
-    /// <c>g.DragCurrentAccum</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2538-2666</c>).
+    /// <c>g.DragCurrentAccum</c>.
     /// </summary>
     [Test]
     public void DragBehaviorT_MouseDeltaScalesWithSpeed()
@@ -353,7 +347,7 @@ public class InputWidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a bounded drag clamps the accumulated result to the upper bound. Canonical
-    /// clamp branch after rounding (<c>ThirdParty/imgui/imgui_widgets.cpp:2538-2666</c>).
+    /// clamp branch after rounding.
     /// </summary>
     [Test]
     public void DragBehaviorT_BoundedRangeClamps()
@@ -372,7 +366,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that vertical drag inverts the sign of mouse travel so that dragging up raises the
     /// value. Canonical negates the accumulated delta for the vertical axis
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:2538-2666</c>).
     /// </summary>
     [Test]
     public void DragBehaviorT_VerticalAxisInvertsDelta()
@@ -394,7 +387,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a zero <c>vSpeed</c> on a bounded drag uses the canonical default ratio of the
     /// whole range per hundred pixels (<c>DragSpeedDefaultRatio = 1/100</c>). Canonical default-speed
-    /// derivation (<c>ThirdParty/imgui/imgui_widgets.cpp:2538-2666</c>).
+    /// derivation.
     /// </summary>
     [Test]
     public void DragBehaviorT_DefaultSpeedScalesWithRange()
@@ -417,7 +410,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that typed characters append to the buffer and that Backspace removes the last one.
     /// Canonical STB text-edit insertion and deletion through <c>InputTextEx</c>
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4729-4978</c>).
     /// </summary>
     [Test]
     public void InputText_TypedCharactersAndBackspace()
@@ -438,7 +430,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that an edited text field whose active id moves to another widget writes its retained text
     /// back to the caller's buffer on the deactivation frame, through the canonical deactivate hook
-    /// (<c>ThirdParty/imgui/imgui.cpp:4877-4881</c>, <c>ThirdParty/imgui/imgui_widgets.cpp:4607-4630</c>).
+    /// (, ).
     /// </summary>
     [Test]
     public void InputText_EditedFieldWritesBackWhenActiveIdMovesToButton()
@@ -458,7 +450,6 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the cursor moves with the Left arrow key and that a later character is inserted
     /// at the cursor rather than appended. Canonical cursor movement and insertion
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4729-4978</c>).
     /// </summary>
     [Test]
     public void InputText_CursorMovementInsertsAtCursor()
@@ -479,7 +470,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that Enter deactivates the input and that
     /// <see cref="ImGuiInputTextFlags.EnterReturnsTrue"/> makes the widget report true on that
-    /// frame. Canonical Enter handling (<c>ThirdParty/imgui/imgui_widgets.cpp:4729-4978</c>).
+    /// frame. Canonical Enter handling.
     /// </summary>
     [Test]
     public void InputText_EnterReturnsTrue()
@@ -500,7 +491,7 @@ public class InputWidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGuiInputTextFlags.ReadOnly"/> rejects typed characters and leaves
-    /// the buffer untouched. Canonical read-only guard (<c>ThirdParty/imgui/imgui_widgets.cpp:4729-4978</c>).
+    /// the buffer untouched. Canonical read-only guard.
     /// </summary>
     [Test]
     public void InputText_ReadOnlyRejectsTyping()
@@ -519,7 +510,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiInputTextFlags.Password"/> keeps the real characters in the
     /// buffer while rendering a different glyph. Canonical password masking
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4729-4978</c>); the buffer must hold the typed text so
+    ///.; the buffer must hold the typed text so
     /// callers can read the secret, while the drawn glyph atlas coordinates must differ from the
     /// plain-text rendering of the same character.
     /// </summary>
@@ -589,8 +580,7 @@ public class InputWidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that <see cref="ImGui.InputTextWithHint"/> displays a hint while empty and accepts
-    /// typed characters into its buffer. Canonical hinted input
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4015-4019</c>, core at <c>4729-4978</c>).
+    /// typed characters into its buffer. Canonical hinted input.
     /// </summary>
     [Test]
     public void InputTextWithHint_AcceptsTyping()
@@ -607,8 +597,7 @@ public class InputWidgetTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that Enter inside a multiline input inserts a newline instead of deactivating the
-    /// widget. Canonical multiline Enter handling
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:4021-4025</c>, core at <c>4729-4978</c>).
+    /// widget. Canonical multiline Enter handling.
     /// </summary>
     [Test]
     public void InputTextMultiline_InsertsNewLine()
@@ -634,8 +623,8 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that typed decimal and integer text is parsed back into the referenced value once
     /// the widget deactivates. Canonical <c>InputScalar</c> parse on deactivation
-    /// (<c>ThirdParty/imgui/imgui_widgets.cpp:3808-3914</c>), exposed by <c>InputFloat</c>
-    /// (<c>3951-3954</c>) and <c>InputInt</c> (<c>3971-3974</c>).
+    ///., exposed by <c>InputFloat</c>
+    /// and <c>InputInt</c>.
     /// </summary>
     [Test]
     public void InputFloat_And_InputInt_ParseTypedText()
@@ -665,8 +654,8 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that dragging the public one-line float slider writes the dragged value back into the
     /// caller's variable and reports the change frame. The button is held across the drag frame, which
     /// is what keeps the slider active; releasing first would end the interaction.
-    /// Canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3323-3412</c>) with the
-    /// shared <c>SliderBehavior</c> write-through (<c>3285-3319</c>).
+    /// Canonical <c>SliderScalar</c>. with the
+    /// shared <c>SliderBehavior</c> write-through.
     /// </summary>
     [Test]
     public void SliderWidgets_PublicApiWritesBackEditedValue()
@@ -689,7 +678,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that dragging the public one-line float drag writes the dragged value back into the
     /// caller's variable. The button is held across the drag frame, which is what keeps the drag item
     /// active; releasing first would end the interaction.
-    /// Canonical <c>DragBehavior</c> write-through (<c>ThirdParty/imgui/imgui_widgets.cpp:2668-2703</c>).
+    /// Canonical <c>DragBehavior</c> write-through.
     /// </summary>
     [Test]
     public void DragWidgets_PublicApiWritesBackEditedValue()
@@ -715,8 +704,8 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the signed 8-bit, 16-bit, and 64-bit <c>DragScalar</c> overloads box the caller's
     /// value, drive the shared drag core, and store the edited value back into the typed variable.
-    /// Canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2721-2814</c>) with the shared
-    /// <c>DragBehavior</c> write-through (<c>2668-2703</c>).
+    /// Canonical <c>DragScalar</c>. with the shared
+    /// <c>DragBehavior</c> write-through.
     /// </summary>
     [Test]
     public void DragScalar_SignedIntegerWidths_WriteBackThroughTheSharedCore()
@@ -767,7 +756,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that the unsigned 8-bit, 16-bit, and 64-bit <c>DragScalar</c> overloads box the
     /// caller's value, drive the shared drag core, and store the edited value back into the typed
     /// variable.
-    /// Canonical <c>DragScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:2721-2814</c>).
+    /// Canonical <c>DragScalar</c>.
     /// </summary>
     [Test]
     public void DragScalar_UnsignedIntegerWidths_WriteBackThroughTheSharedCore()
@@ -817,7 +806,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that the newly added integer <c>SliderScalar</c> overloads clamp the dragged grab to
     /// the declared bounds and write the clamped value back into the typed variable, including the
     /// 64-bit unsigned width whose bounds exceed the range of a machine integer.
-    /// Canonical <c>SliderScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3323-3412</c>).
+    /// Canonical <c>SliderScalar</c>.
     /// </summary>
     [Test]
     public void SliderScalar_IntegerWidths_ClampAtTheDeclaredMaximum()
@@ -855,7 +844,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the newly added integer <c>InputScalar</c> overloads parse the typed text with the
     /// canonical 64-bit decimal path and write the parsed value back into the typed variable.
-    /// Canonical <c>InputScalar</c> (<c>ThirdParty/imgui/imgui_widgets.cpp:3834-3914</c>).
+    /// Canonical <c>InputScalar</c>.
     /// </summary>
     [Test]
     public void InputScalar_IntegerWidths_ParseTypedText()
@@ -900,7 +889,7 @@ public class InputWidgetTests : ImGuiTestFixture
     /// Verifies that the canonical printf-style formatter renders the scientific notation used by the
     /// demo's "input scientific" field and by the high-range scalar sliders.
     /// Canonical <c>ImFormatStringV</c> delegates to <c>vsnprintf</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:2432-2445</c>), so <c>%e</c> must produce the exponent form.
+    ///., so <c>%e</c> must produce the exponent form.
     /// </summary>
     [Test]
     public void ImFormatString_SupportsScientificNotation()
@@ -914,8 +903,8 @@ public class InputWidgetTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that a password field renders every character through the asterisk glyph rather than
     /// emitting blank or invisible quads. Canonical swaps the baked lookup tables for one whose
-    /// fallback is the asterisk glyph (<c>ThirdParty/imgui/imgui_widgets.cpp:4434-4448</c>,
-    /// used at <c>5002-5003</c> and <c>5524-5528</c>); the rendered quads must therefore sample the
+    /// fallback is the asterisk glyph (,
+    /// used); the rendered quads must therefore sample the
     /// asterisk's texture rectangle.
     /// </summary>
     [Test]

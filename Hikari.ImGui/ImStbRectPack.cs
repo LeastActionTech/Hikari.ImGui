@@ -1,26 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-// ROLE IN ENGINE
-//   Rectangle packer for the font atlas. This is a direct managed port of the skyline
-//   bottom-left packer that Dear ImGui bundles as imstb_rectpack.h, used to assign every
-//   glyph bitmap, the white texel block and the baked line region a non-overlapping position
-//   inside the atlas texture.
-//
-// SUBSYSTEM CONNECTIONS & DATA FLOW
-//
-//   ┌───────────────────────────────────────────┐
-//   │ ImFontAtlas (pack add / repack / grow)    │
-//   │ • requests rectangles and reads positions │
-//   └───────────────────────────────────────────┘
-//                          │ width/height in, x/y out
-//                          ▼
-//   ┌───────────────────────────────────────────┐
-//   │ ImStbrpContext                            │
-//   │ • skyline nodes, free list, active list   │
-//   └───────────────────────────────────────────┘
-//
-// THREADING & LIFECYCLE NOTES
-//   A packer context is not thread-safe. The owning atlas drives it from a single thread; nodes
-//   must stay valid between InitTarget and the PackRects calls that follow it.
 
 using System;
 using System.Collections.Generic;
@@ -31,7 +13,7 @@ namespace Hikari.ImGui;
 
 /// <summary>
 /// One rectangle request and its assigned position. Mirrors canonical <c>stbrp_rect</c>
-/// (<c>ThirdParty/imgui/imstb_rectpack.h:119-131</c>). All coordinates increase down and to the
+///. All coordinates increase down and to the
 /// right, and the assigned position is the rectangle's top-left corner.
 /// </summary>
 internal struct ImStbrpRect
@@ -60,11 +42,11 @@ internal struct ImStbrpRect
 #region Skyline packer context
 
 /// <summary>
-/// Skyline bottom-left rectangle packer. Ports the canonical implementation section of
-/// <c>imstb_rectpack.h</c> (<c>ThirdParty/imgui/imstb_rectpack.h:209-585</c>) with the node
+/// Skyline bottom-left rectangle packer. Ports the canonical implementation of
+/// stb_rectpack with the node
 /// linked lists stored as parallel integer arrays instead of pointers. Only the canonical default
 /// bottom-left heuristic is implemented; canonical <c>stbrp_setup_heuristic</c>
-/// (<c>imstb_rectpack.h:233-243</c>) also offers a best-fit variant that Dear ImGui never selects, so
+/// also offers a best-fit variant that Dear ImGui never selects, so
 /// that unreachable branch is intentionally omitted rather than carried as unused code.
 /// </summary>
 internal sealed class ImStbrpContext
@@ -123,7 +105,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Initializes the packer for a target of the given size. Mirrors canonical
-    /// <c>stbrp_init_target</c> (<c>ThirdParty/imgui/imstb_rectpack.h:265-288</c>).
+    /// <c>stbrp_init_target</c>.
     /// </summary>
     /// <param name="width">Target width in pixels; must be positive.</param>
     /// <param name="height">Target height in pixels; must be positive.</param>
@@ -171,7 +153,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Selects whether the packer may exhaust its node storage. Mirrors canonical
-    /// <c>stbrp_setup_allow_out_of_mem</c> (<c>ThirdParty/imgui/imstb_rectpack.h:245-263</c>).
+    /// <c>stbrp_setup_allow_out_of_mem</c>.
     /// </summary>
     /// <param name="allowOutOfMemory">
     /// When true the packer keeps pixel-accurate alignment and may fail on pathological input; when
@@ -184,7 +166,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Packs an array of rectangles into the target. Mirrors canonical <c>stbrp_pack_rects</c>
-    /// (<c>ThirdParty/imgui/imstb_rectpack.h:546-584</c>). Rectangles are sorted by decreasing
+    ///. Rectangles are sorted by decreasing
     /// height then decreasing width, packed, then restored to their original order.
     /// </summary>
     /// <param name="rects">Rectangles to pack; their <c>X</c>, <c>Y</c> and <c>WasPacked</c> fields
@@ -240,7 +222,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Sorts rectangles by decreasing height, breaking ties by decreasing width. Ports canonical
-    /// <c>rect_height_compare</c> (<c>ThirdParty/imgui/imstb_rectpack.h:528-537</c>).
+    /// <c>rect_height_compare</c>.
     /// </summary>
     private sealed class HeightThenWidthComparer : IComparer<ImStbrpRect>
     {
@@ -261,7 +243,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Restores the caller's original rectangle order using the stashed index. Ports canonical
-    /// <c>rect_original_order</c> (<c>ThirdParty/imgui/imstb_rectpack.h:539-544</c>).
+    /// <c>rect_original_order</c>.
     /// </summary>
     private sealed class OriginalOrderComparer : IComparer<ImStbrpRect>
     {
@@ -297,7 +279,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Computes the lowest Y the given span can rest at, plus the waste area under it. Ports
-    /// canonical <c>stbrp__skyline_find_min_y</c> (<c>ThirdParty/imgui/imstb_rectpack.h:291-339</c>).
+    /// canonical <c>stbrp__skyline_find_min_y</c>.
     /// </summary>
     /// <param name="first">Index of the first skyline node covering the span's left edge.</param>
     /// <param name="x0">Left edge of the span.</param>
@@ -342,7 +324,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Finds the best skyline position for a rectangle. Ports canonical
-    /// <c>stbrp__skyline_find_best_pos</c> (<c>ThirdParty/imgui/imstb_rectpack.h:347-447</c>).
+    /// <c>stbrp__skyline_find_best_pos</c>.
     /// </summary>
     /// <param name="width">Rectangle width in pixels.</param>
     /// <param name="height">Rectangle height in pixels.</param>
@@ -394,7 +376,7 @@ internal sealed class ImStbrpContext
 
     /// <summary>
     /// Places one rectangle and splices the resulting skyline nodes. Ports canonical
-    /// <c>stbrp__skyline_pack_rectangle</c> (<c>ThirdParty/imgui/imstb_rectpack.h:449-526</c>).
+    /// <c>stbrp__skyline_pack_rectangle</c>.
     /// </summary>
     /// <param name="width">Rectangle width in pixels.</param>
     /// <param name="height">Rectangle height in pixels.</param>

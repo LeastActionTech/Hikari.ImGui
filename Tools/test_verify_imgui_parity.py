@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Regression tests for the type-attributed ImGui parity verifier.
-
-The tests exercise the deterministic parsing and coverage helpers with synthetic inputs so
-they do not depend on the canonical checkout or on the state of the C# port.
-"""
+# The MIT License (MIT)
+# Copyright (c) 2014-2026 Omar Cornut
+# Copyright (c) 2026 Least Action Technologies Inc.
 
 import json
 import sys

@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -7,8 +11,7 @@ namespace Hikari.ImGui.Test;
 /// <summary>
 /// Verifies the canonical text helper types: <see cref="ImGuiTextFilter"/> parsing and matching,
 /// <see cref="ImGuiTextBuffer"/> accumulation, and <see cref="ImGuiOnceUponAFrame"/> once-per-frame
-/// latching. Expected values are derived from Dear ImGui <c>v1.92.9b-docking</c>
-/// <c>ThirdParty/imgui/imgui.cpp:3151-3305</c> and <c>ThirdParty/imgui/imgui.h:2891-2944</c>.
+/// latching.
 /// </summary>
 /// <remarks>
 /// The filter and buffer tests are pure data operations; only the once-per-frame and state-storage
@@ -34,7 +37,6 @@ public class TextHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies a single positive term includes matching text and excludes everything else. Canonical
     /// greps with <c>ImStristr</c> and returns true on the first inclusion match
-    /// (<c>ThirdParty/imgui/imgui.cpp:3210-3245</c>).
     /// </summary>
     [Test]
     public void TextFilter_PositiveTerm_IncludesOnlyMatches()
@@ -68,7 +70,6 @@ public class TextHelperTests : ImGuiTestFixture
     /// Verifies comma-separated inclusion and exclusion terms: a candidate must match an inclusion term
     /// and must not match an exclusion term, with the canonical short-circuit that each term is applied
     /// as soon as it is reached. Canonical splits the input on commas and trims blanks
-    /// (<c>ThirdParty/imgui/imgui.cpp:3172-3245</c>).
     /// </summary>
     [Test]
     public void TextFilter_MixedTerms_RequiresInclusionAndForbidsExclusion()
@@ -79,7 +80,7 @@ public class TextHelperTests : ImGuiTestFixture
         Assert.That(filter.CountGrep, Is.EqualTo(2));
         Assert.That(filter.PassFilter("cube_01"), Is.True);
 
-        // In Dear ImGui 1.93, exclusion terms are evaluated first and always apply regardless of include position.
+        // In canonical Dear ImGui, exclusion terms are evaluated first and always apply regardless of include position.
         Assert.That(filter.PassFilter("mesh_hidden"), Is.False);
         Assert.That(filter.PassFilter("mesh_visible"), Is.True);
 
@@ -91,7 +92,6 @@ public class TextHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGuiTextFilter.Build"/> re-parses <see cref="ImGuiTextFilter.InputBuf"/>
     /// in place and recounts inclusion terms, matching the canonical InputText-then-Build flow
-    /// (<c>ThirdParty/imgui/imgui.cpp:3162-3170</c>).
     /// </summary>
     [Test]
     public void TextFilter_Build_ReParsesInputBuffer()
@@ -128,7 +128,6 @@ public class TextHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that clearing the filter removes every parsed term and lets all candidates pass.
-    /// (<c>ThirdParty/imgui/imgui.h:2911</c>)
     /// </summary>
     [Test]
     public void TextFilter_Clear_RemovesAllTerms()
@@ -146,7 +145,7 @@ public class TextHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that a non-ASCII default filter is stored as UTF-8 and matches as a filter term, rather than
-    /// being truncated to its low byte (<c>ThirdParty/imgui/imgui.cpp:3151-3161</c>).
+    /// being truncated to its low byte.
     /// </summary>
     [Test]
     public void TextFilter_NonAsciiDefault_RemainsActiveTerm()
@@ -173,7 +172,6 @@ public class TextHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies that ASCII case folding does not fold non-ASCII letters, matching canonical <c>ImToUpper</c>
-    /// (<c>ThirdParty/imgui/imgui_internal.h:420</c>).
     /// </summary>
     [Test]
     public void TextFilter_AsciiOnlyCaseFolding()
@@ -195,7 +193,7 @@ public class TextHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that appends accumulate in order and that the reported size and content match the
     /// canonical zero-terminated buffer semantics
-    /// (<c>ThirdParty/imgui/imgui.h:2935-2944</c>, <c>ThirdParty/imgui/imgui.cpp:3259-3275</c>).
+    /// (, ).
     /// </summary>
     [Test]
     public void TextBuffer_AppendAccumulatesContentAndLength()
@@ -222,7 +220,7 @@ public class TextHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the canonical shared empty terminator used by <c>c_str()</c> when the buffer was never
-    /// written (<c>ThirdParty/imgui/imgui.h:2929</c>).
+    /// written.
     /// </summary>
     [Test]
     public void TextBuffer_EmptyStringIsSingleTerminator()
@@ -238,7 +236,6 @@ public class TextHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that the line index records one start offset per line and one final end offset, dropping
     /// a trailing line break. Canonical <c>ImGuiTextIndex::append</c> is at
-    /// <c>ThirdParty/imgui/imgui.cpp:3313-3325</c>.
     /// </summary>
     [Test]
     public void TextIndex_Append_RecordsLineStartsAndEndOffset()
@@ -280,7 +277,6 @@ public class TextHelperTests : ImGuiTestFixture
 
     /// <summary>
     /// Verifies the latch returns true exactly once per frame and remembers the frame it fired on
-    /// (<c>ThirdParty/imgui/imgui.h:2891-2898</c>).
     /// </summary>
     [Test]
     public void OnceUponAFrame_TrueOncePerFrame()
@@ -314,7 +310,6 @@ public class TextHelperTests : ImGuiTestFixture
     /// <summary>
     /// Verifies that <see cref="ImGui.SetStateStorage"/> swaps the current window's state storage and
     /// that passing <see langword="null"/> restores the window's own store
-    /// (<c>ThirdParty/imgui/imgui.cpp:9622-9632</c>).
     /// </summary>
     [Test]
     public void StateStorage_SwapsAndRestores()

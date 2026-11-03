@@ -1,3 +1,7 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 using System;
 using System.Diagnostics;
 using System.Numerics;
@@ -117,7 +121,7 @@ public static class Program
             mouse.Scroll += OnMouseScroll;
         }
 
-        // Configure platform capabilities and clipboard hooks (ThirdParty/imgui/backends/imgui_impl_glfw.cpp:761-762, 775-782).
+        // Configure platform capabilities and clipboard hooks.
         ImGuiIO io = ImGui.GetIO();
         io.BackendFlags |= ImGuiBackendFlags.HasMouseCursors;
 
@@ -170,7 +174,6 @@ public static class Program
     /// <summary>
     /// Forwards a host character event. Silk.NET delivers UTF-16 code units, so surrogate halves are routed
     /// through <c>AddInputCharacterUTF16</c>, which joins them into one code point
-    /// (<c>ThirdParty/imgui/imgui.cpp:1809-1841</c>).
     /// </summary>
     private static void OnKeyChar(IKeyboard keyboard, char character)
     {
@@ -299,7 +302,7 @@ public static class Program
 
     /// <summary>
     /// Synchronizes the active Dear ImGui mouse cursor request to the host OS cursor via Silk.NET.
-    /// Canvases canonical <c>ImGui_ImplGlfw_UpdateMouseCursor</c> (<c>ThirdParty/imgui/backends/imgui_impl_glfw.cpp:993-1032</c>).
+    /// Canvases canonical <c>ImGui_ImplGlfw_UpdateMouseCursor</c>.
     /// </summary>
     private static void UpdateMouseCursor()
     {

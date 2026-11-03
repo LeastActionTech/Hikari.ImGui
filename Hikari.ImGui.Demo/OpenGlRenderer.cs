@@ -1,3 +1,7 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -63,6 +67,7 @@ void main()
         InitBuffers();
     }
 
+    /// <summary>Compiles and links the OpenGL shader programs for UI rendering.</summary>
     private void InitShaders()
     {
         uint vs = CompileShader(ShaderType.VertexShader, VertexShaderSource);
@@ -87,6 +92,10 @@ void main()
         _uTextureLocation = _gl.GetUniformLocation(_program, "uTexture");
     }
 
+    /// <summary>Compiles a single OpenGL shader from source.</summary>
+    /// <param name="type">The shader stage type.</param>
+    /// <param name="source">The GLSL source code.</param>
+    /// <returns>The OpenGL shader handle.</returns>
     private uint CompileShader(ShaderType type, string source)
     {
         uint shader = _gl.CreateShader(type);
@@ -102,6 +111,7 @@ void main()
         return shader;
     }
 
+    /// <summary>Initializes vertex array, vertex buffer, and index buffer objects.</summary>
     private unsafe void InitBuffers()
     {
         _vao = _gl.GenVertexArray();
@@ -172,7 +182,7 @@ void main()
             return;
 
         // Save the host state that this renderer changes so it can be restored on return. Canonical saves
-        // and restores the same set (imgui_impl_opengl3.cpp:479-513, 624-659).
+        // and restores the same set.
         bool hostBlend = _gl.IsEnabled(EnableCap.Blend);
         bool hostCullFace = _gl.IsEnabled(EnableCap.CullFace);
         bool hostDepthTest = _gl.IsEnabled(EnableCap.DepthTest);
@@ -187,7 +197,7 @@ void main()
 
         // Setup GL state for ImGui rendering
         _gl.Viewport(0, 0, (uint)fbWidth, (uint)fbHeight);
-        // Canonical separate alpha blend (imgui_impl_opengl3.cpp:345-352): colour uses source alpha, alpha accumulates.
+        // Canonical separate alpha blend.: colour uses source alpha, alpha accumulates.
         _gl.Enable(EnableCap.Blend);
         _gl.BlendEquation(BlendEquationModeEXT.FuncAdd);
         _gl.BlendFuncSeparate(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha, BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
@@ -250,7 +260,7 @@ void main()
                 var cmd = cmdList.CmdBuffer[j];
 
                 // A user callback replaces the triangle submission for its command. Canonical checks the
-                // callback before the element count (imgui_impl_opengl3.cpp:575-585).
+                // callback before the element count.
                 if (cmd.UserCallback != null)
                 {
                     cmd.UserCallback(cmdList, cmd);

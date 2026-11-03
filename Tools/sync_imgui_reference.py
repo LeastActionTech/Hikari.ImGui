@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""
-Tools/sync_imgui_reference.py
-
-Synchronizes an external canonical reference checkout of Dear ImGui (ocornut/imgui)
-to a designated directory without tracking it in the Hikari git repository.
-"""
+# The MIT License (MIT)
+# Copyright (c) 2014-2026 Omar Cornut
+# Copyright (c) 2026 Least Action Technologies Inc.
 
 import argparse
 import os

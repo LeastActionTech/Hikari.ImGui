@@ -1,4 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
+
 using System;
 using NUnit.Framework;
 
@@ -10,13 +14,13 @@ namespace Hikari.ImGui.Test;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Canonical reference: Dear ImGui <c>v1.92.9b-docking</c>. Disabled scopes are defined by
-/// <c>BeginDisabled()</c>/<c>EndDisabled()</c> (<c>ThirdParty/imgui/imgui.cpp:8983-9008</c>),
-/// groups by <c>BeginGroup()</c>/<c>EndGroup()</c> (<c>imgui.cpp:12569-12663</c>), shortcut routing by
-/// <c>SetNextItemShortcut()</c>/<c>Shortcut()</c> (<c>imgui.cpp:11554-11626</c>) with the route table
-/// resolved through <c>UpdateKeyRoutingTable()</c> (<c>imgui.cpp:10399-10448</c>), clip rectangles by
-/// <c>PushClipRect()</c>/<c>PopClipRect()</c> (<c>imgui.cpp:6196-6208</c>), and the clipboard by
-/// <c>GetClipboardText()</c>/<c>SetClipboardText()</c> (<c>imgui.cpp:5343-5354</c>).
+/// Disabled scopes are defined by
+/// <c>BeginDisabled()</c>/<c>EndDisabled()</c>.,
+/// groups by <c>BeginGroup()</c>/<c>EndGroup()</c>., shortcut routing by
+/// <c>SetNextItemShortcut()</c>/<c>Shortcut()</c>. with the route table
+/// resolved through <c>UpdateKeyRoutingTable()</c>., clip rectangles by
+/// <c>PushClipRect()</c>/<c>PopClipRect()</c>., and the clipboard by
+/// <c>GetClipboardText()</c>/<c>SetClipboardText()</c>.
 /// </para>
 /// <para>
 /// Every test drives a real <see cref="ImGuiContext"/>. A shortcut route becomes current only on the
@@ -85,8 +89,7 @@ public class DisabledAndShortcutTests : ImGuiTestFixture
     /// </summary>
     /// <remarks>
     /// Canonical interaction semantics: <c>ItemHoverable()</c> rejects disabled items
-    /// (<c>ThirdParty/imgui/imgui.cpp:5150-5151</c>), while <c>BeginDisabled()</c> applies the alpha
-    /// (<c>imgui.cpp:8983-8996</c>).
+    ///., while <c>BeginDisabled()</c> applies the alpha
     /// </remarks>
     [Test]
     public void BeginDisabled_ButtonDoesNotPressAndCarriesDisabledFlag()
@@ -168,7 +171,7 @@ public class DisabledAndShortcutTests : ImGuiTestFixture
     /// </summary>
     /// <remarks>
     /// Canonical <c>EndGroup()</c> folds the group's cursor extent with the last item rectangle and
-    /// submits it through <c>ItemSize()</c>/<c>ItemAdd()</c> (<c>ThirdParty/imgui/imgui.cpp:12630-12647</c>).
+    /// submits it through <c>ItemSize()</c>/<c>ItemAdd()</c>.
     /// </remarks>
     [Test]
     public void EndGroup_ItemRectSpansSubmittedChildren()
@@ -214,9 +217,8 @@ public class DisabledAndShortcutTests : ImGuiTestFixture
     /// </summary>
     /// <remarks>
     /// Canonical <c>ItemHandleShortcut()</c> queues navigation activation for the item's owner when the
-    /// chord is pressed (<c>ThirdParty/imgui/imgui.cpp:11562-11585</c>). The focused route is the
+    /// chord is pressed. The focused route is the
     /// default, so this also pins the window focus-scope push performed by <c>Begin()</c>
-    /// (<c>imgui.cpp:8048</c>).
     /// </remarks>
     [Test]
     public void SetNextItemShortcut_ActivatesFollowingButtonWhenChordPressed()
@@ -260,7 +262,7 @@ public class DisabledAndShortcutTests : ImGuiTestFixture
     /// </summary>
     /// <remarks>
     /// Canonical <c>Shortcut()</c> claims the route and then tests
-    /// <c>IsKeyChordPressed()</c> (<c>ThirdParty/imgui/imgui.cpp:11592-11626</c>). A global route is
+    /// <c>IsKeyChordPressed()</c>. A global route is
     /// used so the result does not depend on which window is focused.
     /// </remarks>
     [Test]
@@ -299,7 +301,7 @@ public class DisabledAndShortcutTests : ImGuiTestFixture
     /// </summary>
     /// <remarks>
     /// Canonical <c>PushClipRect()</c> and <c>PopClipRect()</c> maintain the draw-list clip stack and
-    /// refresh <c>window->ClipRect</c> from its top (<c>ThirdParty/imgui/imgui.cpp:6196-6208</c>).
+    /// refresh <c>window->ClipRect</c> from its top.
     /// </remarks>
     [Test]
     public void ClipRect_PushAndPopRestoreWindowClipRect()
@@ -362,7 +364,7 @@ public class DisabledAndShortcutTests : ImGuiTestFixture
     /// </summary>
     /// <remarks>
     /// Canonical forwards to <c>PlatformIO</c>'s clipboard callbacks
-    /// (<c>ThirdParty/imgui/imgui.cpp:5343-5354</c>); this port reads the equivalent
+    ///.; this port reads the equivalent
     /// <see cref="ImGuiIO"/> callbacks until the platform interface lands in Chunk 11.
     /// </remarks>
     [Test]

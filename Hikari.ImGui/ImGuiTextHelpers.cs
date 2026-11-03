@@ -1,55 +1,8 @@
+// The MIT License (MIT)
+// Copyright (c) 2014-2026 Omar Cornut
+// Copyright (c) 2026 Least Action Technologies Inc.
+
 #nullable enable
-/*================================================================================================
- * TEXT HELPERS
- *================================================================================================
- * ROLE IN ENGINE:
- * Provides the small text-oriented helper types that widgets, demos, and tools use directly: a
- * once-per-frame latch for constructing UI from deeply nested code, and a text filter that parses a
- * comma-separated list of include and exclude terms and matches candidate strings against it.
- *
- * SUBSYSTEM CONNECTIONS & DATA FLOW:
- *
- *    ┌──────────────────────────────────────────────────────┐
- *    │ ImGuiOnceUponAFrame                                  │
- *    │ • RefFrame: frame number of the last successful use  │
- *    └──────────────────────────────────────────────────────┘
- *    │ Check() reads ImGui.GetFrameCount()
- *    ▼
- *    ┌──────────────────────────────────────────────────────┐
- *    │ ImGuiTextFilter                                      │
- *    │ • InputBuf: editable term text                       │
- *    │ • Filters: parsed ImGuiTextRange list                │
- *    │ • CountGrep: number of inclusion terms               │
- *    └──────────────────────────────────────────────────────┘
- *    │ Build() splits InputBuf on commas
- *    ▼
- *    ┌──────────────────────────────────────────────────────┐
- *    │ ImGuiTextRange                                       │
- *    │ • Text: one term, trimmed of leading/trailing blanks │
- *    └──────────────────────────────────────────────────────┘
- *    │ PassFilter(text) evaluates the parsed terms
- *    ▼
- *    ┌──────────────────────────────────────────────────────┐
- *    │ caller's candidate strings                           │
- *    │ • PassFilter() returns true/false for each candidate │
- *    └──────────────────────────────────────────────────────┘
- *
- * STYLIZED USAGE EXAMPLE:
- *
- *   var once = new ImGuiOnceUponAFrame();
- *   if (once.Check())
- *       ImGui.Text("Only the first caller this frame sees this line.");
- *
- *   var filter = new ImGuiTextFilter("mesh,-hidden");
- *   if (filter.PassFilter(candidateName))
- *       ImGui.Text(candidateName);
- *
- * THREADING & LIFECYCLE NOTES:
- * - Both types are plain single-threaded mutable state owned by the caller; no internal
- *   synchronization is provided.
- * - ImGuiTextFilter rebuilds its parsed terms only when its text changes, so repeated PassFilter()
- *   calls within a frame reuse the same parsed list.
- *================================================================================================*/
 
 using System;
 using System.Collections.Generic;
@@ -61,7 +14,6 @@ namespace Hikari.ImGui;
 /// <summary>
 /// A latch that reports success only on its first use within a frame, so a UI fragment can be
 /// constructed exactly once per frame even when it is nested in code that runs several times
-/// (<c>ThirdParty/imgui/imgui.h:2891-2898</c>).
 /// </summary>
 /// <remarks>
 /// The latch records the frame number of the last successful use. It is caller-owned and carries no
@@ -71,14 +23,12 @@ public sealed class ImGuiOnceUponAFrame
 {
     /// <summary>
     /// Gets or sets the frame number on which the latch last fired, or -1 before its first use.
-    /// (<c>ThirdParty/imgui/imgui.h:2895</c>)
     /// </summary>
     public int RefFrame { get; set; } = -1;
 
     /// <summary>
     /// Reports whether this is the latch's first use in the current frame and records the frame when
     /// it is. Mirrors the canonical <c>operator bool</c>
-    /// (<c>ThirdParty/imgui/imgui.h:2896</c>).
     /// </summary>
     /// <returns><see langword="true"/> on the first use in a frame, otherwise <see langword="false"/>.</returns>
     public bool Check()
@@ -93,7 +43,6 @@ public sealed class ImGuiOnceUponAFrame
     /// <summary>
     /// Enables the canonical <c>if (once_upon_a_frame)</c> usage by converting the latch to the result of
     /// <see cref="Check"/>. Mirrors the canonical <c>operator bool</c>
-    /// (<c>ThirdParty/imgui/imgui.h:2896</c>).
     /// </summary>
     /// <param name="value">The latch to evaluate.</param>
     /// <returns>The result of <see cref="Check"/> on the latch.</returns>
@@ -109,14 +58,16 @@ public sealed class ImGuiOnceUponAFrame
 
 /// <summary>
 /// Pre-parsed term for <see cref="ImGuiTextFilter"/>.
-/// (<c>ThirdParty/imgui/imgui_internal.h:880-887</c>)
 /// </summary>
 public struct ImGuiTextFilterItem
 {
+    /// <summary>
+    /// Gets or sets the text string of the filter term.
+    /// </summary>
     public string Text { get; set; }
 
     /// <summary>
-    /// Gets or sets the text item string. Canonical C++ pointer alias (<c>ThirdParty/imgui/imgui_internal.h:882</c>).
+    /// Gets or sets the text item string. Canonical C++ pointer alias.
     /// </summary>
     public string? Begin
     {
@@ -124,10 +75,25 @@ public struct ImGuiTextFilterItem
         set => Text = value ?? string.Empty;
     }
 
+    /// <summary>
+    /// Gets the length, in characters, of the filter term text.
+    /// </summary>
     public int Len => Text?.Length ?? 0;
+
+    /// <summary>
+    /// Gets or sets the count of positive include rules associated with this term.
+    /// </summary>
     public short CountInclude { get; set; }
+
+    /// <summary>
+    /// Gets or sets the bitmask of matched include filters.
+    /// </summary>
     public ushort MatchIncludesMask { get; set; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ImGuiTextFilterItem"/> struct with the specified filter term.
+    /// </summary>
+    /// <param name="text">The filter term string.</param>
     public ImGuiTextFilterItem(string text)
     {
         Text = text;
@@ -139,8 +105,7 @@ public struct ImGuiTextFilterItem
 /// <summary>
 /// Parses and applies a text filter in the canonical format <c>aaaaa[,bbbb][,ccccc]</c>. Terms are
 /// comma-separated; a term beginning with <c>-</c> excludes matching text and every other term
-/// includes it (<c>ThirdParty/imgui/imgui.h:2899-2925</c>,
-/// <c>ThirdParty/imgui/imgui.cpp:3151-3255</c>).
+/// includes it (,
 /// </summary>
 /// <remarks>
 /// <para>
@@ -160,7 +125,7 @@ public sealed class ImGuiTextFilter
 
     /// <summary>
     /// Capacity of <see cref="InputBuf"/>, including the zero terminator. Mirrors the canonical
-    /// <c>char InputBuf[256]</c> (<c>ThirdParty/imgui/imgui.h:2919</c>).
+    /// <c>char InputBuf[256]</c>.
     /// </summary>
     private const int InputBufCapacity = 256;
 
@@ -169,29 +134,28 @@ public sealed class ImGuiTextFilter
     #region Properties and state fields
 
     /// <summary>
-    /// Gets the editable, zero-terminated filter text. (<c>ThirdParty/imgui/imgui.h:2919</c>)
+    /// Gets the editable, zero-terminated filter text.
     /// </summary>
     public byte[] InputBuf { get; } = new byte[InputBufCapacity];
 
     /// <summary>
-    /// Number of leading exclusion items. (<c>ThirdParty/imgui/imgui.h:2947</c>)
+    /// Number of leading exclusion items.
     /// </summary>
     public int _CountExclude;
 
     /// <summary>
-    /// Pre-parsed, trimmed, reordered filter items. (<c>ThirdParty/imgui/imgui.h:2948</c>)
+    /// Pre-parsed, trimmed, reordered filter items.
     /// </summary>
     public readonly List<ImGuiTextFilterItem> _Items = new();
 
     /// <summary>
     /// Gets the parsed terms. The list is rebuilt by <see cref="Build"/>.
-    /// (<c>ThirdParty/imgui/imgui.h:2920</c>)
     /// </summary>
     public List<ImGuiTextRange> Filters { get; } = new();
 
     /// <summary>
     /// Gets or sets the number of inclusion terms, used to apply the implicit <c>*</c> match when no
-    /// inclusion term is present. (<c>ThirdParty/imgui/imgui.h:2921</c>)
+    /// inclusion term is present.
     /// </summary>
     public int CountGrep { get; set; }
 
@@ -201,7 +165,6 @@ public sealed class ImGuiTextFilter
 
     /// <summary>
     /// Initializes a filter, optionally from a default filter string. Mirrors the canonical constructor
-    /// (<c>ThirdParty/imgui/imgui.cpp:3151-3161</c>).
     /// </summary>
     /// <param name="defaultFilter">
     /// Initial filter text. The canonical default is the empty string; a null value is treated as empty.
@@ -224,7 +187,6 @@ public sealed class ImGuiTextFilter
     /// <summary>
     /// Draws an input field bound to <see cref="InputBuf"/> and rebuilds the parsed terms when the text
     /// changes. Mirrors the canonical <c>Draw</c> helper
-    /// (<c>ThirdParty/imgui/imgui.h:2939</c>).
     /// </summary>
     /// <param name="label">Field label.</param>
     /// <param name="width">Field width, or zero to keep the current layout width.</param>
@@ -242,7 +204,6 @@ public sealed class ImGuiTextFilter
     /// <summary>
     /// Draws an input field with a placeholder hint bound to <see cref="InputBuf"/> and rebuilds the
     /// parsed terms when the text changes. Mirrors canonical <c>DrawWithHint</c>
-    /// (<c>ThirdParty/imgui/imgui.h:2940</c>).
     /// </summary>
     /// <param name="label">Field label.</param>
     /// <param name="hint">Hint text displayed when input is empty.</param>
@@ -260,7 +221,6 @@ public sealed class ImGuiTextFilter
 
     /// <summary>
     /// Reports whether a candidate string passes the filter. Mirrors the canonical <c>PassFilter</c>
-    /// (<c>ThirdParty/imgui/imgui.cpp:3295-3325</c>).
     /// </summary>
     /// <param name="text">Candidate text to test; a null value is treated as empty.</param>
     /// <returns><see langword="true"/> when the candidate satisfies every parsed term.</returns>
@@ -304,7 +264,7 @@ public sealed class ImGuiTextFilter
 
     /// <summary>
     /// Re-parses <see cref="InputBuf"/> into <see cref="_Items"/> and recounts the inclusion terms.
-    /// Mirrors the canonical <c>Build</c> (<c>ThirdParty/imgui/imgui.cpp:3235-3292</c>).
+    /// Mirrors the canonical <c>Build</c>.
     /// </summary>
     public void Build()
     {
@@ -384,7 +344,7 @@ public sealed class ImGuiTextFilter
     }
 
     /// <summary>
-    /// Clears the filter text and the parsed terms. (<c>ThirdParty/imgui/imgui.h:2935</c>)
+    /// Clears the filter text and the parsed terms.
     /// </summary>
     public void Clear()
     {
@@ -394,7 +354,6 @@ public sealed class ImGuiTextFilter
 
     /// <summary>
     /// Reports whether the filter currently has any parsed terms.
-    /// (<c>ThirdParty/imgui/imgui.h:2936</c>)
     /// </summary>
     /// <returns><see langword="true"/> when at least one term is present.</returns>
     public bool IsActive()
@@ -409,7 +368,7 @@ public sealed class ImGuiTextFilter
     /// <summary>
     /// Encodes <paramref name="text"/> as UTF-8 into <see cref="InputBuf"/>, stopping before any code point
     /// that would not fit so that no multi-byte sequence is split. Mirrors the canonical
-    /// <c>ImStrncpy</c> behavior applied to a UTF-8 default filter (<c>ThirdParty/imgui/imgui.cpp:3151-3161</c>).
+    /// <c>ImStrncpy</c> behavior applied to a UTF-8 default filter.
     /// </summary>
     /// <param name="text">Text to store; a surrogate pair is kept whole or dropped whole.</param>
     private void WriteInputUtf8(string text)
@@ -443,14 +402,13 @@ public sealed class ImGuiTextFilter
     /// <summary>
     /// Reports whether <paramref name="haystack"/> contains <paramref name="needle"/> ignoring ASCII
     /// case, mirroring the canonical <c>ImStristr</c> comparison
-    /// (<c>ThirdParty/imgui/imgui.cpp:3210-3245</c>).
     /// </summary>
     /// <param name="haystack">Text to search.</param>
     /// <param name="needle">Non-empty term to find.</param>
     /// <returns><see langword="true"/> when the term occurs.</returns>
     private static bool ContainsIgnoreCase(string haystack, string needle)
     {
-        // Only ASCII letters fold case, matching canonical ImToUpper (imgui_internal.h:420-421).
+        // Only ASCII letters fold case, matching canonical ImToUpper.
         // OrdinalIgnoreCase would also fold non-ASCII letters, which canonical does not.
         if (needle.Length == 0)
             return true;
@@ -467,7 +425,7 @@ public sealed class ImGuiTextFilter
 
     /// <summary>
     /// Uppercases one ASCII letter and leaves every other character unchanged. Mirrors canonical
-    /// <c>ImToUpper</c> (<c>ThirdParty/imgui/imgui_internal.h:420</c>).
+    /// <c>ImToUpper</c>.
     /// </summary>
     /// <param name="c">Character to fold.</param>
     /// <returns>The uppercase ASCII letter, or <paramref name="c"/> unchanged.</returns>
@@ -483,18 +441,16 @@ public sealed class ImGuiTextFilter
     /// <summary>
     /// A contiguous slice of filter text, used while splitting <see cref="InputBuf"/> on commas.
     /// Mirrors the canonical nested <c>ImGuiTextFilter::ImGuiTextRange</c>
-    /// (<c>ThirdParty/imgui/imgui.h:2905-2915</c>).
     /// </summary>
     public sealed class ImGuiTextRange
     {
         /// <summary>
-        /// Gets or sets the slice text. (<c>ThirdParty/imgui/imgui.h:2909</c>)
+        /// Gets or sets the slice text.
         /// </summary>
         public string Text { get; set; }
 
         /// <summary>
         /// Initializes a range from its text.
-        /// (<c>ThirdParty/imgui/imgui.h:2907</c>)
         /// </summary>
         /// <param name="text">The slice text; never null.</param>
         public ImGuiTextRange(string text)
@@ -504,14 +460,13 @@ public sealed class ImGuiTextFilter
 
         /// <summary>
         /// Gets a value indicating whether the slice holds no text.
-        /// (<c>ThirdParty/imgui/imgui.h:2913</c>)
         /// </summary>
         public bool Empty => Text.Length == 0;
 
         /// <summary>
         /// Splits this slice on <paramref name="separator"/>, replacing <paramref name="outRanges"/>
         /// with the resulting slices. Empty slices at a trailing separator are dropped, mirroring the
-        /// canonical <c>split</c> (<c>ThirdParty/imgui/imgui.cpp:3172-3188</c>).
+        /// canonical <c>split</c>.
         /// </summary>
         /// <param name="separator">Separator character.</param>
         /// <param name="outRanges">List replaced with the resulting slices.</param>
