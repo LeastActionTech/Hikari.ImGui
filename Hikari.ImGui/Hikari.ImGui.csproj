@@ -16,10 +16,13 @@
     <Description>Pure C# re-implementation of Dear ImGui v1.93.0-docking with zero native dependencies.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/LeastActionTech/Hikari.ImGui</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/akshaym/Hikari.ImGui</RepositoryUrl>
+    <RepositoryUrl>https://github.com/LeastActionTech/Hikari.ImGui</RepositoryUrl>
     <PackageTags>imgui;dear-imgui;gui;gamedev;csharp;pure;docking</PackageTags>
     <PackageOutputPath>../artifacts/packages</PackageOutputPath>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,0 +1,39 @@
+name: Publish to NuGet
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Build, Test & Publish to NuGet
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore Dependencies
+      run: dotnet restore Hikari.ImGui.sln
+
+    - name: Build Solution
+      run: dotnet build Hikari.ImGui.sln -c Release --no-restore
+
+    - name: Run Test Suite
+      run: dotnet test Hikari.ImGui.Test/Hikari.ImGui.Test.csproj -c Release --no-build --verbosity normal
+
+    - name: Pack NuGet Package
+      run: dotnet pack Hikari.ImGui/Hikari.ImGui.csproj -c Release --no-build -o ./artifacts/packages
+
+    - name: Push to NuGet.org
+      run: |
+        dotnet nuget push ./artifacts/packages/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
