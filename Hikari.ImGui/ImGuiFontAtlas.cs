@@ -1522,7 +1522,6 @@ public sealed class ImFont
 
         uint colUntinted = col | ~0xFF000000u;
         int wrapEol = -1;
-        int prevS = 0;
 
         while (s < text.Length)
         {
@@ -1543,7 +1542,6 @@ public sealed class ImFont
                 }
             }
 
-            prevS = s;
             uint c = DecodeChar(text, ref s);
 
             if (c < 32)
@@ -1596,7 +1594,6 @@ public sealed class ImFont
             }
 
             x += charWidth;
-            _ = prevS;
         }
     }
 
@@ -1681,10 +1678,10 @@ public sealed class ImFont
     /// <returns>Index of the newline, or the text length.</returns>
     private static int IndexOfNewline(ReadOnlySpan<char> text, int start)
     {
-        for (int i = start; i < text.Length; i++)
-            if (text[i] == '\n')
-                return i;
-        return text.Length;
+        // MemoryExtensions.IndexOf uses the vectorized runtime search; scanning by hand would serialize
+        // a per-character branch on long clipped text.
+        int index = text.Slice(start).IndexOf('\n');
+        return index < 0 ? text.Length : start + index;
     }
 
     /// <summary>

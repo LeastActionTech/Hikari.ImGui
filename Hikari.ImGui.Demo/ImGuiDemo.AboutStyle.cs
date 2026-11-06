@@ -13,7 +13,7 @@ using Hikari.ImGui;
 namespace Hikari.ImGui.Demo;
 
 /// <summary>
-/// About, configuration, user guide, and style demonstration sections of Dear ImGui.
+/// About, configuration, user guide, and style demonstration sections
 /// </summary>
 public static partial class ImGuiDemo
 {
@@ -36,7 +36,7 @@ public static partial class ImGuiDemo
     #region [SECTION] About Window / ShowAboutWindow()
 
     /// <summary>
-    /// Displays the Dear ImGui about and build configuration window.
+    /// Displays the about and build configuration window.
     /// </summary>
     /// <param name="pOpen">Reference to a boolean controlling whether the window remains open.</param>
     /// <remarks>
@@ -44,7 +44,7 @@ public static partial class ImGuiDemo
     /// </remarks>
     public static void ShowAboutWindow(ref bool pOpen)
     {
-        if (!ImGui.Begin("About Dear ImGui", ref pOpen, ImGuiWindowFlags.AlwaysAutoResize))
+        if (!ImGui.Begin("About Hikari.ImGui", ref pOpen, ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.End();
             return;
@@ -61,25 +61,27 @@ public static partial class ImGuiDemo
     /// </summary>
     private static void ShowAboutWindowContents()
     {
-        ImGui.Text($"Dear ImGui {ImGui.GetVersion()} ({ImGui.ImGuiVersionNum})");
+        ImGui.Text($"Hikari.ImGui {ImGui.GetVersion()} ({ImGui.ImGuiVersionNum})");
 
-        ImGui.TextLinkOpenURL("Homepage", "https://github.com/ocornut/imgui");
+        ImGui.TextLinkOpenURL("Hikari.ImGui Homepage", "https://github.com/LeastActionTech/Hikari.ImGui");
         ImGui.SameLine();
-        ImGui.TextLinkOpenURL("FAQ", "https://github.com/ocornut/imgui/blob/master/docs/FAQ.md");
+        ImGui.TextLinkOpenURL("Dear ImGui Homepage", "https://github.com/ocornut/imgui");
         ImGui.SameLine();
-        ImGui.TextLinkOpenURL("Wiki", "https://github.com/ocornut/imgui/wiki");
+        ImGui.TextLinkOpenURL("Dear ImGui FAQ", "https://github.com/ocornut/imgui/blob/master/docs/FAQ.md");        
+        ImGui.TextLinkOpenURL("Dear ImGui Wiki", "https://github.com/ocornut/imgui/wiki");
         ImGui.SameLine();
         ImGui.TextLinkOpenURL("Extensions", "https://github.com/ocornut/imgui/wiki/Useful-Extensions");
         ImGui.SameLine();
-        ImGui.TextLinkOpenURL("Releases", "https://github.com/ocornut/imgui/releases");
-        ImGui.SameLine();
-        ImGui.TextLinkOpenURL("Funding", "https://github.com/ocornut/imgui/wiki/Funding");
+        ImGui.TextLinkOpenURL("Hikari.ImGui Releases", "https://github.com/LeastActionTech/Hikari.ImGui/releases");
+        
+        
 
         ImGui.Separator();
+        ImGui.Text("(c) 2026 Least Action Technologies Inc.");
+        ImGui.Text("The Hikari.ImGui C# port of Dear ImGui has been authored by Akshay Mishra and contributors.");
         ImGui.Text("(c) 2014-2026 Omar Cornut");
-        ImGui.Text("Developed by Omar Cornut and all Dear ImGui contributors.");
-        ImGui.Text("Dear ImGui is licensed under the MIT License, see LICENSE for more information.");
-        ImGui.Text("If your company uses this, please consider funding the project.");
+        ImGui.Text("Original Dear ImGui C++ code by Omar Cornut and all Dear ImGui contributors.");
+        ImGui.Text("Hikari.ImGui is licensed under the MIT License, see LICENSE for more information.");
 
         ImGui.Checkbox("Config/Build Information", ref s_showConfigInfo);
         if (s_showConfigInfo)
@@ -104,7 +106,7 @@ public static partial class ImGuiDemo
                 sb?.AppendLine(line);
             }
 
-            PrintLine($"Dear ImGui {ImGui.GetVersion()} ({ImGui.ImGuiVersionNum})");
+            PrintLine($"Hikari.ImGui {ImGui.GetVersion()} ({ImGui.ImGuiVersionNum})");
             ImGui.Separator();
             sb?.AppendLine("--------------------------------");
             PrintLine($"sizeof(size_t): {IntPtr.Size}, sizeof(ImDrawIdx): {sizeof(ushort)}, sizeof(ImDrawVert): {Marshal.SizeOf<ImDrawVert>()}");
@@ -189,7 +191,7 @@ public static partial class ImGuiDemo
     }
 
     /// <summary>
-    /// Displays the Dear ImGui about and build configuration window without tracking an external open state.
+    /// Displays the about and build configuration window without tracking an external open state.
     /// </summary>
     /// <remarks>
     /// Ports canonical <c>ImGui::ShowAboutWindow()</c>
@@ -198,7 +200,7 @@ public static partial class ImGuiDemo
     {
         // Canonical ShowAboutWindow(NULL) opens the window without a close button, because Begin receives a
         // null p_open. Use the flags-only Begin for the same effect.
-        if (!ImGui.Begin("About Dear ImGui", ImGuiWindowFlags.AlwaysAutoResize))
+        if (!ImGui.Begin("About Hikari.ImGui", ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.End();
             return;
@@ -262,7 +264,7 @@ public static partial class ImGuiDemo
     #region [SECTION] Style Editor / ShowStyleEditor()
 
     /// <summary>
-    /// Displays the Dear ImGui interactive style editor with metric sliders, palettes, font details, and rendering toggles.
+    /// Displays the interactive style editor with metric sliders, palettes, font details, and rendering toggles.
     /// </summary>
     /// <param name="refStyle">Optional reference style to compare against, revert to, and save to.</param>
     /// <remarks>

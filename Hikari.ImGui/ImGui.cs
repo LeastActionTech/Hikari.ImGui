@@ -13835,12 +13835,31 @@ public static partial class ImGui
     /// </remarks>
     public static string FindRenderedTextEnd(string text)
     {
-        int end = 0;
+        int end = FindRenderedTextEndIndex(text);
+        // Returning the original instance for the common untruncated case avoids a substring allocation.
+        return end == text.Length ? text : text[..end];
+    }
+
+    /// <summary>
+    /// Returns the exclusive index where the rendered portion of a text run ends.
+    /// </summary>
+    /// <param name="text">The text run, which may embed an identifier after <c>##</c>.</param>
+    /// <returns>
+    /// The first index of a <c>##</c> marker or NUL character, or <see cref="string.Length"/> when the
+    /// whole run is rendered.
+    /// </returns>
+    /// <remarks>
+    /// This is the allocation-free core of <see cref="FindRenderedTextEnd"/>: callers that only need to
+    /// slice a span can consume the index directly instead of materializing a display substring.
+    /// </remarks>
+    private static int FindRenderedTextEndIndex(string text)
+    {
         int length = text.Length;
+        int end = 0;
         // Reading text[end + 1] is guarded because managed strings are not NUL-terminated.
         while (end < length && text[end] != '\0' && (end + 1 >= length || text[end] != '#' || text[end + 1] != '#'))
             end++;
-        return text[..end];
+        return end;
     }
 
     /// <summary>

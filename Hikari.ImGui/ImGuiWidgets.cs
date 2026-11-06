@@ -622,13 +622,16 @@ public static partial class ImGui
         ImGuiWindow window = g.CurrentWindow!;
 
         string displayText = ResolveTextRange(text, textEnd);
-        if (hideTextAfterHash)
-            displayText = FindRenderedTextEnd(displayText);
+        // Resolve the visible range as an index so the common, non-logging path never materializes a
+        // substring; the draw list consumes the sliced span directly.
+        int displayLength = hideTextAfterHash ? FindRenderedTextEndIndex(displayText) : displayText.Length;
 
-        if (displayText.Length > 0)
+        if (displayLength > 0)
         {
-            window.DrawList.AddText(g.Font!, g.FontSize, pos, GetColorU32(ImGuiCol.Text), displayText.AsSpan());
+            window.DrawList.AddText(g.Font!, g.FontSize, pos, GetColorU32(ImGuiCol.Text), displayText.AsSpan(0, displayLength));
             if (g.LogEnabled)
+                // Canonical forwards the resolved range end; the port's logging helper re-truncates at
+                // "##" when the end is null, which preserves the historical port behavior here.
                 LogRenderedText(pos, displayText);
         }
     }

@@ -13,7 +13,7 @@ namespace Hikari.ImGui.Demo;
 /// Data shared across different functions of the demo window.
 /// </summary>
 /// <summary>
-/// State data configuring the visibility and options of the Dear ImGui demo window.
+/// State data configuring the visibility and options of the demo window.
 /// </summary>
 public sealed class ImGuiDemoWindowData
 {
@@ -51,7 +51,7 @@ public sealed class ImGuiDemoWindowData
     /// <summary>Whether to show the window titles example app.</summary>
     public bool ShowAppWindowTitles;
 
-    // Dear ImGui Tools (accessible from the "Tools" menu)
+    // Hikari.ImGui Tools (accessible from the "Tools" menu)
     /// <summary>Whether to show the metrics window.</summary>
     public bool ShowMetrics;
     /// <summary>Whether to show the debug log window.</summary>
@@ -192,7 +192,7 @@ public static partial class ImGuiDemo
                 }
 
                 ImGui.MenuItem("Style Editor", null, ref demoData.ShowStyleEditor);
-                ImGui.MenuItem("About Dear ImGui", null, ref demoData.ShowAbout);
+                ImGui.MenuItem("About Hikari.ImGui", null, ref demoData.ShowAbout);
 
                 ImGui.EndMenu();
             }
@@ -245,7 +245,7 @@ public static partial class ImGuiDemo
         if (s_demoData.ShowAppLongText)             ShowExampleAppLongText(ref s_demoData.ShowAppLongText);
         if (s_demoData.ShowAppWindowTitles)         ShowExampleAppWindowTitles(ref s_demoData.ShowAppWindowTitles);
 
-        // Dear ImGui Tools (accessible from the "Tools" menu, )
+        // Hikari.ImGui Tools (accessible from the "Tools" menu, )
         if (s_demoData.ShowMetrics)
         {
             ImGui.ShowMetricsWindow(ref s_demoData.ShowMetrics);
@@ -260,7 +260,7 @@ public static partial class ImGuiDemo
         }
         if (s_demoData.ShowStyleEditor)
         {
-            ImGui.Begin("Dear ImGui Style Editor", ref s_demoData.ShowStyleEditor);
+            ImGui.Begin("Hikari.ImGui Style Editor", ref s_demoData.ShowStyleEditor);
             ShowStyleEditor();
             ImGui.End();
         }
@@ -294,11 +294,11 @@ public static partial class ImGuiDemo
         bool windowOpen;
         if (passOpen)
         {
-            windowOpen = ImGui.Begin("Dear ImGui Demo", ref pOpen, windowFlags);
+            windowOpen = ImGui.Begin("Hikari.ImGui Demo", ref pOpen, windowFlags);
         }
         else
         {
-            windowOpen = ImGui.Begin("Dear ImGui Demo", windowFlags);
+            windowOpen = ImGui.Begin("Hikari.ImGui Demo", windowFlags);
         }
 
         if (!windowOpen)
@@ -317,7 +317,7 @@ public static partial class ImGuiDemo
         // Menu Bar.
         DemoWindowMenuBar(s_demoData);
 
-        ImGui.Text($"dear imgui says hello! ({ImGui.GetVersion()}) ({ImGui.ImGuiVersionNum})");
+        ImGui.Text($"Hikari.ImGui says hello! ({ImGui.GetVersion()}) ({ImGui.ImGuiVersionNum})");
         ImGui.Spacing();
 
         // [SECTION] Help.
@@ -326,7 +326,7 @@ public static partial class ImGuiDemo
             ImGui.SeparatorText("ABOUT THIS DEMO:");
             ImGui.BulletText("Sections below are demonstrating many aspects of the library.");
             ImGui.BulletText("The \"Examples\" menu above leads to more demo contents.");
-            ImGui.BulletText("The \"Tools\" menu above gives access to: About Box, Style Editor,\nand Metrics/Debugger (general purpose Dear ImGui debugging tool).");
+            ImGui.BulletText("The \"Tools\" menu above gives access to: About Box, Style Editor,\nand Metrics/Debugger (general purpose Hikari.ImGui debugging tool).");
             ImGui.BulletText("Web demo (w/ source code browser): ");
             ImGui.SameLine(0, 0);
             ImGui.TextLinkOpenURL("https://pthom.github.io/imgui_explorer");
@@ -360,7 +360,7 @@ public static partial class ImGuiDemo
                 ImGui.SameLine(); HelpMarker("Enable gamepad controls. Require backend to set io.BackendFlags |= ImGuiBackendFlags_HasGamepad.\n\nRead instructions in imgui.cpp for details.");
 
                 CheckboxConfigFlags("io.ConfigFlags: NoMouse", io, ImGuiConfigFlags.NoMouse);
-                ImGui.SameLine(); HelpMarker("Instruct dear imgui to disable mouse inputs and interactions.");
+                ImGui.SameLine(); HelpMarker("Instruct Hikari.ImGui to disable mouse inputs and interactions.");
 
                 // The "NoMouse" option can get us stuck with a disabled mouse! Let's provide an alternative way to fix it:
                 if ((io.ConfigFlags & ImGuiConfigFlags.NoMouse) != 0)
@@ -380,7 +380,7 @@ public static partial class ImGuiDemo
                 ImGui.SameLine(); HelpMarker("Instruct backend to not alter mouse cursor shape and visibility.");
 
                 CheckboxConfigFlags("io.ConfigFlags: NoKeyboard", io, ImGuiConfigFlags.NoKeyboard);
-                ImGui.SameLine(); HelpMarker("Instruct dear imgui to disable keyboard inputs and interactions.");
+                ImGui.SameLine(); HelpMarker("Instruct Hikari.ImGui to disable keyboard inputs and interactions.");
 
                 bool trickle = io.ConfigInputTrickleEventQueue;
                 if (ImGui.Checkbox("io.ConfigInputTrickleEventQueue", ref trickle))
@@ -390,7 +390,7 @@ public static partial class ImGuiDemo
                 bool mouseDrawCursor = io.MouseDrawCursor;
                 if (ImGui.Checkbox("io.MouseDrawCursor", ref mouseDrawCursor))
                     io.MouseDrawCursor = mouseDrawCursor;
-                ImGui.SameLine(); HelpMarker("Instruct Dear ImGui to render a mouse cursor itself. Note that a mouse cursor rendered via your application GPU rendering path will feel more laggy than hardware cursor, but will be more in sync with your other visuals.\n\nSome desktop applications may use both kinds of cursors (e.g. enable software cursor only when resizing/dragging something).");
+                ImGui.SameLine(); HelpMarker("Instruct Hikari.ImGui to render a mouse cursor itself. Note that a mouse cursor rendered via your application GPU rendering path will feel more laggy than hardware cursor, but will be more in sync with your other visuals.\n\nSome desktop applications may use both kinds of cursors (e.g. enable software cursor only when resizing/dragging something).");
 
                 ImGui.SeparatorText("Keyboard/Gamepad Navigation");
                 bool swapGamepad = io.ConfigNavSwapGamepadButtons;
@@ -505,7 +505,7 @@ public static partial class ImGuiDemo
                 //ImGui.SameLine(); HelpMarker("Experimental: Automatically update style.FontScaleDpi when Monitor DPI changes. This will scale fonts but NOT style sizes/padding for now.");
                 //bool dpiScaleViewports = io.ConfigDpiScaleViewports;
                 //ImGui.Checkbox("io.ConfigDpiScaleViewports", ref dpiScaleViewports);
-                //ImGui.SameLine(); HelpMarker("Experimental: Scale Dear ImGui and Platform Windows when Monitor DPI changes.");
+                //ImGui.SameLine(); HelpMarker("Experimental: Scale Hikari.ImGui and Platform Windows when Monitor DPI changes.");
 
                 ImGui.SeparatorText("Windows");
                 bool winResizeEdges = io.ConfigWindowsResizeFromEdges;

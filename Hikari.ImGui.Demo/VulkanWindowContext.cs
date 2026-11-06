@@ -393,7 +393,10 @@ public sealed unsafe class VulkanWindowContext : IDisposable
 
         uint actualCount = 0;
         KhrSwapchain.GetSwapchainImages(Device, Swapchain, &actualCount, null);
-        SwapchainImages = new Image[actualCount];
+        // Reuse the backing array across same-sized recreations so a resize or suboptimal result does
+        // not allocate a fresh image array every time the swapchain is rebuilt.
+        if (SwapchainImages.Length != (int)actualCount)
+            SwapchainImages = new Image[actualCount];
         fixed (Image* pImages = SwapchainImages)
         {
             KhrSwapchain.GetSwapchainImages(Device, Swapchain, &actualCount, pImages);
@@ -402,7 +405,8 @@ public sealed unsafe class VulkanWindowContext : IDisposable
 
     private void CreateImageViews()
     {
-        SwapchainImageViews = new ImageView[SwapchainImages.Length];
+        if (SwapchainImageViews.Length != SwapchainImages.Length)
+            SwapchainImageViews = new ImageView[SwapchainImages.Length];
         for (int i = 0; i < SwapchainImages.Length; i++)
         {
             ImageViewCreateInfo viewInfo = new()
@@ -479,7 +483,8 @@ public sealed unsafe class VulkanWindowContext : IDisposable
 
     private void CreateFramebuffers()
     {
-        Framebuffers = new Framebuffer[SwapchainImageViews.Length];
+        if (Framebuffers.Length != SwapchainImageViews.Length)
+            Framebuffers = new Framebuffer[SwapchainImageViews.Length];
         for (int i = 0; i < SwapchainImageViews.Length; i++)
         {
             var view = SwapchainImageViews[i];
@@ -677,51 +682,60 @@ public sealed unsafe class VulkanWindowContext : IDisposable
     /// <summary>
     /// Ends render pass and command buffer, submits to graphics queue, and presents to swapchain.
     /// </summary>
+    /// <remarks>
+    /// The steady-state path performs no managed heap allocation: the frame slot and its command buffer,
+    /// semaphores, and fence are resolved once into locals, and the Vulkan submission and present
+    /// structures are value types living on the stack. Swapchain recreation, which does allocate, runs
+    /// only when the surface reports that it is out of date or suboptimal.
+    /// </remarks>
     public void EndFrameAndPresent()
     {
         if (!_frameActive) return;
 
-        var cmdBuffer = CommandBuffers[_currentFrame];
+        int frame = (int)_currentFrame;
+        CommandBuffer cmdBuffer = CommandBuffers[frame];
         Vk.CmdEndRenderPass(cmdBuffer);
         Vk.EndCommandBuffer(cmdBuffer);
 
-        var waitSem = _imageAvailableSemaphores[_currentFrame];
-        var sigSem = _renderFinishedSemaphores[_currentFrame];
+        Semaphore waitSemaphore = _imageAvailableSemaphores[frame];
+        Semaphore signalSemaphore = _renderFinishedSemaphores[frame];
+        Fence inFlightFence = _inFlightFences[frame];
         PipelineStageFlags waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
 
         SubmitInfo submitInfo = new()
         {
             SType = StructureType.SubmitInfo,
             WaitSemaphoreCount = 1,
-            PWaitSemaphores = &waitSem,
+            PWaitSemaphores = &waitSemaphore,
             PWaitDstStageMask = &waitStage,
             CommandBufferCount = 1,
             PCommandBuffers = &cmdBuffer,
             SignalSemaphoreCount = 1,
-            PSignalSemaphores = &sigSem
+            PSignalSemaphores = &signalSemaphore
         };
 
-        Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, _inFlightFences[_currentFrame]);
+        Vk.QueueSubmit(GraphicsQueue, 1, in submitInfo, inFlightFence);
 
-        var swapchain = Swapchain;
-        var imgIdx = _imageIndex;
+        SwapchainKHR swapchain = Swapchain;
+        uint imageIndex = _imageIndex;
 
         PresentInfoKHR presentInfo = new()
         {
             SType = StructureType.PresentInfoKhr,
             WaitSemaphoreCount = 1,
-            PWaitSemaphores = &sigSem,
+            PWaitSemaphores = &signalSemaphore,
             SwapchainCount = 1,
             PSwapchains = &swapchain,
-            PImageIndices = &imgIdx
+            PImageIndices = &imageIndex
         };
 
-        Result pres = KhrSwapchain!.QueuePresent(PresentQueue, in presentInfo);
-        if (pres == Result.ErrorOutOfDateKhr || pres == Result.SuboptimalKhr)
+        Result presentResult = KhrSwapchain!.QueuePresent(PresentQueue, in presentInfo);
+        if (presentResult == Result.ErrorOutOfDateKhr || presentResult == Result.SuboptimalKhr)
         {
             RecreateSwapchain();
         }
 
+        // Advance after presenting so the next BeginFrame reuses the oldest slot.
         _currentFrame = (_currentFrame + 1) % MaxFramesInFlight;
         _frameActive = false;
     }

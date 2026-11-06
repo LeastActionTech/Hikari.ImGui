@@ -129,6 +129,32 @@ public class DrawTests
         Assert.That(rect.Max, Is.EqualTo(new ImVec2(60f, 45f)));
     }
 
+    [Test]
+    /// <summary>
+    /// Verifies that a reserved rectangle produces the canonical six indices and four vertices and
+    /// that the trailing command counts the emitted indices.
+    /// </summary>
+    public void PrimRectUV_EmitsCanonicalQuadAndUpdatesCommand()
+    {
+        _drawList.PrimReserve(6, 4);
+        _drawList.PrimRectUV(
+            new ImVec2(10f, 20f),
+            new ImVec2(30f, 40f),
+            new ImVec2(0f, 0f),
+            new ImVec2(1f, 1f),
+            0xFF112233u);
+
+        Assert.That(_drawList.IdxBuffer, Is.EqualTo(new ushort[] { 0, 1, 2, 0, 2, 3 }));
+        Assert.That(_drawList.VtxBuffer.Count, Is.EqualTo(4));
+        Assert.That(_drawList.VtxBuffer[0].Pos, Is.EqualTo(new ImVec2(10f, 20f)));
+        Assert.That(_drawList.VtxBuffer[1].Pos, Is.EqualTo(new ImVec2(30f, 20f)));
+        Assert.That(_drawList.VtxBuffer[2].Pos, Is.EqualTo(new ImVec2(30f, 40f)));
+        Assert.That(_drawList.VtxBuffer[3].Pos, Is.EqualTo(new ImVec2(10f, 40f)));
+        Assert.That(_drawList.VtxBuffer[1].UV, Is.EqualTo(new ImVec2(1f, 0f)));
+        Assert.That(_drawList.VtxBuffer[3].UV, Is.EqualTo(new ImVec2(0f, 1f)));
+        Assert.That(_drawList.CmdBuffer[^1].ElemCount, Is.EqualTo(6u));
+    }
+
     #endregion
 
     #region DrawList & Geometry Emission Tests

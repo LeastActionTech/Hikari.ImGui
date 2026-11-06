@@ -4006,10 +4006,10 @@ public static partial class ImGuiDemo
         bool outputsOpened = ImGui.TreeNode("Outputs");
         ImGui.SameLine();
         HelpMarker(
-            "The value of io.WantCaptureMouse and io.WantCaptureKeyboard are normally set by Dear ImGui " +
+            "The value of io.WantCaptureMouse and io.WantCaptureKeyboard are normally set by Hikari.ImGui " +
             "to instruct your application of how to route inputs. Typically, when a value is true, it means " +
-            "Dear ImGui wants the corresponding inputs and we expect the underlying application to ignore them.\n\n" +
-            "The most typical case is: when hovering a window, Dear ImGui set io.WantCaptureMouse to true, " +
+            "Hikari.ImGui wants the corresponding inputs and we expect the underlying application to ignore them.\n\n" +
+            "The most typical case is: when hovering a window, Hikari.ImGui set io.WantCaptureMouse to true, " +
             "and underlying application should ignore mouse inputs (in practice there are many and more subtle " +
             "rules leading to how those flags are set).");
         if (outputsOpened)

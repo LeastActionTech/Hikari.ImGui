@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Hikari.ImGui.Demo": {
+      "commandName": "Project",
+      "commandLineArgs": "--backend vulkan"
+    }
+  }
+}

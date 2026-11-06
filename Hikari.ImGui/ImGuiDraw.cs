@@ -829,10 +829,10 @@ public class ImDrawList
         if (CmdBuffer.Count == 0)
             AddDrawCmd();
 
-        int index = CmdBuffer.Count - 1;
-        ImDrawCmd cmd = CmdBuffer[index];
-        cmd.ElemCount += (uint)idxCount;
-        CmdBuffer[index] = cmd;
+        // Mutate the trailing command in place. ImDrawCmd is a large value type, so the naive
+        // read-modify-write through a local would copy it twice on every reserved primitive.
+        Span<ImDrawCmd> commands = CollectionsMarshal.AsSpan(CmdBuffer);
+        commands[^1].ElemCount += (uint)idxCount;
     }
 
     /// <summary>
@@ -904,18 +904,28 @@ public class ImDrawList
     {
         // Ports ImDrawList::PrimRectUV. Indices are relative to the active
         // vertex-buffer base so 64K splits keep 16-bit offsets valid.
-        ushort idx = (ushort)_vtxCurrentIdx;
-        IdxBuffer.Add(idx);
-        IdxBuffer.Add((ushort)(idx + 1));
-        IdxBuffer.Add((ushort)(idx + 2));
-        IdxBuffer.Add(idx);
-        IdxBuffer.Add((ushort)(idx + 2));
-        IdxBuffer.Add((ushort)(idx + 3));
+        int idxStart = IdxBuffer.Count;
+        int vtxStart = VtxBuffer.Count;
 
-        VtxBuffer.Add(new ImDrawVert(a, uvA, col));
-        VtxBuffer.Add(new ImDrawVert(new ImVec2(c.X, a.Y), new ImVec2(uvC.X, uvA.Y), col));
-        VtxBuffer.Add(new ImDrawVert(c, uvC, col));
-        VtxBuffer.Add(new ImDrawVert(new ImVec2(a.X, c.Y), new ImVec2(uvA.X, uvC.Y), col));
+        // Grow both buffers once and fill them in place. This avoids the capacity check and count
+        // increment performed by each of the ten List<T>.Add calls the naive port would make.
+        CollectionsMarshal.SetCount(IdxBuffer, idxStart + 6);
+        CollectionsMarshal.SetCount(VtxBuffer, vtxStart + 4);
+
+        ushort idx = (ushort)_vtxCurrentIdx;
+        Span<ushort> indices = CollectionsMarshal.AsSpan(IdxBuffer).Slice(idxStart, 6);
+        indices[0] = idx;
+        indices[1] = (ushort)(idx + 1);
+        indices[2] = (ushort)(idx + 2);
+        indices[3] = idx;
+        indices[4] = (ushort)(idx + 2);
+        indices[5] = (ushort)(idx + 3);
+
+        Span<ImDrawVert> vertices = CollectionsMarshal.AsSpan(VtxBuffer).Slice(vtxStart, 4);
+        vertices[0] = new ImDrawVert(a, uvA, col);
+        vertices[1] = new ImDrawVert(new ImVec2(c.X, a.Y), new ImVec2(uvC.X, uvA.Y), col);
+        vertices[2] = new ImDrawVert(c, uvC, col);
+        vertices[3] = new ImDrawVert(new ImVec2(a.X, c.Y), new ImVec2(uvA.X, uvC.Y), col);
         _vtxCurrentIdx += 4;
     }
 

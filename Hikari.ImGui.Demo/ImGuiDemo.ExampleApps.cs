@@ -276,7 +276,7 @@ public static partial class ImGuiDemo
             _commands.Add("HISTORY");
             _commands.Add("CLEAR");
             _commands.Add("CLASSIFY");
-            AddLog($"Welcome to Dear ImGui!");
+            AddLog($"Welcome to Hikari.ImGui!");
         }
 
         /// <summary>

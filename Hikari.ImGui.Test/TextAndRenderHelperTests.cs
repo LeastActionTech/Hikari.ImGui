@@ -167,6 +167,38 @@ public class TextAndRenderHelperTests : ImGuiTestFixture
         Assert.That(idx, Is.EqualTo(66 + 4 * 6));
     }
 
+    /// <summary>
+    /// Verifies that <see cref="ImGui.RenderText"/> hides everything from the first <c>##</c> marker and
+    /// emits no geometry when the visible prefix is empty.
+    /// </summary>
+    [Test]
+    public void RenderText_HidesTextAfterDoubleHash()
+    {
+        (int vtx, int idx) = MeasureWindowDraw(() => ImGui.RenderText(ImGui.GetCursorScreenPos(), "AB##hidden"));
+
+        Assert.That(vtx, Is.EqualTo(2 * 4));
+        Assert.That(idx, Is.EqualTo(2 * 6));
+
+        (int emptyVtx, int emptyIdx) = MeasureWindowDraw(() => ImGui.RenderText(ImGui.GetCursorScreenPos(), "##hidden"));
+
+        Assert.That(emptyVtx, Is.EqualTo(0));
+        Assert.That(emptyIdx, Is.EqualTo(0));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="ImGui.RenderText"/> draws the whole run when hiding is disabled and
+    /// honors an already-resolved range end.
+    /// </summary>
+    [Test]
+    public void RenderText_HonorsHideFlagAndResolvedEnd()
+    {
+        (int rawVtx, _) = MeasureWindowDraw(() => ImGui.RenderText(ImGui.GetCursorScreenPos(), "AB##", null, false));
+        Assert.That(rawVtx, Is.EqualTo(4 * 4));
+
+        (int rangedVtx, _) = MeasureWindowDraw(() => ImGui.RenderText(ImGui.GetCursorScreenPos(), "Hello", "He"));
+        Assert.That(rangedVtx, Is.EqualTo(2 * 4));
+    }
+
     #endregion
 
     #region Text measurement

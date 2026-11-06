@@ -287,7 +287,7 @@ public static class Program
 
         ImGui.NewFrame();
 
-        // Render Dear ImGui demo window
+        // Render demo window
         if (_showDemoWindow)
         {
             ImGuiDemo.ShowDemoWindow(ref _showDemoWindow);
@@ -300,7 +300,7 @@ public static class Program
     private static ImGuiMouseCursor _lastMouseCursor = (ImGuiMouseCursor)(-2);
 
     /// <summary>
-    /// Synchronizes the active Dear ImGui mouse cursor request to the host OS cursor via Silk.NET.
+    /// Synchronizes the active mouse cursor request to the host OS cursor via Silk.NET.
     /// Canvases canonical <c>ImGui_ImplGlfw_UpdateMouseCursor</c>.
     /// </summary>
     private static void UpdateMouseCursor()
