@@ -9,7 +9,6 @@
 
     <!-- NuGet Packaging Properties -->
     <PackageId>Hikari.ImGui</PackageId>
-    <Version>1.93.0</Version>
     <Authors>Akshay Mishra, Omar Cornut</Authors>
     <Company>Least Action Technologies Inc.</Company>
     <Copyright>Copyright (c) 2026 Least Action Technologies Inc., Copyright (c) 2014-2026 Omar Cornut and Dear ImGui contributors</Copyright>
@@ -31,5 +30,12 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Hikari.ImGui.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildTransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>

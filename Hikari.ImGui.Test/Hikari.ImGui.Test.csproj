@@ -14,5 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hikari.ImGui\Hikari.ImGui.csproj" />
+    <ProjectReference Include="..\Hikari.ImGui.Demo\Hikari.ImGui.Demo.csproj" />
   </ItemGroup>
 </Project>

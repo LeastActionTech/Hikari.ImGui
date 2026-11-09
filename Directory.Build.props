@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <!-- Tag prefix convention for MinVer (matches tags such as v1.93.0) -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+
+    <!-- Target version baseline for Dear ImGui 1.93.0 docking port -->
+    <MinVerMinimumMajorMinor>1.93</MinVerMinimumMajorMinor>
+
+    <!-- Suppress the default .NET SDK 40-character git commit hash suffix in favor of the short commit hash convention -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>
