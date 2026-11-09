@@ -93,6 +93,30 @@ public class VersioningTests
     }
 
     /// <summary>
+    /// Verifies that the assembly version (<see cref="AssemblyName.Version"/>) matches the file version
+    /// (<see cref="AssemblyFileVersionAttribute.Version"/>) for both <c>Hikari.ImGui</c> and <c>Hikari.ImGui.Demo</c>.
+    /// </summary>
+    [Test]
+    public void AssemblyVersion_MatchesFileVersion()
+    {
+        Assembly coreAssembly = typeof(ImGui).Assembly;
+        Version? coreAsmVersion = coreAssembly.GetName().Version;
+        string? coreFileVer = coreAssembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
+
+        Assert.That(coreAsmVersion, Is.Not.Null);
+        Assert.That(coreFileVer, Is.Not.Null.And.Not.Empty);
+        Assert.That(coreAsmVersion!.ToString(), Is.EqualTo(coreFileVer));
+
+        Assembly demoAssembly = typeof(ImGuiDemo).Assembly;
+        Version? demoAsmVersion = demoAssembly.GetName().Version;
+        string? demoFileVer = demoAssembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
+
+        Assert.That(demoAsmVersion, Is.Not.Null);
+        Assert.That(demoFileVer, Is.Not.Null.And.Not.Empty);
+        Assert.That(demoAsmVersion!.ToString(), Is.EqualTo(demoFileVer));
+    }
+
+    /// <summary>
     /// Extracts the build metadata portion (the string after the first <c>+</c> delimiter) from a version string.
     /// </summary>
     /// <param name="version">The full version string containing optional build metadata.</param>

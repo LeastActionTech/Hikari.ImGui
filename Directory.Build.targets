@@ -1,7 +1,8 @@
 <Project>
   <!--
     Resolves the short Git commit hash and supplies it to MinVer as build metadata.
-    This guarantees that the version follows the convention: <tag_or_version>+<short_hash>.
+    This populates InformationalVersion (<version>+<short_hash>) for runtime diagnostics and traceability,
+    while leaving PackageVersion clean (<version>) for NuGet / SemVer conventions.
   -->
   <Target Name="SetMinVerGitCommitHash" BeforeTargets="MinVer" Condition="'$(MinVerBuildMetadata)' == ''">
     <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
@@ -13,13 +14,12 @@
   </Target>
 
   <!--
-    Ensures that PackageVersion and Version also reflect the git tag + short commit hash
-    convention in addition to InformationalVersion.
+    Synchronizes AssemblyVersion with FileVersion so both reflect the full version (e.g. 1.93.1.0)
+    rather than defaulting AssemblyVersion to 1.0.0.0.
   -->
-  <Target Name="AppendMinVerBuildMetadataToPackageVersion" AfterTargets="MinVer" Condition="'$(MinVerBuildMetadata)' != ''">
+  <Target Name="SyncAssemblyVersionToFileVersion" AfterTargets="MinVer">
     <PropertyGroup>
-      <PackageVersion>$(PackageVersion)+$(MinVerBuildMetadata)</PackageVersion>
-      <Version>$(PackageVersion)</Version>
+      <AssemblyVersion>$(FileVersion)</AssemblyVersion>
     </PropertyGroup>
   </Target>
 </Project>
