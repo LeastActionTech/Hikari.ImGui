@@ -24,13 +24,7 @@ Hikari.ImGui/
 
 ## Quick Start
 
-### 1. Add NuGet Package
-
-```bash
-dotnet add package Hikari.ImGui --version 1.93.0
-```
-
-### 2. Immediate-Mode UI Loop
+### Immediate-Mode UI Loop
 
 ```csharp
 using Hikari.ImGui;
