@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Least Action Technologies Inc.
 
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.OpenGL;
@@ -23,6 +24,7 @@ public sealed class OpenGlRenderer : IDisposable
     private uint _vbo;
     private uint _ibo;
     private uint _fontTexture;
+    private readonly HashSet<uint> _ownedTextures = new();
 
     private const string VertexShaderSource = @"#version 330 core
 layout (location = 0) in vec2 aPos;
@@ -64,6 +66,8 @@ void main()
         _gl = gl;
         InitShaders();
         InitBuffers();
+        if (ImGui.GetCurrentContext() != null)
+            ImGui.GetIO().BackendFlags |= ImGuiBackendFlags.RendererHasTextures;
     }
 
     /// <summary>Compiles and links the OpenGL shader programs for UI rendering.</summary>
@@ -164,14 +168,116 @@ void main()
             );
         }
 
-        atlas.TexID = (IntPtr)_fontTexture;
+        atlas.SetTexID((IntPtr)_fontTexture);
+        if (atlas.TexData != null)
+        {
+            atlas.TexData.SetStatus(ImTextureStatus.OK);
+            atlas.TexData.Updates.Clear();
+        }
+        _ownedTextures.Add(_fontTexture);
         _gl.BindTexture(TextureTarget.Texture2D, 0);
+    }
+
+    /// <summary>
+    /// Processes a single <see cref="ImTextureData"/> create, partial update, or destroy request.
+    /// </summary>
+    /// <param name="tex">Texture data descriptor supplied via <see cref="ImDrawData.Textures"/>.</param>
+    private unsafe void UpdateTexture(ImTextureData tex)
+    {
+        if (tex.Status == ImTextureStatus.WantCreate)
+        {
+            if (tex.Pixels == null || tex.Width <= 0 || tex.Height <= 0)
+                return;
+
+            uint glTex = _gl.GenTexture();
+            _gl.BindTexture(TextureTarget.Texture2D, glTex);
+            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+
+            PixelFormat format = tex.Format == ImTextureFormat.Alpha8 ? PixelFormat.Red : PixelFormat.Rgba;
+            InternalFormat internalFormat = tex.Format == ImTextureFormat.Alpha8 ? InternalFormat.R8 : InternalFormat.Rgba;
+            fixed (byte* ptr = tex.Pixels)
+            {
+                _gl.TexImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    internalFormat,
+                    (uint)tex.Width,
+                    (uint)tex.Height,
+                    0,
+                    format,
+                    PixelType.UnsignedByte,
+                    ptr);
+            }
+
+            _gl.BindTexture(TextureTarget.Texture2D, 0);
+            _ownedTextures.Add(glTex);
+            if (_fontTexture == 0)
+                _fontTexture = glTex;
+
+            tex.SetTexID((IntPtr)glTex);
+            tex.SetStatus(ImTextureStatus.OK);
+            tex.Updates.Clear();
+        }
+        else if (tex.Status == ImTextureStatus.WantUpdates)
+        {
+            uint glTex = (uint)tex.TexID;
+            if (glTex == 0 || tex.Pixels == null)
+                return;
+
+            _gl.BindTexture(TextureTarget.Texture2D, glTex);
+            _gl.PixelStore(PixelStoreParameter.UnpackRowLength, tex.Width);
+            PixelFormat format = tex.Format == ImTextureFormat.Alpha8 ? PixelFormat.Red : PixelFormat.Rgba;
+
+            fixed (byte* ptr = tex.Pixels)
+            {
+                for (int i = 0; i < tex.Updates.Count; i++)
+                {
+                    ImTextureRect r = tex.Updates[i];
+                    byte* rectPtr = ptr + (r.Y * tex.Width + r.X) * tex.BytesPerPixel;
+                    _gl.TexSubImage2D(
+                        TextureTarget.Texture2D,
+                        0,
+                        r.X,
+                        r.Y,
+                        r.W,
+                        r.H,
+                        format,
+                        PixelType.UnsignedByte,
+                        rectPtr);
+                }
+            }
+
+            _gl.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+            _gl.BindTexture(TextureTarget.Texture2D, 0);
+            tex.SetStatus(ImTextureStatus.OK);
+            tex.Updates.Clear();
+        }
+        else if (tex.Status == ImTextureStatus.WantDestroy)
+        {
+            uint glTex = (uint)tex.TexID;
+            if (glTex != 0)
+            {
+                _gl.DeleteTexture(glTex);
+                _ownedTextures.Remove(glTex);
+                if (_fontTexture == glTex)
+                    _fontTexture = 0;
+            }
+            tex.SetTexID(IntPtr.Zero);
+            tex.SetStatus(ImTextureStatus.Destroyed);
+        }
     }
 
     /// <summary>Submits one frame of draw data as indexed OpenGL triangles with per-command scissor clipping.</summary>
     /// <param name="drawData">Aggregated frame draw data produced by the ImGui port.</param>
     public unsafe void Render(ImDrawData drawData)
     {
+        if (drawData.Textures != null)
+        {
+            for (int i = 0; i < drawData.Textures.Count; i++)
+                UpdateTexture(drawData.Textures[i]);
+        }
+
         if (drawData.CmdListsCount == 0 || drawData.DisplaySize.X <= 0f || drawData.DisplaySize.Y <= 0f)
             return;
 
@@ -333,10 +439,13 @@ void main()
         else _gl.Disable(cap);
     }
 
-    /// <summary>Releases the OpenGL program, buffers, vertex array and font texture owned by this backend.</summary>
+    /// <summary>Releases the OpenGL program, buffers, vertex array and font textures owned by this backend.</summary>
     public void Dispose()
     {
-        if (_fontTexture != 0) _gl.DeleteTexture(_fontTexture);
+        foreach (uint tex in _ownedTextures)
+            _gl.DeleteTexture(tex);
+        _ownedTextures.Clear();
+        _fontTexture = 0;
         if (_vao != 0) _gl.DeleteVertexArray(_vao);
         if (_vbo != 0) _gl.DeleteBuffer(_vbo);
         if (_ibo != 0) _gl.DeleteBuffer(_ibo);

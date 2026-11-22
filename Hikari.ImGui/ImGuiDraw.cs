@@ -365,7 +365,7 @@ public class ImDrawList
         RefreshAtlasTables(atlas);
         if (_textureStack.Count == 0)
         {
-            _SetTexture(new ImTextureRef(atlas.TexID));
+            _SetTexture(atlas.TexRef);
         }
     }
 

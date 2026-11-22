@@ -471,4 +471,136 @@ public class FontAtlasTests
     }
 
     #endregion
+
+    #region TrueType rasterization and RendererHasTextures
+
+    [Test]
+    /// <summary>Verifies TrueType glyph rasterization writes non-zero coverage in both RGBA32 and Alpha8 formats.</summary>
+    public void WriteGlyphBitmap_Alpha8AndRGBA32_RasterizesNonZeroCoverage()
+    {
+        byte[] ttf = ImGuiDefaultFontData.DecompressProggyForever();
+
+        ImFontAtlas rgbaAtlas = new() { TexDesiredFormat = ImTextureFormat.RGBA32 };
+        ImFont rgbaFont = rgbaAtlas.AddFontFromMemoryTTF(ttf, 20.0f);
+        rgbaAtlas.Build();
+        ImFontGlyph rgbaGlyph = rgbaFont.FindGlyph('A');
+        Assert.That(rgbaGlyph.Visible, Is.True);
+        Assert.That(rgbaAtlas.TexData, Is.Not.Null);
+        Assert.That(rgbaAtlas.TexData!.Pixels, Is.Not.Null);
+        bool hasRgbaAlpha = false;
+        for (int i = 3; i < rgbaAtlas.TexData.Pixels!.Length; i += 4)
+        {
+            if (rgbaAtlas.TexData.Pixels[i] > 0)
+            {
+                hasRgbaAlpha = true;
+                break;
+            }
+        }
+        Assert.That(hasRgbaAlpha, Is.True);
+
+        ImFontAtlas alphaAtlas = new() { TexDesiredFormat = ImTextureFormat.Alpha8 };
+        ImFont alphaFont = alphaAtlas.AddFontFromMemoryTTF(ttf, 20.0f);
+        alphaAtlas.Build();
+        ImFontGlyph alphaGlyph = alphaFont.FindGlyph('A');
+        Assert.That(alphaGlyph.Visible, Is.True);
+        Assert.That(alphaAtlas.TexData, Is.Not.Null);
+        Assert.That(alphaAtlas.TexData!.BytesPerPixel, Is.EqualTo(1));
+        bool hasAlpha8Coverage = false;
+        for (int i = 0; i < alphaAtlas.TexData.Pixels!.Length; i++)
+        {
+            if (alphaAtlas.TexData.Pixels[i] > 0)
+            {
+                hasAlpha8Coverage = true;
+                break;
+            }
+        }
+        Assert.That(hasAlpha8Coverage, Is.True);
+    }
+
+    [Test]
+    /// <summary>Verifies RendererHasTextures populates ImDrawData.Textures for initial creation and dynamic font sizes.</summary>
+    public void RendererHasTextures_PopulatesDrawDataTexturesAndDynamicFontSizes()
+    {
+        ImGuiContext ctx = ImGui.CreateContext();
+        try
+        {
+            ImGui.SetCurrentContext(ctx);
+            ImGuiIO io = ImGui.GetIO();
+            io.IniFilename = null;
+            io.DisplaySize = new ImVec2(800, 600);
+            io.DeltaTime = 1.0f / 60.0f;
+            io.BackendFlags |= ImGuiBackendFlags.RendererHasTextures;
+
+            byte[] ttf = ImGuiDefaultFontData.DecompressProggyForever();
+            ImFont ttfFont = io.Fonts.AddFontFromMemoryTTF(ttf, 16.0f);
+            io.FontDefault = ttfFont;
+
+            // Frame 1: initial build produces WantCreate in drawData.Textures.
+            ImGui.NewFrame();
+            ImGui.SetNextWindowSize(new ImVec2(300, 200));
+            ImGui.Begin("TTF");
+            ImGui.Text("Hello");
+            ImGui.End();
+            ImGui.Render();
+
+            ImDrawData drawData1 = ImGui.GetDrawData();
+            Assert.That(drawData1.Textures, Is.Not.Null);
+            Assert.That(drawData1.Textures!.Count, Is.EqualTo(1));
+            ImTextureData tex = drawData1.Textures[0];
+            Assert.That(tex.Status, Is.EqualTo(ImTextureStatus.WantCreate));
+            tex.SetTexID((IntPtr)42);
+            tex.SetStatus(ImTextureStatus.OK);
+            tex.Updates.Clear();
+
+            // Verify ImDrawCmd resolves TexID dynamically via TexData.
+            Assert.That(drawData1.CmdLists[0].CmdBuffer[0].GetTexID(), Is.EqualTo((IntPtr)42));
+
+            // Frame 2: dynamically push a larger TrueType font size and verify WantUpdates is queued.
+            ImGui.NewFrame();
+            ImGui.Begin("TTF");
+            ImGui.PushFont(ttfFont, 28.0f);
+            ImGui.Text("Scaled");
+            ImGui.PopFont();
+            ImGui.End();
+            ImGui.Render();
+
+            ImDrawData drawData2 = ImGui.GetDrawData();
+            Assert.That(drawData2.Textures, Is.Not.Null);
+            Assert.That(drawData2.Textures![0].Status, Is.EqualTo(ImTextureStatus.WantUpdates));
+            Assert.That(drawData2.Textures[0].Updates.Count, Is.GreaterThan(0));
+            drawData2.Textures[0].SetStatus(ImTextureStatus.OK);
+            drawData2.Textures[0].Updates.Clear();
+        }
+        finally
+        {
+            ImGui.DestroyContext(ctx);
+        }
+    }
+
+    [Test]
+    /// <summary>Verifies UpdateNewFrame transitions WantDestroyNextFrame textures to WantDestroy and prunes Destroyed entries.</summary>
+    public void FontAtlas_TexList_TracksDestroyedTexturesAcrossUpdateNewFrame()
+    {
+        ImFontAtlas atlas = new();
+        atlas.AddFontDefaultVector();
+        atlas.Build();
+
+        Assert.That(atlas.TexList.Count, Is.EqualTo(1));
+        ImTextureData tex = atlas.TexList[0];
+        tex.SetTexID((IntPtr)7);
+        tex.SetStatus(ImTextureStatus.OK);
+        tex.WantDestroyNextFrame = true;
+
+        atlas.UpdateNewFrame(1, rendererHasTextures: true);
+        Assert.That(tex.Status, Is.EqualTo(ImTextureStatus.WantDestroy));
+        Assert.That(atlas.TexList.Count, Is.EqualTo(1));
+
+        tex.SetTexID(IntPtr.Zero);
+        tex.SetStatus(ImTextureStatus.Destroyed);
+        atlas.UpdateNewFrame(2, rendererHasTextures: true);
+        Assert.That(atlas.TexList.Count, Is.EqualTo(0));
+        Assert.That(atlas.TexData, Is.Null);
+    }
+
+    #endregion
 }

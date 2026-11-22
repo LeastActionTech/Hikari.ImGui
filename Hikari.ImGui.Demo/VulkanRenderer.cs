@@ -37,6 +37,22 @@ public sealed unsafe class VulkanRenderer : IDisposable
     private ImageView _fontImageView;
     private DescriptorSet _fontDescriptorSet;
 
+    /// <summary>Tracks Vulkan image and descriptor resources for textures managed via <see cref="ImTextureData"/>.</summary>
+    private struct VulkanTextureResource
+    {
+        /// <summary>Backing Vulkan image.</summary>
+        public Image Image;
+        /// <summary>Device memory bound to <see cref="Image"/>.</summary>
+        public DeviceMemory Memory;
+        /// <summary>Shader-read image view for <see cref="Image"/>.</summary>
+        public ImageView ImageView;
+        /// <summary>Descriptor set bound at Set 0 for this texture.</summary>
+        public DescriptorSet DescriptorSet;
+    }
+
+    /// <summary>Owned Vulkan texture resources keyed by their <see cref="DescriptorSet.Handle"/>.</summary>
+    private readonly Dictionary<ulong, VulkanTextureResource> _textures = new();
+
     /// <summary>
     /// Number of frames that can be in flight at once. Matches <see cref="VulkanWindowContext.MaxFramesInFlight"/>.
     /// Each slot owns its own vertex and index memory so that a frame never writes memory that a previously
@@ -98,6 +114,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _commandPool = commandPool;
 
         InitResources(renderPass);
+        if (ImGui.GetCurrentContext() != null)
+            ImGui.GetIO().BackendFlags |= ImGuiBackendFlags.RendererHasTextures;
     }
 
     /// <summary>Determines whether a Vulkan API instance can be loaded on the current host.</summary>
@@ -142,6 +160,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         DescriptorPoolCreateInfo poolInfo = new()
         {
             SType = StructureType.DescriptorPoolCreateInfo,
+            Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
             MaxSets = 32,
             PoolSizeCount = 2,
             PPoolSizes = poolSizes
@@ -557,7 +576,305 @@ public sealed unsafe class VulkanRenderer : IDisposable
         writes[1] = writeSampler;
         _vk.UpdateDescriptorSets(_device, 2, writes, 0, null);
 
-        atlas.TexID = (IntPtr)_fontDescriptorSet.Handle;
+        atlas.SetTexID((IntPtr)_fontDescriptorSet.Handle);
+        if (atlas.TexData != null)
+        {
+            atlas.TexData.SetStatus(ImTextureStatus.OK);
+            atlas.TexData.Updates.Clear();
+        }
+        _textures[_fontDescriptorSet.Handle] = new VulkanTextureResource
+        {
+            Image = _fontImage,
+            Memory = _fontMemory,
+            ImageView = _fontImageView,
+            DescriptorSet = _fontDescriptorSet
+        };
+    }
+
+    /// <summary>
+    /// Processes a single <see cref="ImTextureData"/> create, partial update, or destroy request.
+    /// </summary>
+    /// <param name="tex">Texture data descriptor supplied via <see cref="ImDrawData.Textures"/>.</param>
+    private void UpdateTexture(ImTextureData tex)
+    {
+        if (tex.Status == ImTextureStatus.WantCreate)
+        {
+            if (tex.Pixels == null || tex.Width <= 0 || tex.Height <= 0)
+                return;
+
+            ulong uploadSize = (ulong)(tex.Width * tex.Height * tex.BytesPerPixel);
+            CreateBuffer(uploadSize, BufferUsageFlags.TransferSrcBit, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit, out var stagingBuffer, out var stagingMemory);
+
+            void* data;
+            _vk.MapMemory(_device, stagingMemory, 0, uploadSize, 0, &data);
+            fixed (byte* pixelPtr = tex.Pixels)
+            {
+                System.Buffer.MemoryCopy(pixelPtr, data, uploadSize, uploadSize);
+            }
+            _vk.UnmapMemory(_device, stagingMemory);
+
+            Format vkFormat = tex.Format == ImTextureFormat.Alpha8 ? Format.R8Unorm : Format.R8G8B8A8Unorm;
+            ImageCreateInfo imageInfo = new()
+            {
+                SType = StructureType.ImageCreateInfo,
+                ImageType = ImageType.Type2D,
+                Format = vkFormat,
+                Extent = new Extent3D((uint)tex.Width, (uint)tex.Height, 1),
+                MipLevels = 1,
+                ArrayLayers = 1,
+                Samples = SampleCountFlags.Count1Bit,
+                Tiling = ImageTiling.Optimal,
+                Usage = ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit,
+                InitialLayout = ImageLayout.Undefined
+            };
+
+            _vk.CreateImage(_device, &imageInfo, null, out Image image);
+            _vk.GetImageMemoryRequirements(_device, image, out var memReqs);
+            uint memType = FindMemoryType(memReqs.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit);
+            MemoryAllocateInfo allocInfo = new()
+            {
+                SType = StructureType.MemoryAllocateInfo,
+                AllocationSize = memReqs.Size,
+                MemoryTypeIndex = memType
+            };
+            _vk.AllocateMemory(_device, &allocInfo, null, out DeviceMemory memory);
+            _vk.BindImageMemory(_device, image, memory, 0);
+
+            CommandBufferAllocateInfo cmdAlloc = new()
+            {
+                SType = StructureType.CommandBufferAllocateInfo,
+                CommandPool = _commandPool,
+                Level = CommandBufferLevel.Primary,
+                CommandBufferCount = 1
+            };
+            _vk.AllocateCommandBuffers(_device, &cmdAlloc, out var cmd);
+            CommandBufferBeginInfo beginInfo = new() { SType = StructureType.CommandBufferBeginInfo, Flags = CommandBufferUsageFlags.OneTimeSubmitBit };
+            _vk.BeginCommandBuffer(cmd, &beginInfo);
+
+            ImageMemoryBarrier barrier = new()
+            {
+                SType = StructureType.ImageMemoryBarrier,
+                OldLayout = ImageLayout.Undefined,
+                NewLayout = ImageLayout.TransferDstOptimal,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Image = image,
+                SubresourceRange = new ImageSubresourceRange(ImageAspectFlags.ColorBit, 0, 1, 0, 1),
+                SrcAccessMask = 0,
+                DstAccessMask = AccessFlags.TransferWriteBit
+            };
+            _vk.CmdPipelineBarrier(cmd, PipelineStageFlags.TopOfPipeBit, PipelineStageFlags.TransferBit, 0, 0, null, 0, null, 1, &barrier);
+
+            BufferImageCopy region = new()
+            {
+                ImageSubresource = new ImageSubresourceLayers(ImageAspectFlags.ColorBit, 0, 0, 1),
+                ImageExtent = new Extent3D((uint)tex.Width, (uint)tex.Height, 1)
+            };
+            _vk.CmdCopyBufferToImage(cmd, stagingBuffer, image, ImageLayout.TransferDstOptimal, 1, &region);
+
+            barrier.OldLayout = ImageLayout.TransferDstOptimal;
+            barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+            barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+            barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+            _vk.CmdPipelineBarrier(cmd, PipelineStageFlags.TransferBit, PipelineStageFlags.FragmentShaderBit, 0, 0, null, 0, null, 1, &barrier);
+            _vk.EndCommandBuffer(cmd);
+
+            SubmitInfo submitInfo = new()
+            {
+                SType = StructureType.SubmitInfo,
+                CommandBufferCount = 1,
+                PCommandBuffers = &cmd
+            };
+            _vk.QueueSubmit(_queue, 1, &submitInfo, default);
+            _vk.QueueWaitIdle(_queue);
+
+            _vk.FreeCommandBuffers(_device, _commandPool, 1, &cmd);
+            _vk.DestroyBuffer(_device, stagingBuffer, null);
+            _vk.FreeMemory(_device, stagingMemory, null);
+
+            ImageViewCreateInfo viewInfo = new()
+            {
+                SType = StructureType.ImageViewCreateInfo,
+                Image = image,
+                ViewType = ImageViewType.Type2D,
+                Format = vkFormat,
+                SubresourceRange = new ImageSubresourceRange(ImageAspectFlags.ColorBit, 0, 1, 0, 1)
+            };
+            _vk.CreateImageView(_device, &viewInfo, null, out ImageView imageView);
+
+            var texLayout = _descriptorSetLayoutTexture;
+            DescriptorSetAllocateInfo dsAllocTex = new()
+            {
+                SType = StructureType.DescriptorSetAllocateInfo,
+                DescriptorPool = _descriptorPool,
+                DescriptorSetCount = 1,
+                PSetLayouts = &texLayout
+            };
+            _vk.AllocateDescriptorSets(_device, &dsAllocTex, out DescriptorSet ds);
+
+            DescriptorImageInfo descImage = new()
+            {
+                ImageView = imageView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal
+            };
+            WriteDescriptorSet writeTex = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = ds,
+                DstBinding = 0,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.SampledImage,
+                PImageInfo = &descImage
+            };
+            _vk.UpdateDescriptorSets(_device, 1, &writeTex, 0, null);
+
+            _textures[ds.Handle] = new VulkanTextureResource
+            {
+                Image = image,
+                Memory = memory,
+                ImageView = imageView,
+                DescriptorSet = ds
+            };
+            if (_fontDescriptorSet.Handle == 0)
+            {
+                _fontImage = image;
+                _fontMemory = memory;
+                _fontImageView = imageView;
+                _fontDescriptorSet = ds;
+            }
+
+            tex.SetTexID((IntPtr)ds.Handle);
+            tex.SetStatus(ImTextureStatus.OK);
+            tex.Updates.Clear();
+        }
+        else if (tex.Status == ImTextureStatus.WantUpdates)
+        {
+            if (tex.TexID == IntPtr.Zero || tex.Pixels == null || tex.Updates.Count == 0)
+                return;
+            if (!_textures.TryGetValue((ulong)tex.TexID, out VulkanTextureResource res))
+                return;
+
+            ulong totalBytes = 0;
+            for (int i = 0; i < tex.Updates.Count; i++)
+                totalBytes += (ulong)(tex.Updates[i].W * tex.Updates[i].H * tex.BytesPerPixel);
+            if (totalBytes == 0)
+            {
+                tex.SetStatus(ImTextureStatus.OK);
+                tex.Updates.Clear();
+                return;
+            }
+
+            CreateBuffer(totalBytes, BufferUsageFlags.TransferSrcBit, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit, out var stagingBuffer, out var stagingMemory);
+            void* mapped;
+            _vk.MapMemory(_device, stagingMemory, 0, totalBytes, 0, &mapped);
+            byte* dstPtr = (byte*)mapped;
+
+            var regions = new BufferImageCopy[tex.Updates.Count];
+            ulong bufferOffset = 0;
+            fixed (byte* srcBase = tex.Pixels)
+            {
+                for (int i = 0; i < tex.Updates.Count; i++)
+                {
+                    ImTextureRect r = tex.Updates[i];
+                    int rowBytes = r.W * tex.BytesPerPixel;
+                    for (int y = 0; y < r.H; y++)
+                    {
+                        byte* srcRow = srcBase + ((r.Y + y) * tex.Width + r.X) * tex.BytesPerPixel;
+                        System.Buffer.MemoryCopy(srcRow, dstPtr + bufferOffset + (ulong)(y * rowBytes), (ulong)rowBytes, (ulong)rowBytes);
+                    }
+
+                    regions[i] = new BufferImageCopy
+                    {
+                        BufferOffset = bufferOffset,
+                        BufferRowLength = (uint)r.W,
+                        BufferImageHeight = (uint)r.H,
+                        ImageSubresource = new ImageSubresourceLayers(ImageAspectFlags.ColorBit, 0, 0, 1),
+                        ImageOffset = new Offset3D(r.X, r.Y, 0),
+                        ImageExtent = new Extent3D(r.W, r.H, 1)
+                    };
+                    bufferOffset += (ulong)(rowBytes * r.H);
+                }
+            }
+            _vk.UnmapMemory(_device, stagingMemory);
+
+            CommandBufferAllocateInfo cmdAlloc = new()
+            {
+                SType = StructureType.CommandBufferAllocateInfo,
+                CommandPool = _commandPool,
+                Level = CommandBufferLevel.Primary,
+                CommandBufferCount = 1
+            };
+            _vk.AllocateCommandBuffers(_device, &cmdAlloc, out var cmd);
+            CommandBufferBeginInfo beginInfo = new() { SType = StructureType.CommandBufferBeginInfo, Flags = CommandBufferUsageFlags.OneTimeSubmitBit };
+            _vk.BeginCommandBuffer(cmd, &beginInfo);
+
+            ImageMemoryBarrier barrier = new()
+            {
+                SType = StructureType.ImageMemoryBarrier,
+                OldLayout = ImageLayout.ShaderReadOnlyOptimal,
+                NewLayout = ImageLayout.TransferDstOptimal,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Image = res.Image,
+                SubresourceRange = new ImageSubresourceRange(ImageAspectFlags.ColorBit, 0, 1, 0, 1),
+                SrcAccessMask = AccessFlags.ShaderReadBit,
+                DstAccessMask = AccessFlags.TransferWriteBit
+            };
+            _vk.CmdPipelineBarrier(cmd, PipelineStageFlags.FragmentShaderBit, PipelineStageFlags.TransferBit, 0, 0, null, 0, null, 1, &barrier);
+
+            fixed (BufferImageCopy* pRegions = regions)
+            {
+                _vk.CmdCopyBufferToImage(cmd, stagingBuffer, res.Image, ImageLayout.TransferDstOptimal, (uint)regions.Length, pRegions);
+            }
+
+            barrier.OldLayout = ImageLayout.TransferDstOptimal;
+            barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+            barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+            barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+            _vk.CmdPipelineBarrier(cmd, PipelineStageFlags.TransferBit, PipelineStageFlags.FragmentShaderBit, 0, 0, null, 0, null, 1, &barrier);
+            _vk.EndCommandBuffer(cmd);
+
+            SubmitInfo submitInfo = new()
+            {
+                SType = StructureType.SubmitInfo,
+                CommandBufferCount = 1,
+                PCommandBuffers = &cmd
+            };
+            _vk.QueueSubmit(_queue, 1, &submitInfo, default);
+            _vk.QueueWaitIdle(_queue);
+
+            _vk.FreeCommandBuffers(_device, _commandPool, 1, &cmd);
+            _vk.DestroyBuffer(_device, stagingBuffer, null);
+            _vk.FreeMemory(_device, stagingMemory, null);
+
+            tex.SetStatus(ImTextureStatus.OK);
+            tex.Updates.Clear();
+        }
+        else if (tex.Status == ImTextureStatus.WantDestroy)
+        {
+            ulong handle = (ulong)tex.TexID;
+            if (handle != 0 && _textures.TryGetValue(handle, out VulkanTextureResource res))
+            {
+                _vk.DeviceWaitIdle(_device);
+                if (res.ImageView.Handle != 0) _vk.DestroyImageView(_device, res.ImageView, null);
+                if (res.Image.Handle != 0) { _vk.DestroyImage(_device, res.Image, null); _vk.FreeMemory(_device, res.Memory, null); }
+                if (res.DescriptorSet.Handle != 0)
+                {
+                    var ds = res.DescriptorSet;
+                    _vk.FreeDescriptorSets(_device, _descriptorPool, 1, &ds);
+                }
+                _textures.Remove(handle);
+                if (_fontDescriptorSet.Handle == handle)
+                {
+                    _fontImage = default;
+                    _fontMemory = default;
+                    _fontImageView = default;
+                    _fontDescriptorSet = default;
+                }
+            }
+            tex.SetTexID(IntPtr.Zero);
+            tex.SetStatus(ImTextureStatus.Destroyed);
+        }
     }
 
     /// <summary>Records one frame of draw data into an active command buffer with dynamic scissors.</summary>
@@ -569,7 +886,16 @@ public sealed unsafe class VulkanRenderer : IDisposable
     /// </param>
     public void Render(CommandBuffer cmdBuffer, ImDrawData drawData, int frameSlot)
     {
-        if (!_isInitialized || drawData.CmdListsCount == 0 || drawData.DisplaySize.X <= 0f || drawData.DisplaySize.Y <= 0f)
+        if (!_isInitialized)
+            return;
+
+        if (drawData.Textures != null)
+        {
+            for (int i = 0; i < drawData.Textures.Count; i++)
+                UpdateTexture(drawData.Textures[i]);
+        }
+
+        if (drawData.CmdListsCount == 0 || drawData.DisplaySize.X <= 0f || drawData.DisplaySize.Y <= 0f)
             return;
 
         int fbWidth = (int)(drawData.DisplaySize.X * drawData.FramebufferScale.X);
@@ -799,8 +1125,16 @@ public sealed unsafe class VulkanRenderer : IDisposable
             if (slot.IndexBuffer.Handle != 0) { _vk.DestroyBuffer(_device, slot.IndexBuffer, null); _vk.FreeMemory(_device, slot.IndexMemory, null); }
             _frameBuffers[i] = default;
         }
-        if (_fontImageView.Handle != 0) _vk.DestroyImageView(_device, _fontImageView, null);
-        if (_fontImage.Handle != 0) { _vk.DestroyImage(_device, _fontImage, null); _vk.FreeMemory(_device, _fontMemory, null); }
+        foreach (VulkanTextureResource res in _textures.Values)
+        {
+            if (res.ImageView.Handle != 0) _vk.DestroyImageView(_device, res.ImageView, null);
+            if (res.Image.Handle != 0) { _vk.DestroyImage(_device, res.Image, null); _vk.FreeMemory(_device, res.Memory, null); }
+        }
+        _textures.Clear();
+        _fontImageView = default;
+        _fontImage = default;
+        _fontMemory = default;
+        _fontDescriptorSet = default;
         if (_fontSampler.Handle != 0) _vk.DestroySampler(_device, _fontSampler, null);
         if (_pipeline.Handle != 0) _vk.DestroyPipeline(_device, _pipeline, null);
         if (_pipelineLayout.Handle != 0) _vk.DestroyPipelineLayout(_device, _pipelineLayout, null);

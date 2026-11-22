@@ -1515,7 +1515,8 @@ public static partial class ImGui
     {
         ImGuiContext g = GetContext();
         ImFontAtlas atlas = g.IO.Fonts;
-        if (!atlas.TexIsBuilt || atlas.Fonts.Count == 0)
+        bool rendererHasTextures = (g.IO.BackendFlags & ImGuiBackendFlags.RendererHasTextures) != 0;
+        if (atlas.Fonts.Count == 0 || atlas.TexData == null || (!rendererHasTextures && !atlas.TexIsBuilt))
             atlas.Build();
         return g.IO.FontDefault ?? atlas.Fonts[0];
     }
@@ -2416,35 +2417,63 @@ public static partial class ImGui
     }
 
     /// <summary>
-    /// Advances every registered font atlas to the current frame. Mirrors the atlas half of canonical
+    /// Advances every registered font atlas and user texture to the current frame. Mirrors canonical
     /// <c>UpdateTexturesNewFrame</c>.
     /// </summary>
     /// <remarks>
-    /// Canonical passes <c>RendererHasTextures</c> into <c>ImFontAtlasUpdateNewFrame</c> and also
-    /// advances the user-texture list; this port's <see cref="ImFontAtlas.UpdateNewFrame(int)"/> needs
-    /// only the frame counter, so the user-texture list is not advanced here. Every atlas in
-    /// <see cref="ImGuiContext.FontAtlases"/> is treated as owned by this context because the port has
-    /// no <c>ImFontAtlas::OwnerContext</c>.
+    /// Passes <see cref="ImGuiBackendFlags.RendererHasTextures"/> into
+    /// <see cref="ImFontAtlas.UpdateNewFrame(int, bool)"/> and advances pending destruction requests
+    /// on <see cref="ImGuiContext.UserTextures"/>.
     /// </remarks>
     private static void UpdateTexturesNewFrame()
     {
         ImGuiContext g = GetContext();
+        bool rendererHasTextures = (g.IO.BackendFlags & ImGuiBackendFlags.RendererHasTextures) != 0;
         for (int n = 0; n < g.FontAtlases.Count; n++)
-            g.FontAtlases[n].UpdateNewFrame(g.FrameCount);
+            g.FontAtlases[n].UpdateNewFrame(g.FrameCount, rendererHasTextures);
+
+        for (int n = g.UserTextures.Count - 1; n >= 0; n--)
+        {
+            ImTextureData tex = g.UserTextures[n];
+            if (tex.WantDestroyNextFrame && tex.Status != ImTextureStatus.Destroyed)
+            {
+                if (rendererHasTextures && tex.TexID != IntPtr.Zero)
+                    tex.SetStatus(ImTextureStatus.WantDestroy);
+                else
+                    tex.DestroyPixels();
+            }
+        }
     }
 
     /// <summary>
-    /// Finalizes texture bookkeeping at the end of a frame. Mirrors canonical
-    /// <c>UpdateTexturesEndFrame</c>.
+    /// Finalizes texture bookkeeping at the end of a frame and populates
+    /// <see cref="ImGuiPlatformIO.Textures"/> when <see cref="ImGuiBackendFlags.RendererHasTextures"/>
+    /// is enabled. Mirrors canonical <c>UpdateTexturesEndFrame</c>.
     /// </summary>
-    /// <remarks>
-    /// Canonical rebuilds <c>ImGuiPlatformIO.Textures</c> from the atlas texture lists and the user
-    /// textures. This port does not assemble that list yet, so <c>PlatformIO.Textures</c> stays empty;
-    /// the method is retained so the canonical <see cref="EndFrame"/> ordering remains visible.
-    /// </remarks>
     private static void UpdateTexturesEndFrame()
     {
-        // PlatformIO.Textures assembly is not implemented in this port.
+        ImGuiContext g = GetContext();
+        g.PlatformIO.Textures.Clear();
+        if ((g.IO.BackendFlags & ImGuiBackendFlags.RendererHasTextures) == 0)
+            return;
+
+        for (int n = 0; n < g.FontAtlases.Count; n++)
+        {
+            ImFontAtlas atlas = g.FontAtlases[n];
+            for (int t = 0; t < atlas.TexList.Count; t++)
+            {
+                ImTextureData tex = atlas.TexList[t];
+                if (tex.Status != ImTextureStatus.Destroyed && !g.PlatformIO.Textures.Contains(tex))
+                    g.PlatformIO.Textures.Add(tex);
+            }
+        }
+
+        for (int n = 0; n < g.UserTextures.Count; n++)
+        {
+            ImTextureData tex = g.UserTextures[n];
+            if (tex.Status != ImTextureStatus.Destroyed && !g.PlatformIO.Textures.Contains(tex))
+                g.PlatformIO.Textures.Add(tex);
+        }
     }
 
     /// <summary>
@@ -10513,7 +10542,7 @@ public static partial class ImGui
             // Canonical pushes the font's atlas texture reference here
             // ImTextureRef carries it for the draw list's texture stack.
             if (g.Font?.OwnerAtlas is ImFontAtlas fontAtlas)
-                window.DrawList.PushTexture(new ImTextureRef(fontAtlas.TexID));
+                window.DrawList.PushTexture(fontAtlas.TexRef);
             PushClipRect(hostRect.Min, hostRect.Max, false);
 
             // Child windows can render their decoration in their parent to save a draw call (since 1.71).
@@ -16388,7 +16417,9 @@ public static partial class ImGui
         drawData.DisplayPos = viewport.Pos;
         drawData.DisplaySize = isMinimized ? ImVec2.Zero : viewport.Size;
         drawData.FramebufferScale = viewport.FramebufferScale.X != 0.0f ? viewport.FramebufferScale : g.IO.DisplayFramebufferScale;
-        drawData.Textures = null;
+        drawData.Textures = (g.IO.BackendFlags & ImGuiBackendFlags.RendererHasTextures) != 0
+            ? g.PlatformIO.Textures
+            : null;
     }
 
     #endregion
@@ -16470,7 +16501,7 @@ public static partial class ImGui
         if (viewport.BgFgDrawListsLastTimeActive[drawlistNo] != (float)g.Time)
         {
             drawList.Clear(g.DrawListSharedData.InitialDrawFlags);
-            drawList.PushTexture(new ImTextureRef(g.IO.Fonts.TexID));
+            drawList.PushTexture(g.IO.Fonts.TexRef);
             drawList.PushClipRect(viewport.Pos, viewport.Pos + viewport.Size, false);
             viewport.BgFgDrawListsLastTimeActive[drawlistNo] = (float)g.Time;
         }

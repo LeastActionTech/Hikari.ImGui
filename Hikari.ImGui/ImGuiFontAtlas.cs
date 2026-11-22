@@ -2033,6 +2033,18 @@ public sealed class ImFontAtlas
     /// <summary>CPU-side texture data holding the packed glyph pixels.</summary>
     public ImTextureData? TexData { get; private set; }
 
+    /// <summary>
+    /// All textures owned by this atlas, including the active <see cref="TexData"/> and any replaced
+    /// textures awaiting backend destruction. Mirrors canonical <c>ImFontAtlas::TexList</c>.
+    /// </summary>
+    public List<ImTextureData> TexList { get; } = new();
+
+    /// <summary>
+    /// Gets a texture reference bound to the active <see cref="TexData"/> when available, or to
+    /// <see cref="TexID"/> otherwise. Mirrors canonical <c>ImFontAtlas::TexRef</c>.
+    /// </summary>
+    public ImTextureRef TexRef => TexData != null ? new ImTextureRef(TexData) : new ImTextureRef(TexID);
+
     /// <summary>Whether the texture has been built for the current font set.</summary>
     public bool TexIsBuilt { get; private set; }
 
@@ -2066,14 +2078,14 @@ public sealed class ImFontAtlas
     public int FontNextUniqueID { get; private set; } = 1;
 
     /// <summary>
-    /// Current atlas frame counter, advanced by <see cref="UpdateNewFrame"/>. A baked glyph set is
+    /// Current atlas frame counter, advanced by <see cref="UpdateNewFrame(int)"/>. A baked glyph set is
     /// idle when its <see cref="ImFontBaked.LastUsedFrame"/> plus an unused-frame threshold has fallen
     /// behind this value, at which point the atlas may return the set's packed rectangles to the
     /// packer. Mirrors canonical <c>ImFontAtlasBuilder::FrameCount</c>
     ///., which starts at -1 so an atlas that is never
     /// advanced retains every bake.
     /// </summary>
-    /// <returns>The most recent frame counter value passed to <see cref="UpdateNewFrame"/>.</returns>
+    /// <returns>The most recent frame counter value passed to <see cref="UpdateNewFrame(int)"/>.</returns>
     public int FrameCount { get; private set; } = -1;
 
     /// <summary>Skyline packer assigning every atlas region a non-overlapping position.</summary>
@@ -3183,7 +3195,23 @@ public sealed class ImFontAtlas
     /// the same condition. because bake ages are derived
     /// from the frame counter.
     /// </exception>
-    public void UpdateNewFrame(int frameCount)
+    public void UpdateNewFrame(int frameCount) => UpdateNewFrame(frameCount, rendererHasTextures: false);
+
+    /// <summary>
+    /// Advances the atlas to a new frame, updating both baked-set caches and texture destruction
+    /// lifecycle state. Mirrors canonical <c>ImFontAtlasUpdateNewFrame</c>.
+    /// </summary>
+    /// <param name="frameCount">
+    /// Frame counter for the new frame. It must be strictly greater than <see cref="FrameCount"/>.
+    /// </param>
+    /// <param name="rendererHasTextures">
+    /// <see langword="true"/> when the renderer backend supports <see cref="ImGuiBackendFlags.RendererHasTextures"/>
+    /// and processes <see cref="ImTextureData"/> lifecycle requests.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="frameCount"/> is not greater than <see cref="FrameCount"/>.
+    /// </exception>
+    internal void UpdateNewFrame(int frameCount, bool rendererHasTextures)
     {
         if (frameCount <= FrameCount)
         {
@@ -3194,6 +3222,25 @@ public sealed class ImFontAtlas
         FrameCount = frameCount;
         for (int i = 0; i < Fonts.Count; i++)
             Fonts[i].LastBaked = null;
+
+        for (int i = TexList.Count - 1; i >= 0; i--)
+        {
+            ImTextureData tex = TexList[i];
+            if (tex.WantDestroyNextFrame && tex.Status != ImTextureStatus.Destroyed)
+            {
+                if (rendererHasTextures && tex.TexID != IntPtr.Zero)
+                    tex.SetStatus(ImTextureStatus.WantDestroy);
+                else
+                    tex.DestroyPixels();
+            }
+
+            if (tex.Status == ImTextureStatus.Destroyed)
+            {
+                TexList.RemoveAt(i);
+                if (ReferenceEquals(TexData, tex))
+                    TexData = null;
+            }
+        }
     }
 
     /// <summary>
@@ -3968,14 +4015,15 @@ public sealed class ImFontAtlas
             return;
 
         int rowStride = TexWidth * tex.BytesPerPixel;
+        int alphaOffset = tex.BytesPerPixel - 1;
         for (int row = 0; row < height; row++)
         {
             int destination = (rect.Y + row) * rowStride + rect.X * tex.BytesPerPixel;
             int sourceRow = row * width;
             for (int col = 0; col < width; col++)
             {
-                // The buffer is pre-filled white plus transparent alpha, so only alpha changes.
-                tex.Pixels[destination + col * tex.BytesPerPixel + 3] = bitmap[sourceRow + col];
+                // RGBA32 is pre-filled white with zero alpha; Alpha8 stores coverage in its sole byte.
+                tex.Pixels[destination + col * tex.BytesPerPixel + alphaOffset] = bitmap[sourceRow + col];
             }
         }
 
@@ -4526,6 +4574,7 @@ public sealed class ImFontAtlas
             FillWhiteTransparent(tex);
 
             TexData = tex;
+            TexList.Add(tex);
             TexWidth = w;
             TexHeight = h;
             TexUvScale = new ImVec2(1.0f / w, 1.0f / h);
@@ -4674,13 +4723,19 @@ public sealed class ImFontAtlas
     /// <param name="oldEntries">Rectangle identifier entries from before the attempt.</param>
     private void RestoreRepack(ImTextureData oldTex, List<ImTextureRect> oldRects, List<ImFontAtlasRectEntry> oldEntries)
     {
-        TexData?.DestroyPixels();
+        if (TexData != null)
+        {
+            TexList.Remove(TexData);
+            TexData.DestroyPixels();
+        }
         _rects.Clear();
         _rects.AddRange(oldRects);
         _rectEntries.Clear();
         _rectEntries.AddRange(oldEntries);
 
         oldTex.WantDestroyNextFrame = false;
+        if (!TexList.Contains(oldTex))
+            TexList.Add(oldTex);
         TexData = oldTex;
         TexWidth = oldTex.Width;
         TexHeight = oldTex.Height;
@@ -5143,6 +5198,9 @@ public sealed class ImFontAtlas
     private void ClearTextureState()
     {
         ReleasePin();
+        for (int i = 0; i < TexList.Count; i++)
+            TexList[i].DestroyPixels();
+        TexList.Clear();
         TexData?.DestroyPixels();
         TexData = null;
         TexWidth = 0;
